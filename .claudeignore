@@ -1,0 +1,28 @@
+# Dependencies
+vendor/
+node_modules/
+
+# Build outputs
+public/build/
+public/hot/
+
+# Storage & cache
+storage/
+bootstrap/cache/
+
+# Git
+.git/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+
+# Tests coverage
+coverage/
