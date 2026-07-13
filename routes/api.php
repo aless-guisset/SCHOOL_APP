@@ -15,13 +15,15 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn (Request $r) => $r->user());
 
-    Route::apiResource('schools', SchoolsController::class);
-    Route::apiResource('users', UsersController::class);
-    Route::apiResource('roles', RolesController::class);
-    Route::apiResource('classrooms', ClassroomsController::class);
-    Route::apiResource('subjects', SubjectsController::class);
-    Route::apiResource('lessons', LessonsController::class);
-    Route::apiResource('schedules', SchedulesController::class);
-    Route::apiResource('timesheets', TimesheetsController::class);
-    Route::apiResource('resources', ResourcesController::class);
+    Route::name('api.')->group(function () {
+        Route::apiResource('schools', SchoolsController::class);
+        Route::apiResource('users', UsersController::class);
+        Route::apiResource('roles', RolesController::class);
+        Route::apiResource('classrooms', ClassroomsController::class);
+        Route::apiResource('subjects', SubjectsController::class);
+        Route::apiResource('lessons', LessonsController::class);
+        Route::apiResource('schedules', SchedulesController::class);
+        Route::apiResource('timesheets', TimesheetsController::class);
+        Route::apiResource('resources', ResourcesController::class);
+    });
 });
