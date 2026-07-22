@@ -6,6 +6,7 @@ use Database\Factories\UserSchoolRoleFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[UseFactory(UserSchoolRoleFactory::class)]
@@ -45,5 +46,10 @@ class UserSchoolRole extends Model
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function sectionUserRoles(): HasMany
+    {
+        return $this->hasMany(SectionUserSchoolRole::class, 'user_school_role_id');
     }
 }
