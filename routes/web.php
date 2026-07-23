@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityLogsController;
 use App\Http\Controllers\ClassroomsController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DuplicatePlanningController;
 use App\Http\Controllers\SchoolPanelController;
 use App\Http\Controllers\CoursesController;
@@ -53,7 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
 
     // Dashboard (router par rôle côté Vue)
-    Route::get('/dashboard', fn () => Inertia::render('Dashboard'))->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // ── Panel école (accessible à tous les rôles) ─────────────────────────
     Route::get('/schools/{school}/panel', SchoolPanelController::class)->name('school.panel');
