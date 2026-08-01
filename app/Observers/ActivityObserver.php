@@ -60,6 +60,14 @@ class ActivityObserver
      * Résout l'école propriétaire du modèle observé, pour scoper le widget dashboard par école.
      * User/Role n'ont pas de portée école unique (un User peut appartenir à N écoles) — exclus
      * volontairement (null), ils restent visibles uniquement via /logs (admin plateforme).
+     *
+     * Les arms indirectes (Subject, Timesheet, Schedule) interrogent la relation avec
+     * withTrashed() plutôt que d'utiliser la propriété chargée par défaut : Course,
+     * UserSchoolRole et SectionCourse utilisent tous SoftDeletes, et le belongsTo() par
+     * défaut applique le SoftDeletingScope du parent. Sans withTrashed(), éditer/supprimer
+     * un Subject/Timesheet/Schedule dont le parent a été soft-deleted résoudrait
+     * silencieusement school_id à null, et l'entrée disparaîtrait du widget dashboard scopé
+     * par école.
      */
     private function resolveSchoolId(Model $model): ?int
     {
@@ -67,12 +75,23 @@ class ActivityObserver
             $model instanceof Course, $model instanceof Section, $model instanceof Classroom,
             $model instanceof Lesson, $model instanceof Resource
                 => $model->school_id,
-            $model instanceof Subject        => $model->course?->school_id,
-            $model instanceof Timesheet      => $model->userSchoolRole?->school_id,
-            $model instanceof Schedule       => $model->sectionCourse?->course?->school_id,
+            $model instanceof Subject        => $model->course()->withTrashed()->first()?->school_id,
+            $model instanceof Timesheet      => $model->userSchoolRole()->withTrashed()->first()?->school_id,
+            $model instanceof Schedule       => $this->resolveScheduleSchoolId($model),
             $model instanceof UserSchoolRole => $model->school_id,
             $model instanceof School         => $model->id,
             default => null,
         };
+    }
+
+    /**
+     * SectionCourse utilise également SoftDeletes : on doit donc interroger avec
+     * withTrashed() à chaque maillon de la chaîne Schedule → SectionCourse → Course.
+     */
+    private function resolveScheduleSchoolId(Schedule $model): ?int
+    {
+        $sectionCourse = $model->sectionCourse()->withTrashed()->first();
+
+        return $sectionCourse?->course()->withTrashed()->first()?->school_id;
     }
 }
