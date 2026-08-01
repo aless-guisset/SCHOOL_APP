@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -13,6 +14,7 @@ class ActivityLog extends Model
         'event',
         'model_type',
         'model_id',
+        'school_id',
         'model_label',
         'user_id',
         'user_email',
@@ -27,5 +29,10 @@ class ActivityLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public static function forModel(Model $model): Builder
+    {
+        return static::where('model_type', get_class($model))->where('model_id', $model->getKey());
     }
 }
