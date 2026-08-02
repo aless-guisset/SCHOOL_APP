@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Schedule;
 use App\Models\SectionUserSchoolRole;
 use App\Models\Timesheet;
@@ -90,6 +91,23 @@ class DashboardController extends Controller
 
     private function recentActivity(?int $schoolId, ?string $currentRole): ?array
     {
-        return null; // implémenté en Task 4
+        if (! in_array($currentRole, self::MANAGE_ROLES, true)) {
+            return null;
+        }
+
+        return ActivityLog::where('school_id', $schoolId)
+            ->with('user')
+            ->latest()
+            ->limit(8)
+            ->get()
+            ->map(fn (ActivityLog $log) => [
+                'id'          => $log->id,
+                'event'       => $log->event,
+                'model_label' => $log->model_label,
+                'model_type'  => class_basename($log->model_type),
+                'user_name'   => $log->user ? "{$log->user->firstname} {$log->user->lastname}" : $log->user_email,
+                'created_at'  => $log->created_at->toIso8601String(),
+            ])
+            ->all();
     }
 }

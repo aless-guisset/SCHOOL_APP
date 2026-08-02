@@ -193,3 +193,52 @@ test('week_schedule overlays teacher, classroom and subject when a timesheet exi
             ->where('week_schedule.slots.0.teacher', fn ($name) => str_contains($name, $teacherUsr->user->lastname))
         );
 });
+
+test('power user sees recent activity scoped to their school', function () {
+    $school = makeSchool();
+    $otherSchool = makeSchool();
+
+    $powerUser = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $powerUser->id, 'school_id' => $school->id,
+        'role_id' => makeRole('POWER', 'Power User')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    // Génère une entrée ActivityLog pour l'école active (via l'observer sur Course)
+    Course::create([
+        'school_id' => $school->id, 'name' => 'Maths',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    // Et une pour une AUTRE école — ne doit pas apparaître
+    Course::create([
+        'school_id' => $otherSchool->id, 'name' => 'Physique',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    // Note : la création de $school et du UserSchoolRole du power user déclenche elle aussi
+    // l'observer (Task 3), scopée à $school->id — le widget doit donc voir 3 entrées
+    // (School, UserSchoolRole, Course "Maths"), et surtout PAS l'entrée Course "Physique"
+    // de $otherSchool.
+    $this->actingAs($powerUser)
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('recent_activity', 3)
+            ->where('recent_activity', fn ($items) => collect($items)->pluck('model_label')->contains('Maths')
+                && ! collect($items)->pluck('model_label')->contains('Physique'))
+            ->where('recent_activity', fn ($items) => collect($items)->pluck('model_type')->contains('Course'))
+        );
+});
+
+test('recent_activity is null for professeur and eleve', function () {
+    $school = makeSchool();
+    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
+
+    $this->actingAs($teacherUsr->user)
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('recent_activity', null)
+        );
+});
