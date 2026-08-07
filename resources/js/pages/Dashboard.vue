@@ -19,6 +19,13 @@ import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
+import RecentActivity, { type ActivityEntry } from '@/components/dashboard/RecentActivity.vue';
+import WeekSchedule, { type WeekScheduleSlot } from '@/components/dashboard/WeekSchedule.vue';
+
+const props = defineProps<{
+    week_schedule: { week_start: string; slots: WeekScheduleSlot[] };
+    recent_activity: ActivityEntry[] | null;
+}>();
 
 const { fullName } = useAuth();
 const { activeSchool, currentRole, canManage, isAdmin } = useSchool();
@@ -106,27 +113,23 @@ const statCards = computed(() => {
                 </a>
             </div>
 
-            <!-- Zone centrale (placeholder pour les modules futurs) -->
-            <div class="grid gap-4 lg:grid-cols-2">
+            <!-- Widgets dashboard -->
+            <div class="grid gap-4" :class="props.recent_activity ? 'lg:grid-cols-2' : ''">
                 <Card>
                     <CardHeader>
                         <CardTitle class="text-base">{{ t('nav.schedules') }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div class="flex h-32 items-center justify-center rounded-lg border border-dashed border-border">
-                            <p class="text-sm text-muted-foreground">Calendrier de la semaine — à venir</p>
-                        </div>
+                        <WeekSchedule :week-schedule="props.week_schedule" />
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card v-if="props.recent_activity">
                     <CardHeader>
                         <CardTitle class="text-base">Activité récente</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div class="flex h-32 items-center justify-center rounded-lg border border-dashed border-border">
-                            <p class="text-sm text-muted-foreground">Dernières actions — à venir</p>
-                        </div>
+                        <RecentActivity :activity="props.recent_activity ?? []" />
                     </CardContent>
                 </Card>
             </div>
