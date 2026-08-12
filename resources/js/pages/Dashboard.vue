@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import {
     BookOpen,
     Building2,
@@ -10,17 +11,18 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import RecentActivity from '@/components/dashboard/RecentActivity.vue';
+import type {ActivityEntry} from '@/components/dashboard/RecentActivity.vue';
+import WeekSchedule from '@/components/dashboard/WeekSchedule.vue';
+import type {WeekScheduleSlot} from '@/components/dashboard/WeekSchedule.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/composables/useAuth';
 import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
-import { Link } from '@inertiajs/vue3';
-import RecentActivity, { type ActivityEntry } from '@/components/dashboard/RecentActivity.vue';
-import WeekSchedule, { type WeekScheduleSlot } from '@/components/dashboard/WeekSchedule.vue';
 
 const props = defineProps<{
     week_schedule: { week_start: string; slots: WeekScheduleSlot[] };
@@ -42,6 +44,7 @@ const statCards = computed(() => {
             { label: t('nav.roles'),     icon: GraduationCap, href: '/roles',     color: 'text-green-500' },
         ];
     }
+
     if (canManage.value) {
         return [
             { label: t('nav.sections'),  icon: GraduationCap, href: '/sections',  color: 'text-blue-500' },
@@ -50,6 +53,7 @@ const statCards = computed(() => {
             { label: t('nav.timesheets'),icon: Clock,         href: '/timesheets',color: 'text-orange-500' },
         ];
     }
+
     // Professeur / Élève
     return [
         { label: t('nav.schedules'),  icon: Calendar,  href: '/schedules',  color: 'text-blue-500' },
@@ -120,7 +124,7 @@ const statCards = computed(() => {
                         <CardTitle class="text-base">{{ t('nav.schedules') }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <WeekSchedule :week-schedule="props.week_schedule" />
+                        <WeekSchedule :week-schedule="props.week_schedule" :can-manage="canManage" />
                     </CardContent>
                 </Card>
 

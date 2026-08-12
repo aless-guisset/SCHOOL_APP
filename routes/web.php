@@ -2,21 +2,21 @@
 
 use App\Http\Controllers\ActivityLogsController;
 use App\Http\Controllers\ClassroomsController;
+use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DuplicatePlanningController;
-use App\Http\Controllers\SchoolPanelController;
-use App\Http\Controllers\CoursesController;
-use App\Http\Controllers\SectionCoursesController;
-use App\Http\Controllers\SectionsController;
-use App\Http\Controllers\UserSchoolRolesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\ResourcesController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\SchoolOnboardingController;
+use App\Http\Controllers\SchoolPanelController;
 use App\Http\Controllers\SchoolsController;
+use App\Http\Controllers\SectionCoursesController;
+use App\Http\Controllers\SectionsController;
 use App\Http\Controllers\SubjectsController;
 use App\Http\Controllers\TimesheetsController;
+use App\Http\Controllers\UserSchoolRolesController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;

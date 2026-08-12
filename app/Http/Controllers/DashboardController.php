@@ -31,7 +31,7 @@ class DashboardController extends Controller
         $currentRole = $usr?->role?->name;
 
         return Inertia::render('Dashboard', [
-            'week_schedule'   => $this->weekSchedule($schoolId, $usr, $currentRole),
+            'week_schedule' => $this->weekSchedule($schoolId, $usr, $currentRole),
             'recent_activity' => $this->recentActivity($schoolId, $currentRole),
         ]);
     }
@@ -70,22 +70,22 @@ class DashboardController extends Controller
             $timesheet = $timesheetsBySchedule->get($schedule->id);
 
             return [
-                'schedule_id'  => $schedule->id,
-                'day_of_week'  => $schedule->day_of_week,
-                'start_time'   => $schedule->start_time,
-                'end_time'     => $schedule->end_time,
+                'schedule_id' => $schedule->id,
+                'day_of_week' => $schedule->day_of_week,
+                'start_time' => $schedule->start_time,
+                'end_time' => $schedule->end_time,
                 'course_label' => $schedule->sectionCourse?->name ?? $schedule->name,
-                'teacher'      => $timesheet?->userSchoolRole?->user
+                'teacher' => $timesheet?->userSchoolRole?->user
                     ? "{$timesheet->userSchoolRole->user->firstname} {$timesheet->userSchoolRole->user->lastname}"
                     : null,
                 'classroom' => $timesheet?->classroom?->name,
-                'subject'   => $timesheet?->subject?->name,
+                'subject' => $timesheet?->subject?->name,
             ];
         })->values()->all();
 
         return [
             'week_start' => $weekStart,
-            'slots'      => $slots,
+            'slots' => $slots,
         ];
     }
 
@@ -101,12 +101,12 @@ class DashboardController extends Controller
             ->limit(8)
             ->get()
             ->map(fn (ActivityLog $log) => [
-                'id'          => $log->id,
-                'event'       => $log->event,
+                'id' => $log->id,
+                'event' => $log->event,
                 'model_label' => $log->model_label,
-                'model_type'  => class_basename($log->model_type),
-                'user_name'   => $log->user ? "{$log->user->firstname} {$log->user->lastname}" : $log->user_email,
-                'created_at'  => $log->created_at->toIso8601String(),
+                'model_type' => class_basename($log->model_type),
+                'user_name' => $log->user ? "{$log->user->firstname} {$log->user->lastname}" : $log->user_email,
+                'created_at' => $log->created_at->toIso8601String(),
             ])
             ->all();
     }

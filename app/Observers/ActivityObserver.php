@@ -28,7 +28,7 @@ class ActivityObserver
     {
         $changes = [
             'before' => $model->getOriginal(),
-            'after'  => $model->getDirty(),
+            'after' => $model->getDirty(),
         ];
 
         $this->log('updated', $model, $changes);
@@ -44,15 +44,15 @@ class ActivityObserver
         $user = Auth::user();
 
         ActivityLog::create([
-            'event'       => $event,
-            'model_type'  => get_class($model),
-            'model_id'    => $model->getKey(),
-            'school_id'   => $this->resolveSchoolId($model),
+            'event' => $event,
+            'model_type' => get_class($model),
+            'model_id' => $model->getKey(),
+            'school_id' => $this->resolveSchoolId($model),
             'model_label' => method_exists($model, 'getActivityLabel') ? $model->getActivityLabel() : ($model->name ?? null),
-            'user_id'     => $user?->id,
-            'user_email'  => $user?->email,
-            'changes'     => $changes,
-            'ip_address'  => Request::ip(),
+            'user_id' => $user?->id,
+            'user_email' => $user?->email,
+            'changes' => $changes,
+            'ip_address' => Request::ip(),
         ]);
     }
 
@@ -73,13 +73,12 @@ class ActivityObserver
     {
         return match (true) {
             $model instanceof Course, $model instanceof Section, $model instanceof Classroom,
-            $model instanceof Lesson, $model instanceof Resource
-                => $model->school_id,
-            $model instanceof Subject        => $model->course()->withTrashed()->first()?->school_id,
-            $model instanceof Timesheet      => $model->userSchoolRole()->withTrashed()->first()?->school_id,
-            $model instanceof Schedule       => $this->resolveScheduleSchoolId($model),
+            $model instanceof Lesson, $model instanceof Resource => $model->school_id,
+            $model instanceof Subject => $model->course()->withTrashed()->first()?->school_id,
+            $model instanceof Timesheet => $model->userSchoolRole()->withTrashed()->first()?->school_id,
+            $model instanceof Schedule => $this->resolveScheduleSchoolId($model),
             $model instanceof UserSchoolRole => $model->school_id,
-            $model instanceof School         => $model->id,
+            $model instanceof School => $model->id,
             default => null,
         };
     }

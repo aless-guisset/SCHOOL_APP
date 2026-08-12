@@ -9,7 +9,7 @@ export interface CalendarSlot {
     endTime: string;     // "HH:MM:SS"
     label: string;
     sublabel?: string;
-    href: string;
+    href?: string;
 }
 
 const props = defineProps<{
@@ -26,14 +26,17 @@ const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => HOUR_START + i);
 
 const activeDays = computed(() => {
     const used = new Set(props.slots.map(s => s.dayOfWeek));
+
     return [1, 2, 3, 4, 5, 6, 7].filter(d => d <= 5 || used.has(d));
 });
 
 const byDay = computed(() => {
     const map: Record<number, CalendarSlot[]> = {};
+
     for (const s of props.slots) {
         (map[s.dayOfWeek] ??= []).push(s);
     }
+
     return map;
 });
 
@@ -49,19 +52,23 @@ const SLOT_COLORS: Record<number, string> = {
 
 function toMin(time: string): number {
     const [h, m] = time.split(':').map(Number);
+
     return h * 60 + m;
 }
 
 function slotStyle(s: CalendarSlot) {
     const startMin = toMin(s.startTime) - HOUR_START * 60;
     const duration = toMin(s.endTime) - toMin(s.startTime);
+
     return {
         top:    `${(startMin / 60) * HOUR_PX}px`,
         height: `${Math.max((duration / 60) * HOUR_PX - 2, 20)}px`,
     };
 }
 
-function fmt(t: string) { return t.substring(0, 5); }
+function fmt(t: string) {
+ return t.substring(0, 5); 
+}
 </script>
 
 <template>
@@ -105,18 +112,29 @@ function fmt(t: string) { return t.substring(0, 5); }
                         class="pointer-events-none absolute inset-x-0 border-t border-border/30"
                         :style="`top: ${(h - HOUR_START) * HOUR_PX}px; height: ${HOUR_PX}px`"
                     />
-                    <Link
-                        v-for="s in (byDay[day] ?? [])"
-                        :key="s.id"
-                        :href="s.href"
-                        class="absolute inset-x-1 overflow-hidden rounded border px-1.5 py-1 text-xs transition-opacity hover:opacity-80"
-                        :class="SLOT_COLORS[day]"
-                        :style="slotStyle(s)"
-                    >
-                        <p class="truncate font-semibold leading-tight">{{ s.label }}</p>
-                        <p class="truncate text-[10px] opacity-75">{{ fmt(s.startTime) }}–{{ fmt(s.endTime) }}</p>
-                        <p v-if="s.sublabel" class="truncate text-[10px] opacity-60">{{ s.sublabel }}</p>
-                    </Link>
+                    <template v-for="s in (byDay[day] ?? [])" :key="s.id">
+                        <Link
+                            v-if="s.href"
+                            :href="s.href"
+                            class="absolute inset-x-1 overflow-hidden rounded border px-1.5 py-1 text-xs transition-opacity hover:opacity-80"
+                            :class="SLOT_COLORS[day]"
+                            :style="slotStyle(s)"
+                        >
+                            <p class="truncate font-semibold leading-tight">{{ s.label }}</p>
+                            <p class="truncate text-[10px] opacity-75">{{ fmt(s.startTime) }}–{{ fmt(s.endTime) }}</p>
+                            <p v-if="s.sublabel" class="truncate text-[10px] opacity-60">{{ s.sublabel }}</p>
+                        </Link>
+                        <div
+                            v-else
+                            class="absolute inset-x-1 overflow-hidden rounded border px-1.5 py-1 text-xs"
+                            :class="SLOT_COLORS[day]"
+                            :style="slotStyle(s)"
+                        >
+                            <p class="truncate font-semibold leading-tight">{{ s.label }}</p>
+                            <p class="truncate text-[10px] opacity-75">{{ fmt(s.startTime) }}–{{ fmt(s.endTime) }}</p>
+                            <p v-if="s.sublabel" class="truncate text-[10px] opacity-60">{{ s.sublabel }}</p>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>

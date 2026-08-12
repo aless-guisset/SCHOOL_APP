@@ -3,8 +3,8 @@
 use App\Models\Classroom;
 use App\Models\Course;
 use App\Models\Role;
-use App\Models\School;
 use App\Models\Schedule;
+use App\Models\School;
 use App\Models\Section;
 use App\Models\SectionCourse;
 use App\Models\SectionUserSchoolRole;
@@ -12,6 +12,7 @@ use App\Models\Subject;
 use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use Carbon\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function makeSchool(): School
@@ -173,7 +174,7 @@ test('week_schedule overlays teacher, classroom and subject when a timesheet exi
     Timesheet::create([
         'user_school_role_id' => $teacherUsr->id, 'schedule_id' => $schedule->id,
         'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
-        'date' => now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString(),
+        'date' => now()->startOfWeek(Carbon::MONDAY)->toDateString(),
         'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 

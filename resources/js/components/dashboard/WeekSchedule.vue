@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import WeeklyCalendar, { type CalendarSlot } from '@/components/WeeklyCalendar.vue';
+import WeeklyCalendar from '@/components/WeeklyCalendar.vue';
+import type {CalendarSlot} from '@/components/WeeklyCalendar.vue';
 
 export type WeekScheduleSlot = {
     schedule_id: number;
@@ -18,6 +19,7 @@ const props = defineProps<{
         week_start: string;
         slots: WeekScheduleSlot[];
     };
+    canManage?: boolean;
 }>();
 
 const calendarSlots = computed<CalendarSlot[]>(() =>
@@ -27,15 +29,24 @@ const calendarSlots = computed<CalendarSlot[]>(() =>
         startTime: s.start_time,
         endTime: s.end_time,
         label: s.course_label,
-        sublabel: [s.teacher, s.classroom].filter(Boolean).join(' · ') || undefined,
-        href: `/schedules/${s.schedule_id}`,
+        sublabel: [s.teacher, s.classroom, s.subject].filter(Boolean).join(' · ') || undefined,
+        ...(props.canManage ? { href: `/schedules/${s.schedule_id}` } : {}),
     }))
 );
+
+const weekStartLabel = computed(() => {
+    const date = new Date(`${props.weekSchedule.week_start}T00:00:00`);
+
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+});
 </script>
 
 <template>
-    <div v-if="calendarSlots.length === 0" class="flex h-32 items-center justify-center rounded-lg border border-dashed border-border">
-        <p class="text-sm text-muted-foreground">Aucun créneau cette semaine.</p>
+    <div>
+        <p class="mb-2 text-sm font-medium text-muted-foreground">Semaine du {{ weekStartLabel }}</p>
+        <div v-if="calendarSlots.length === 0" class="flex h-32 items-center justify-center rounded-lg border border-dashed border-border">
+            <p class="text-sm text-muted-foreground">Aucun créneau cette semaine.</p>
+        </div>
+        <WeeklyCalendar v-else :slots="calendarSlots" />
     </div>
-    <WeeklyCalendar v-else :slots="calendarSlots" />
 </template>
