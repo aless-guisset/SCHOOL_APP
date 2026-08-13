@@ -36,7 +36,24 @@ unique qui couvre :
   créneaux, un élève ne voit que ceux de sa section, une école ne voit jamais les données d'une
   autre école.
 
-## 3. Comment ça fonctionne (parcours utilisateur)
+## 3. Historique du projet
+
+Le projet est parti d'un besoin réel exprimé par un établissement scolaire : la gestion des
+horaires, des feuilles de présence et des inscriptions se faisait de façon manuelle
+(papier/tableur), ce qui rendait le suivi des créneaux, la détection des conflits d'horaire et la
+traçabilité des changements difficiles à maintenir à mesure que l'établissement grandissait.
+School App a été conçu pour répondre directement à ce besoin, avant d'être pensé comme une
+plateforme pouvant héberger plusieurs écoles.
+
+## 4. Public cible
+
+La plateforme vise en priorité les **écoles publiques et les grands établissements** (lycées,
+collèges) qui gèrent plusieurs centaines d'élèves, un secrétariat structuré, et plusieurs
+sections/cours en parallèle — un contexte où le cloisonnement strict par rôle et par école
+(cf. section 6) et la détection automatique de conflits d'horaire apportent le plus de valeur par
+rapport à une gestion sur tableur.
+
+## 5. Comment ça fonctionne (parcours utilisateur)
 
 1. Un visiteur crée un compte, puis soit rejoint une école existante soit soumet la création
    d'une nouvelle école (mise en attente d'approbation par un administrateur plateforme).
@@ -62,7 +79,7 @@ unique qui couvre :
 | **Professeur** | Ses propres cours | Son horaire, ses feuilles de temps, ses sections, ressources |
 | **Élève** | Sa section | Son horaire, ses cours, ressources |
 
-## 4. Captures d'écran (application réelle, connectée en tant qu'Administrateur)
+## 6. Captures d'écran (application réelle, connectée en tant qu'Administrateur)
 
 ### Page de connexion
 ![Page de connexion](images/01-connexion.png)
@@ -81,7 +98,7 @@ et widget « Activité récente » (visible seulement pour les rôles de gestion
 ### Journal d'activité
 ![Logs d'activité](images/05-logs.png)
 
-## 5. État d'avancement
+## 7. État d'avancement
 
 D'après `ROADMAP.md` à la date de ce document :
 
@@ -101,7 +118,7 @@ D'après `ROADMAP.md` à la date de ce document :
 - Tests automatisés plus complets, version mobile, module de présence, module de communication,
   export RGPD
 
-## 6. Points d'attention connus (sécurité / dette technique)
+## 8. Points d'attention connus (sécurité / dette technique)
 
 - La page de détail d'un horaire (`/schedules/{id}`) n'a pas encore de contrôle d'autorisation
   strict côté serveur — un correctif partiel a été appliqué côté Dashboard (les liens ne sont
@@ -110,7 +127,7 @@ D'après `ROADMAP.md` à la date de ce document :
 
 ---
 
-## 7. Explication simplifiée du code (pour un non-développeur ou un développeur junior)
+## 9. Explication simplifiée du code (pour un non-développeur ou un développeur junior)
 
 ### La recette en résumé
 
@@ -182,13 +199,11 @@ construit et vérifié avant d'être fusionné dans le code principal.
 
 ---
 
-*Ce document a été généré automatiquement à partir de l'état du code, des captures d'écran de
-l'application en fonctionnement, et de la feuille de route interne du projet. Les sections
-laissées sous forme de simple titre reflètent une information non disponible au moment de la
-génération — à compléter manuellement si besoin.*
+*Ce document a été généré à partir de l'état du code, des captures d'écran de l'application en
+fonctionnement, de la feuille de route interne du projet, et des précisions apportées
+directement par l'auteur du projet.*
 
 ### Compléments à ajouter manuellement (information non disponible dans le code)
 
-- Historique / contexte de création du projet
-- Public cible précis et modèle économique (si applicable)
+- Modèle économique, si le projet évolue vers une offre commerciale
 - Roadmap au-delà de ce qui figure dans `ROADMAP.md`
