@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { GraduationCap, Mail } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import { logout } from '@/routes';
 </script>
 
 <template>
@@ -41,7 +42,7 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
             </div>
 
             <p class="text-xs text-muted-foreground">
-                <a href="/logout" class="underline underline-offset-2">Se déconnecter</a>
+                <Link :href="logout()" as="button" class="underline underline-offset-2">Se déconnecter</Link>
             </p>
         </div>
     </AuthLayout>

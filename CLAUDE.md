@@ -39,7 +39,7 @@
 - `pendingCount` prop partagée → badge sidebar "Demandes en attente"
 
 ### Shared Inertia Props (HandleInertiaRequests)
-`auth.user`, `school`, `currentRole`, `userSchools`, `translations`, `locale`, `pendingCount`, `flash`, `routeName`
+`auth.user`, `school`, `currentRole`, `userSchools`, `sidebarOpen`, `translations`, `locale`, `pendingCount`, `flash`, `routeName`
 
 ## Commandes utiles
 ```bash
