@@ -14,10 +14,12 @@
 - Pages CRUD manquantes (Users, Classrooms, Resources, Subjects, Lessons, Timesheets)
 - Logs d'activité (`ActivityObserver` sur 12 modèles + `ActivityLogs/Index.vue`)
 - Duplication de planning (`DuplicatePlanningController` + dialog Schedules/Index)
+- Dashboard widgets : calendrier de la semaine scopé par rôle + activité récente scopée à
+  l'école (`2026-07-20-dashboard-widgets.md`)
 
 ## 🔴 En cours (session actuelle) — plans dans docs/superpowers/plans/
+- [ ] Admin Traductions CRUD (`2026-06-05-translations-crud.md`) — démarré
 - [ ] Calendrier Timesheets hebdomadaire + wizard 4 étapes (`2026-06-05-timesheets-calendar-wizard.md`)
-- [ ] Admin Traductions CRUD (`2026-06-05-translations-crud.md`)
 - [ ] Notification admin soumission école (`2026-06-05-school-submission-notification.md`)
 
 ## 🟡 Priorité normale (plus tard)
@@ -31,4 +33,4 @@
 - [ ] Open Source GPL v3
 
 ---
-*Dernière mise à jour : session priorité haute en cours*
+*Dernière mise à jour : dashboard widgets terminé, translations-crud en cours*
