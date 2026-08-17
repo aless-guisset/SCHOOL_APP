@@ -16,6 +16,7 @@ use App\Http\Controllers\SectionCoursesController;
 use App\Http\Controllers\SectionsController;
 use App\Http\Controllers\SubjectsController;
 use App\Http\Controllers\TimesheetsController;
+use App\Http\Controllers\TranslationsController;
 use App\Http\Controllers\UserSchoolRolesController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -68,6 +69,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::resource('roles', RolesController::class);
         Route::resource('users', UsersController::class);
         Route::get('/logs', [ActivityLogsController::class, 'index'])->name('logs.index');
+        Route::resource('translations', TranslationsController::class)->except(['show']);
     });
 
     // ── Admin : assignations rôles ────────────────────────────────────────
