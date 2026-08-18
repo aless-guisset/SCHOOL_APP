@@ -50,7 +50,22 @@ class TranslationsController extends Controller
         $data['created_by'] = $request->user()->id;
         $data['is_active']  = true;
 
-        Translation::create($data);
+        // Check if a soft-deleted row exists with the same tag_key + language_code
+        $softDeleted = Translation::withTrashed()
+            ->where('tag_key', $data['tag_key'])
+            ->where('language_code', $data['language_code'])
+            ->whereNotNull('deleted_at')
+            ->first();
+
+        if ($softDeleted) {
+            // Restore and update the soft-deleted row
+            $softDeleted->restore();
+            $softDeleted->update($data);
+        } else {
+            // Create a new row
+            Translation::create($data);
+        }
+
         Cache::forget("translations.{$data['language_code']}");
 
         return redirect()->route('translations.index')
@@ -81,9 +96,27 @@ class TranslationsController extends Controller
 
         $data['updated_by'] = $request->user()->id;
 
-        // Invalider les deux locales si language_code change
         $oldLocale = $translation->language_code;
-        $translation->update($data);
+
+        // Check if a different soft-deleted row exists with the new tag_key + language_code
+        $softDeletedCollision = Translation::withTrashed()
+            ->where('tag_key', $data['tag_key'])
+            ->where('language_code', $data['language_code'])
+            ->where('id', '!=', $translation->id)
+            ->whereNotNull('deleted_at')
+            ->first();
+
+        if ($softDeletedCollision) {
+            // Restore the soft-deleted row and update it with new data
+            $softDeletedCollision->restore();
+            $softDeletedCollision->update($data);
+            // Soft-delete the current translation to avoid duplicate
+            $translation->delete();
+        } else {
+            // Update normally
+            $translation->update($data);
+        }
+
         Cache::forget("translations.{$oldLocale}");
         Cache::forget("translations.{$data['language_code']}");
 
