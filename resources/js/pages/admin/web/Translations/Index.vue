@@ -38,25 +38,33 @@ const props = defineProps<{
 }>();
 
 const search         = ref(props.filters.search ?? '');
-const filterLang     = ref(props.filters.language_code ?? '');
+const filterLang     = ref(props.filters.language_code ?? 'all');
 const filterScreen   = ref(props.filters.screen_name ?? '');
+const deletingId     = ref<number | null>(null);
 
 function applyFilters() {
     router.get('/translations', {
         search:        search.value || undefined,
-        language_code: filterLang.value || undefined,
+        language_code: filterLang.value !== 'all' ? filterLang.value : undefined,
         screen_name:   filterScreen.value || undefined,
     }, { preserveScroll: true });
 }
 
 function clearFilters() {
-    search.value = filterLang.value = filterScreen.value = '';
+    search.value = '';
+    filterLang.value = 'all';
+    filterScreen.value = '';
     router.get('/translations', {}, { preserveScroll: true });
 }
 
 function deleteTranslation(id: number) {
     if (!confirm('Supprimer cette traduction ?')) return;
-    useForm({}).delete(`/translations/${id}`, { preserveScroll: true });
+    if (deletingId.value !== null) return; // Prevent double-submit
+    deletingId.value = id;
+    useForm({}).delete(`/translations/${id}`, {
+        preserveScroll: true,
+        onFinish: () => { deletingId.value = null; },
+    });
 }
 
 function truncate(s: string, n = 60) { return s.length > n ? s.slice(0, n) + 'â€¦' : s; }
@@ -91,7 +99,7 @@ function truncate(s: string, n = 60) { return s.length > n ? s.slice(0, n) + 'â€
                         <SelectValue placeholder="Langue" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Toutes</SelectItem>
+                        <SelectItem value="all">Toutes</SelectItem>
                         <SelectItem v-for="l in languages" :key="l" :value="l">{{ l }}</SelectItem>
                     </SelectContent>
                 </Select>
@@ -144,7 +152,7 @@ function truncate(s: string, n = 60) { return s.length > n ? s.slice(0, n) + 'â€
                                     <Button variant="ghost" size="icon" as-child>
                                         <Link :href="`/translations/${tr.id}/edit`"><Pencil class="size-4" /></Link>
                                     </Button>
-                                    <Button variant="ghost" size="icon" class="text-destructive hover:text-destructive" @click="deleteTranslation(tr.id)">
+                                    <Button variant="ghost" size="icon" class="text-destructive hover:text-destructive" :disabled="deletingId === tr.id" @click="deleteTranslation(tr.id)">
                                         <Trash2 class="size-4" />
                                     </Button>
                                 </div>
