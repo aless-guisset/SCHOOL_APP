@@ -19,20 +19,21 @@
 - Admin Traductions CRUD : `TranslationsController`, pages Index/Create/Edit alignées sur
   `DataTable`/`useTranslation()`, `ActivityObserver` sur `Translation`
   (`2026-06-05-translations-crud.md`)
+- Notification admin soumission école : `SchoolPendingNotification` (email) + filtre
+  `is_active` sur les admins destinataires (`2026-06-05-school-submission-notification.md`)
 
-## 🔴 En cours (session actuelle) — plans dans docs/superpowers/plans/
-- [ ] Calendrier Timesheets hebdomadaire + wizard 4 étapes (`2026-06-05-timesheets-calendar-wizard.md`)
-- [ ] Notification admin soumission école (`2026-06-05-school-submission-notification.md`)
+## 🎯 Deadline lundi 24/08 — priorité au nombre de features livrées
+- [ ] Calendrier Timesheets hebdomadaire + wizard 4 étapes (`2026-06-05-timesheets-calendar-wizard.md`) — en cours
+- [ ] Module communication / notifications in-app — pas encore de plan écrit
+- [ ] Layouts mobile (pages/[role]/mobile/) — pas encore de plan écrit
+- [ ] Module présence (absences, certificats) — pas encore de plan écrit
 
 ## 🟡 Priorité normale (plus tard)
 - [ ] Tests PHPUnit (classroom libre, prof dispo, section dispo)
-- [ ] Mobile layouts (pages/[role]/mobile/)
-- [ ] Module présence (absences, certificats)
-- [ ] Module communication / notifications in-app
 - [ ] Module cantine (optionnel, activable par école)
 - [ ] Module évaluations / bulletins PDF
 - [ ] Export CSV (RGPD)
 - [ ] Open Source GPL v3
 
 ---
-*Dernière mise à jour : translations-crud terminé*
+*Dernière mise à jour : school-submission-notification terminé, cap sur timesheets-wizard puis communication/mobile/présence pour le 24/08*
