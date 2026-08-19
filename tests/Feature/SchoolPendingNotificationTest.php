@@ -131,3 +131,30 @@ test('no notifications are sent if there are no admin users', function () {
     Notification::assertNotSentTo($this->admin2, SchoolPendingNotification::class);
     Notification::assertNotSentTo($this->profUser, SchoolPendingNotification::class);
 });
+
+test('inactive admins do not receive school submission notifications', function () {
+    Notification::fake();
+
+    // Create an inactive admin (admin with is_active = false on their UserSchoolRole)
+    $inactiveAdmin = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $inactiveAdmin->id,
+        'school_id' => $this->school->id,
+        'role_id' => $this->adminRole->id,
+        'status' => 'A',
+        'is_active' => false,  // Inactive
+        'created_by' => 1,
+    ]);
+
+    $this->actingAs($this->requester)->post(route('school.create'), [
+        'name' => 'Another School',
+        'email' => 'another@example.com',
+    ]);
+
+    // Active admins should still receive notifications
+    Notification::assertSentTo($this->admin1, SchoolPendingNotification::class);
+    Notification::assertSentTo($this->admin2, SchoolPendingNotification::class);
+
+    // Inactive admin should NOT receive notification
+    Notification::assertNotSentTo($inactiveAdmin, SchoolPendingNotification::class);
+});

@@ -97,7 +97,8 @@ class SchoolOnboardingController extends Controller
 
         // Notifier tous les administrateurs de plateforme
         $admins = User::whereHas('schoolRoles', function ($q) {
-            $q->whereHas('role', fn ($q) => $q->where('name', 'Administrateur'));
+            $q->where('is_active', true)
+                ->whereHas('role', fn ($q) => $q->where('name', 'Administrateur'));
         })->get();
 
         Notification::send($admins, new SchoolPendingNotification($school, $request->user()));
