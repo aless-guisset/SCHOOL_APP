@@ -12,6 +12,7 @@ use App\Models\School;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Timesheet;
+use App\Models\Translation;
 use App\Models\User;
 use App\Models\UserSchoolRole;
 use App\Listeners\LogSuccessfulLogin;
@@ -59,6 +60,7 @@ class AppServiceProvider extends ServiceProvider
             Section::class,
             Subject::class,
             Timesheet::class,
+            Translation::class,
             User::class,
             UserSchoolRole::class,
         ];

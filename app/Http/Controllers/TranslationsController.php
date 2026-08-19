@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Translation;
+use App\Services\TranslationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -58,15 +58,17 @@ class TranslationsController extends Controller
             ->first();
 
         if ($softDeleted) {
-            // Restore and update the soft-deleted row
+            // Restore and update the soft-deleted row, preserving its original creator
             $softDeleted->restore();
+            unset($data['created_by']);
+            $data['updated_by'] = $request->user()->id;
             $softDeleted->update($data);
         } else {
             // Create a new row
             Translation::create($data);
         }
 
-        Cache::forget("translations.{$data['language_code']}");
+        TranslationService::clearCache($data['language_code']);
 
         return redirect()->route('translations.index')
             ->with('flash', ['type' => 'success', 'message' => 'Traduction créée.']);
@@ -98,27 +100,21 @@ class TranslationsController extends Controller
 
         $oldLocale = $translation->language_code;
 
-        // Check if a different soft-deleted row exists with the new tag_key + language_code
-        $softDeletedCollision = Translation::withTrashed()
+        // A different soft-deleted row may already occupy the new tag_key + language_code.
+        // It's invisible to every read path, so hard-deleting it loses nothing and lets the
+        // edited row keep its own identity instead of swapping ids with the trashed row.
+        Translation::withTrashed()
             ->where('tag_key', $data['tag_key'])
             ->where('language_code', $data['language_code'])
             ->where('id', '!=', $translation->id)
             ->whereNotNull('deleted_at')
-            ->first();
+            ->first()
+            ?->forceDelete();
 
-        if ($softDeletedCollision) {
-            // Restore the soft-deleted row and update it with new data
-            $softDeletedCollision->restore();
-            $softDeletedCollision->update($data);
-            // Soft-delete the current translation to avoid duplicate
-            $translation->delete();
-        } else {
-            // Update normally
-            $translation->update($data);
-        }
+        $translation->update($data);
 
-        Cache::forget("translations.{$oldLocale}");
-        Cache::forget("translations.{$data['language_code']}");
+        TranslationService::clearCache($oldLocale);
+        TranslationService::clearCache($data['language_code']);
 
         return redirect()->route('translations.index')
             ->with('flash', ['type' => 'success', 'message' => 'Traduction mise à jour.']);
@@ -127,9 +123,9 @@ class TranslationsController extends Controller
     public function destroy(Translation $translation)
     {
         $locale = $translation->language_code;
-        $translation->update(['updated_by' => request()->user()->id]);
+        $translation->update(['is_active' => false, 'updated_by' => request()->user()->id]);
         $translation->delete();
-        Cache::forget("translations.{$locale}");
+        TranslationService::clearCache($locale);
 
         return redirect()->route('translations.index')
             ->with('flash', ['type' => 'success', 'message' => 'Traduction supprimée.']);

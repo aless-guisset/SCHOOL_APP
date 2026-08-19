@@ -40,6 +40,8 @@ class TranslationSeeder extends Seeder
             'action.export'        => ['fr' => 'Exporter',           'en' => 'Export'],
             'action.submit'        => ['fr' => 'Soumettre',          'en' => 'Submit'],
             'action.confirm'       => ['fr' => 'Confirmer',          'en' => 'Confirm'],
+            'action.update'        => ['fr' => 'Mettre à jour',      'en' => 'Update'],
+            'action.clear_filters' => ['fr' => 'Effacer',            'en' => 'Clear'],
 
             // ── Labels communs ──────────────────────────────────────────
             'label.name'           => ['fr' => 'Nom',                'en' => 'Name'],
@@ -71,6 +73,10 @@ class TranslationSeeder extends Seeder
             'label.hours_done'     => ['fr' => 'Heures réalisées',   'en' => 'Hours done'],
             'label.location'       => ['fr' => 'Localisation',       'en' => 'Location'],
             'label.type'           => ['fr' => 'Type',               'en' => 'Type'],
+            'label.key'            => ['fr' => 'Clé',                'en' => 'Key'],
+            'label.language'       => ['fr' => 'Langue',             'en' => 'Language'],
+            'label.value'          => ['fr' => 'Valeur',             'en' => 'Value'],
+            'label.screen_name'    => ['fr' => 'Écran',              'en' => 'Screen'],
 
             // ── Jours de la semaine ─────────────────────────────────────
             'day.1'                => ['fr' => 'Lundi',              'en' => 'Monday'],
@@ -101,6 +107,12 @@ class TranslationSeeder extends Seeder
             'school.select.title'  => ['fr' => 'Choisir un établissement', 'en' => 'Choose an institution'],
             'school.create.title'  => ['fr' => 'Rejoindre un établissement', 'en' => 'Join an institution'],
             'school.pending'       => ['fr' => 'En attente d\'approbation', 'en' => 'Pending approval'],
+
+            // ── Traductions (admin) ─────────────────────────────────────
+            'translations.empty'        => ['fr' => 'Aucune traduction.',              'en' => 'No translations.'],
+            'translations.new'          => ['fr' => 'Nouvelle traduction',             'en' => 'New translation'],
+            'translations.edit_title'   => ['fr' => 'Modifier la traduction',          'en' => 'Edit translation'],
+            'translations.confirm_delete' => ['fr' => 'Supprimer cette traduction ?',  'en' => 'Delete this translation?'],
         ];
 
         foreach ($translations as $key => $locales) {

@@ -4,13 +4,17 @@ import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { t } = useTranslation();
 
 const FIXED_LANGUAGES = ['fr', 'en', 'nl'];
 
@@ -39,8 +43,8 @@ const form = useForm({
 });
 
 const breadcrumbs = [
-    { label: 'Traductions', href: '/translations' },
-    { label: 'Modifier' },
+    { label: t('nav.translations'), href: '/translations' },
+    { label: t('action.edit') },
 ];
 </script>
 
@@ -49,12 +53,12 @@ const breadcrumbs = [
     <AppLayout>
         <div class="p-4 md:p-6 max-w-xl">
             <FlashMessage />
-            <PageHeader title="Modifier la traduction" :breadcrumbs="breadcrumbs" />
+            <PageHeader :title="t('translations.edit_title')" :breadcrumbs="breadcrumbs" />
             <Card>
                 <CardContent class="pt-6">
                     <form class="space-y-4" @submit.prevent="form.put(`/translations/${translation.id}`)">
                         <div class="space-y-1.5">
-                            <Label for="tag_key">Clé (tag_key) *</Label>
+                            <Label for="tag_key">{{ t('label.key') }} *</Label>
                             <Input
                                 id="tag_key"
                                 v-model="form.tag_key"
@@ -64,7 +68,7 @@ const breadcrumbs = [
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label>Langue *</Label>
+                            <Label>{{ t('label.language') }} *</Label>
                             <Select v-model="form.language_code">
                                 <SelectTrigger :class="{ 'border-destructive': form.errors.language_code }">
                                     <SelectValue />
@@ -81,29 +85,39 @@ const breadcrumbs = [
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label for="translated_value">Valeur traduite *</Label>
+                            <Label for="translated_value">{{ t('label.value') }} *</Label>
                             <Textarea
                                 id="translated_value"
                                 v-model="form.translated_value"
-                                rows="3"
+                                :rows="3"
                                 :class="{ 'border-destructive': form.errors.translated_value }"
                             />
                             <p v-if="form.errors.translated_value" class="text-xs text-destructive">{{ form.errors.translated_value }}</p>
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label for="screen_name">Screen / Écran (optionnel)</Label>
-                            <Input id="screen_name" v-model="form.screen_name" />
+                            <Label for="screen_name">{{ t('label.screen_name') }}</Label>
+                            <Input
+                                id="screen_name"
+                                v-model="form.screen_name"
+                                :class="{ 'border-destructive': form.errors.screen_name }"
+                            />
+                            <p v-if="form.errors.screen_name" class="text-xs text-destructive">{{ form.errors.screen_name }}</p>
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label for="description">Description (optionnel)</Label>
-                            <Textarea id="description" v-model="form.description" rows="2" />
+                            <Label for="description">{{ t('label.description') }}</Label>
+                            <Textarea id="description" v-model="form.description" :rows="2" />
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <Checkbox id="is_active" v-model="form.is_active" />
+                            <Label for="is_active">{{ t('label.active') }}</Label>
                         </div>
 
                         <div class="flex gap-3 pt-2">
-                            <Button type="submit" :disabled="form.processing">Mettre à jour</Button>
-                            <Button variant="outline" as-child><Link href="/translations">Annuler</Link></Button>
+                            <Button type="submit" :disabled="form.processing">{{ t('action.update') }}</Button>
+                            <Button variant="outline" as-child><Link href="/translations">{{ t('action.cancel') }}</Link></Button>
                         </div>
                     </form>
                 </CardContent>
