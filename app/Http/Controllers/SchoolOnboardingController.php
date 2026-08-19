@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\School;
+use App\Models\User;
+use App\Notifications\SchoolPendingNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -90,7 +93,14 @@ class SchoolOnboardingController extends Controller
         $data['is_active'] = false;
         $data['created_by'] = $request->user()->id;
 
-        School::create($data);
+        $school = School::create($data);
+
+        // Notifier tous les administrateurs de plateforme
+        $admins = User::whereHas('schoolRoles', function ($q) {
+            $q->whereHas('role', fn ($q) => $q->where('name', 'Administrateur'));
+        })->get();
+
+        Notification::send($admins, new SchoolPendingNotification($school, $request->user()));
 
         return redirect()->route('school.create')->with('flash', [
             'type' => 'success',
