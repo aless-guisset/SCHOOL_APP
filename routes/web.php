@@ -85,6 +85,8 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::resource('lessons', LessonsController::class);
     Route::resource('schedules', SchedulesController::class);
     Route::post('/planning/duplicate', DuplicatePlanningController::class)->name('planning.duplicate');
+    Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
+        ->name('timesheets.check-conflict');
     Route::resource('timesheets', TimesheetsController::class);
     Route::resource('resources', ResourcesController::class);
 });
