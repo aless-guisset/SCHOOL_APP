@@ -16,9 +16,11 @@
 - Duplication de planning (`DuplicatePlanningController` + dialog Schedules/Index)
 - Dashboard widgets : calendrier de la semaine scopé par rôle + activité récente scopée à
   l'école (`2026-07-20-dashboard-widgets.md`)
+- Admin Traductions CRUD : `TranslationsController`, pages Index/Create/Edit alignées sur
+  `DataTable`/`useTranslation()`, `ActivityObserver` sur `Translation`
+  (`2026-06-05-translations-crud.md`)
 
 ## 🔴 En cours (session actuelle) — plans dans docs/superpowers/plans/
-- [ ] Admin Traductions CRUD (`2026-06-05-translations-crud.md`) — démarré
 - [ ] Calendrier Timesheets hebdomadaire + wizard 4 étapes (`2026-06-05-timesheets-calendar-wizard.md`)
 - [ ] Notification admin soumission école (`2026-06-05-school-submission-notification.md`)
 
@@ -33,4 +35,4 @@
 - [ ] Open Source GPL v3
 
 ---
-*Dernière mise à jour : dashboard widgets terminé, translations-crud en cours*
+*Dernière mise à jour : translations-crud terminé*
