@@ -46,8 +46,12 @@ const selectedSchedule = computed<Schedule | undefined>(() =>
 // ── Étape 2 : validation date vs jour du schedule ─────────────────────────────
 const dateWarning = computed(() => {
     if (!form.date || !selectedSchedule.value) return null;
+    // form.date is a date-only 'YYYY-MM-DD' string, parsed by `new Date()` as UTC midnight —
+    // read the weekday with getUTCDay() (not getDay()) so the result doesn't shift with the
+    // browser's local timezone.
     const d = new Date(form.date);
-    const dow = d.getDay() === 0 ? 7 : d.getDay(); // ISO
+    const day = d.getUTCDay();
+    const dow = day === 0 ? 7 : day; // ISO
     if (dow !== selectedSchedule.value.day_of_week) {
         return `Ce créneau est prévu le ${DAY_LABELS[selectedSchedule.value.day_of_week]}, mais vous avez sélectionné un ${DAY_LABELS[dow]}.`;
     }
@@ -57,11 +61,13 @@ const dateWarning = computed(() => {
 // ── Étape 3 : check conflits avant confirmation ────────────────────────────────
 const conflicts = ref<string[]>([]);
 const checkingConflicts = ref(false);
+const conflictCheckFailed = ref(false);
 
 async function checkConflicts() {
     if (!form.schedule_id || !form.date || !form.user_school_role_id || !form.classroom_id) return;
     checkingConflicts.value = true;
     conflicts.value = [];
+    conflictCheckFailed.value = false;
     try {
         const params = new URLSearchParams({
             schedule_id:          form.schedule_id,
@@ -72,8 +78,15 @@ async function checkConflicts() {
         const res = await fetch(`/timesheets/check-conflict?${params}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         conflicts.value = json.conflicts ?? [];
+    } catch {
+        // Pre-check couldn't run (network error, unparseable response, etc.) — this is not
+        // the same as an actual conflict being found. Don't block the wizard: the server
+        // revalidates via NoTimesheetConflict on submit regardless. Just surface it so the
+        // user isn't left wondering why nothing happened.
+        conflictCheckFailed.value = true;
     } finally {
         checkingConflicts.value = false;
     }
@@ -223,6 +236,11 @@ const breadcrumbs = [
                     <!-- Étape 4 : Confirmation -->
                     <div v-else class="space-y-4">
                         <h2 class="font-semibold">Confirmation</h2>
+
+                        <!-- Échec de la vérification des conflits (distinct d'un conflit réel) -->
+                        <div v-if="conflictCheckFailed" class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                            ⚠ La vérification des conflits n'a pas pu être effectuée (erreur réseau). Vous pouvez quand même enregistrer ; le serveur revalidera.
+                        </div>
 
                         <!-- Alertes conflits -->
                         <div v-if="conflicts.length" class="rounded-md border border-destructive bg-destructive/10 p-3">
