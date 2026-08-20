@@ -21,9 +21,18 @@
   (`2026-06-05-translations-crud.md`)
 - Notification admin soumission école : `SchoolPendingNotification` (email) + filtre
   `is_active` sur les admins destinataires (`2026-06-05-school-submission-notification.md`)
+- Calendrier Timesheets hebdomadaire + wizard 4 étapes : `WeeklyCalendar` sur `Timesheets/Index`,
+  wizard 4 étapes avec pré-check de conflit délégué à `NoTimesheetConflict`, scoping école sur
+  `create()`/`store()`/`checkConflict()` (`2026-06-05-timesheets-calendar-wizard.md`)
+
+## 🔴 Dette sécurité découverte (à traiter avant/pendant le sprint) — pas encore de plan écrit
+- [ ] Audit autorisation cross-école sur `TimesheetsController` : `show`/`edit`/`update`/`destroy`
+  utilisent le route-model binding implicite SANS vérifier l'école active — un power-user peut
+  lire/modifier/supprimer une feuille de temps d'une autre école par ID. `edit()` expose aussi
+  tous les créneaux de toutes les écoles (même défaut que `create()` avant correction). Probable
+  que d'autres controllers aient le même pattern — vérifier plus largement, pas juste Timesheets.
 
 ## 🎯 Deadline lundi 24/08 — priorité au nombre de features livrées
-- [ ] Calendrier Timesheets hebdomadaire + wizard 4 étapes (`2026-06-05-timesheets-calendar-wizard.md`) — en cours
 - [ ] Module communication / notifications in-app — pas encore de plan écrit
 - [ ] Layouts mobile (pages/[role]/mobile/) — pas encore de plan écrit
 - [ ] Module présence (absences, certificats) — pas encore de plan écrit
@@ -36,4 +45,4 @@
 - [ ] Open Source GPL v3
 
 ---
-*Dernière mise à jour : school-submission-notification terminé, cap sur timesheets-wizard puis communication/mobile/présence pour le 24/08*
+*Dernière mise à jour : timesheets-calendar-wizard terminé (+ dette sécurité cross-école découverte), cap sur communication/mobile/présence pour le 24/08*
