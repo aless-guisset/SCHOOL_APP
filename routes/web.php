@@ -6,6 +6,7 @@ use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DuplicatePlanningController;
 use App\Http\Controllers\LessonsController;
+use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ResourcesController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SchedulesController;
@@ -56,6 +57,11 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
 
     // Dashboard (router par rôle côté Vue)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::patch('/notifications/{notification}', [NotificationsController::class, 'markRead'])
+        ->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])
+        ->name('notifications.read-all');
 
     // ── Panel école (accessible à tous les rôles) ─────────────────────────
     Route::get('/schools/{school}/panel', SchoolPanelController::class)->name('school.panel');

@@ -90,3 +90,52 @@ test('unreadNotifications is empty when the user has no notifications', function
         ->has('unreadNotifications.items', 0)
     );
 });
+
+test('a user can mark their own notification as read', function () {
+    $this->actingAs($this->requester)->post(route('school.create'), [
+        'name' => 'Lycée À Lire', 'email' => 'alire@example.com',
+    ]);
+
+    $notification = $this->admin1->notifications()->first();
+    expect($notification->read_at)->toBeNull();
+
+    $this->actingAs($this->admin1)
+        ->withSession(['active_school_id' => $this->school->id])
+        ->patch("/notifications/{$notification->id}");
+
+    expect($notification->fresh()->read_at)->not->toBeNull();
+});
+
+test('a user cannot mark another users notification as read', function () {
+    $this->actingAs($this->requester)->post(route('school.create'), [
+        'name' => 'Lycée Protégé', 'email' => 'protege@example.com',
+    ]);
+
+    $notification = $this->admin1->notifications()->first();
+
+    $response = $this->actingAs($this->requester)
+        ->withSession(['active_school_id' => $this->school->id])
+        ->patch("/notifications/{$notification->id}");
+
+    $response->assertNotFound();
+    expect($notification->fresh()->read_at)->toBeNull();
+});
+
+test('mark-all-read only affects the current user notifications', function () {
+    $admin2 = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $admin2->id, 'school_id' => $this->school->id,
+        'role_id' => $this->adminRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($this->requester)->post(route('school.create'), [
+        'name' => 'Lycée Multi', 'email' => 'multi@example.com',
+    ]);
+
+    $this->actingAs($this->admin1)
+        ->withSession(['active_school_id' => $this->school->id])
+        ->post('/notifications/read-all');
+
+    expect($this->admin1->unreadNotifications()->count())->toBe(0);
+    expect($admin2->unreadNotifications()->count())->toBe(1);
+});
