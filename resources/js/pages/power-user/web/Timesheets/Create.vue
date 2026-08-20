@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
@@ -12,21 +14,96 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
 
-defineProps<{
+const DAY_LABELS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+type Schedule = { id: number; name: string; day_of_week: number; start_time: string; end_time: string };
+
+const props = defineProps<{
     userSchoolRoles: Array<{ id: number; label: string }>;
-    schedules: Array<{ id: number; name: string; start_time: string; end_time: string }>;
+    schedules: Schedule[];
     subjects: Array<{ id: number; name: string }>;
     classrooms: Array<{ id: number; name: string }>;
 }>();
 
+// ── État wizard ───────────────────────────────────────────────────────────────
+const step = ref(1);
+const STEPS = ['Créneau', 'Date', 'Affectation', 'Confirmation'];
+
 const form = useForm({
-    user_school_role_id: '',
-    schedule_id: '',
-    subject_id: '',
-    classroom_id: '',
-    date: '',
-    hours_done: '',
+    schedule_id:          '',
+    date:                 '',
+    user_school_role_id:  '',
+    classroom_id:         '',
+    subject_id:           '',
+    hours_done:           '',
 });
+
+// ── Étape 1 : schedule sélectionné ──────────────────────────────────────────
+const selectedSchedule = computed<Schedule | undefined>(() =>
+    props.schedules.find(s => String(s.id) === form.schedule_id)
+);
+
+// ── Étape 2 : validation date vs jour du schedule ─────────────────────────────
+const dateWarning = computed(() => {
+    if (!form.date || !selectedSchedule.value) return null;
+    const d = new Date(form.date);
+    const dow = d.getDay() === 0 ? 7 : d.getDay(); // ISO
+    if (dow !== selectedSchedule.value.day_of_week) {
+        return `Ce créneau est prévu le ${DAY_LABELS[selectedSchedule.value.day_of_week]}, mais vous avez sélectionné un ${DAY_LABELS[dow]}.`;
+    }
+    return null;
+});
+
+// ── Étape 3 : check conflits avant confirmation ────────────────────────────────
+const conflicts = ref<string[]>([]);
+const checkingConflicts = ref(false);
+
+async function checkConflicts() {
+    if (!form.schedule_id || !form.date || !form.user_school_role_id || !form.classroom_id) return;
+    checkingConflicts.value = true;
+    conflicts.value = [];
+    try {
+        const params = new URLSearchParams({
+            schedule_id:          form.schedule_id,
+            date:                 form.date,
+            user_school_role_id:  form.user_school_role_id,
+            classroom_id:         form.classroom_id,
+        });
+        const res = await fetch(`/timesheets/check-conflict?${params}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const json = await res.json();
+        conflicts.value = json.conflicts ?? [];
+    } finally {
+        checkingConflicts.value = false;
+    }
+}
+
+// ── Navigation étapes ────────────────────────────────────────────────────────
+const canGoNext = computed(() => {
+    if (step.value === 1) return !!form.schedule_id;
+    if (step.value === 2) return !!form.date;
+    if (step.value === 3) return !!form.user_school_role_id && !!form.classroom_id && !!form.subject_id && !!form.hours_done;
+    return true;
+});
+
+async function next() {
+    if (step.value === 3) await checkConflicts();
+    step.value++;
+}
+function back() { step.value--; }
+
+// ── Résumé étape 4 ───────────────────────────────────────────────────────────
+const summary = computed(() => ({
+    schedule: selectedSchedule.value
+        ? `${selectedSchedule.value.name} (${DAY_LABELS[selectedSchedule.value.day_of_week]}, ${selectedSchedule.value.start_time.slice(0,5)}–${selectedSchedule.value.end_time.slice(0,5)})`
+        : '—',
+    date: form.date,
+    teacher: props.userSchoolRoles.find(r => String(r.id) === form.user_school_role_id)?.label ?? '—',
+    classroom: props.classrooms.find(c => String(c.id) === form.classroom_id)?.name ?? '—',
+    subject: props.subjects.find(s => String(s.id) === form.subject_id)?.name ?? '—',
+    hours: form.hours_done,
+}));
 
 const breadcrumbs = [
     { label: 'Feuilles de temps', href: '/timesheets' },
@@ -37,18 +114,79 @@ const breadcrumbs = [
 <template>
     <Head title="Nouvelle feuille de temps" />
     <AppLayout>
-        <div class="p-4 md:p-6 max-w-xl">
+        <div class="p-4 md:p-6 max-w-2xl">
             <FlashMessage />
             <PageHeader title="Nouvelle feuille de temps" :breadcrumbs="breadcrumbs" />
+
+            <!-- Indicateur étapes -->
+            <div class="mb-6 flex items-center gap-2">
+                <template v-for="(label, i) in STEPS" :key="i">
+                    <div class="flex items-center gap-1.5">
+                        <div
+                            class="flex size-6 items-center justify-center rounded-full text-xs font-semibold"
+                            :class="step > i + 1
+                                ? 'bg-primary text-primary-foreground'
+                                : step === i + 1
+                                    ? 'border-2 border-primary text-primary'
+                                    : 'border border-muted-foreground/30 text-muted-foreground'"
+                        >
+                            <CheckCircle2 v-if="step > i + 1" class="size-4" />
+                            <span v-else>{{ i + 1 }}</span>
+                        </div>
+                        <span
+                            class="hidden text-xs sm:block"
+                            :class="step === i + 1 ? 'font-semibold text-foreground' : 'text-muted-foreground'"
+                        >{{ label }}</span>
+                    </div>
+                    <div v-if="i < STEPS.length - 1" class="h-px flex-1 bg-border" />
+                </template>
+            </div>
+
             <Card>
                 <CardContent class="pt-6">
-                    <form class="space-y-4" @submit.prevent="form.post('/timesheets')">
+
+                    <!-- Étape 1 : Créneau -->
+                    <div v-if="step === 1" class="space-y-4">
+                        <h2 class="font-semibold">Sélectionner un créneau</h2>
+                        <div class="space-y-1.5">
+                            <Label>Créneau *</Label>
+                            <Select v-model="form.schedule_id">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choisir un créneau" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="s in schedules" :key="s.id" :value="String(s.id)">
+                                        {{ DAY_LABELS[s.day_of_week] }} · {{ s.start_time.slice(0,5) }}–{{ s.end_time.slice(0,5) }} · {{ s.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div v-if="selectedSchedule" class="rounded-md bg-muted/40 p-3 text-sm">
+                            <p><span class="font-medium">Jour :</span> {{ DAY_LABELS[selectedSchedule.day_of_week] }}</p>
+                            <p><span class="font-medium">Horaire :</span> {{ selectedSchedule.start_time.slice(0,5) }} – {{ selectedSchedule.end_time.slice(0,5) }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Étape 2 : Date -->
+                    <div v-else-if="step === 2" class="space-y-4">
+                        <h2 class="font-semibold">Choisir la date</h2>
+                        <div class="space-y-1.5">
+                            <Label for="date">Date *</Label>
+                            <Input id="date" v-model="form.date" type="date" :class="{ 'border-destructive': form.errors.date }" />
+                            <p v-if="form.errors.date" class="text-xs text-destructive">{{ form.errors.date }}</p>
+                        </div>
+                        <div v-if="dateWarning" class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                            ⚠ {{ dateWarning }}
+                        </div>
+                    </div>
+
+                    <!-- Étape 3 : Affectation -->
+                    <div v-else-if="step === 3" class="space-y-4">
+                        <h2 class="font-semibold">Affectation</h2>
                         <div class="space-y-1.5">
                             <Label>Professeur *</Label>
                             <Select v-model="form.user_school_role_id">
-                                <SelectTrigger :class="{ 'border-destructive': form.errors.user_school_role_id }">
-                                    <SelectValue placeholder="Sélectionner un professeur" />
-                                </SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Sélectionner un professeur" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem v-for="r in userSchoolRoles" :key="r.id" :value="String(r.id)">{{ r.label }}</SelectItem>
                                 </SelectContent>
@@ -56,18 +194,14 @@ const breadcrumbs = [
                             <p v-if="form.errors.user_school_role_id" class="text-xs text-destructive">{{ form.errors.user_school_role_id }}</p>
                         </div>
                         <div class="space-y-1.5">
-                            <Label>Créneau *</Label>
-                            <Select v-model="form.schedule_id">
-                                <SelectTrigger :class="{ 'border-destructive': form.errors.schedule_id }">
-                                    <SelectValue placeholder="Sélectionner un créneau" />
-                                </SelectTrigger>
+                            <Label>Salle *</Label>
+                            <Select v-model="form.classroom_id">
+                                <SelectTrigger><SelectValue placeholder="Sélectionner une salle" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem v-for="s in schedules" :key="s.id" :value="String(s.id)">
-                                        {{ s.name }} ({{ s.start_time }} – {{ s.end_time }})
-                                    </SelectItem>
+                                    <SelectItem v-for="c in classrooms" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p v-if="form.errors.schedule_id" class="text-xs text-destructive">{{ form.errors.schedule_id }}</p>
+                            <p v-if="form.errors.classroom_id" class="text-xs text-destructive">{{ form.errors.classroom_id }}</p>
                         </div>
                         <div class="space-y-1.5">
                             <Label>Matière *</Label>
@@ -80,32 +214,68 @@ const breadcrumbs = [
                             <p v-if="form.errors.subject_id" class="text-xs text-destructive">{{ form.errors.subject_id }}</p>
                         </div>
                         <div class="space-y-1.5">
-                            <Label>Salle *</Label>
-                            <Select v-model="form.classroom_id">
-                                <SelectTrigger><SelectValue placeholder="Sélectionner une salle" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem v-for="c in classrooms" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p v-if="form.errors.classroom_id" class="text-xs text-destructive">{{ form.errors.classroom_id }}</p>
+                            <Label for="hours">Heures effectuées *</Label>
+                            <Input id="hours" v-model="form.hours_done" type="number" min="0" step="0.5" />
+                            <p v-if="form.errors.hours_done" class="text-xs text-destructive">{{ form.errors.hours_done }}</p>
                         </div>
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div class="space-y-1.5">
-                                <Label for="date">Date *</Label>
-                                <Input id="date" v-model="form.date" type="date" :class="{ 'border-destructive': form.errors.date }" />
-                                <p v-if="form.errors.date" class="text-xs text-destructive">{{ form.errors.date }}</p>
+                    </div>
+
+                    <!-- Étape 4 : Confirmation -->
+                    <div v-else class="space-y-4">
+                        <h2 class="font-semibold">Confirmation</h2>
+
+                        <!-- Alertes conflits -->
+                        <div v-if="conflicts.length" class="rounded-md border border-destructive bg-destructive/10 p-3">
+                            <p class="mb-1 text-sm font-medium text-destructive">Conflits détectés :</p>
+                            <ul class="list-disc pl-4 text-sm text-destructive">
+                                <li v-for="c in conflicts" :key="c">{{ c }}</li>
+                            </ul>
+                            <p class="mt-2 text-xs text-muted-foreground">Vous pouvez quand même enregistrer ; le serveur revalidera.</p>
+                        </div>
+
+                        <div class="rounded-md bg-muted/40 p-4 text-sm space-y-2">
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                                <span class="text-muted-foreground">Créneau</span>
+                                <span class="font-medium">{{ summary.schedule }}</span>
+                                <span class="text-muted-foreground">Date</span>
+                                <span class="font-medium">{{ summary.date }}</span>
+                                <span class="text-muted-foreground">Professeur</span>
+                                <span class="font-medium">{{ summary.teacher }}</span>
+                                <span class="text-muted-foreground">Salle</span>
+                                <span class="font-medium">{{ summary.classroom }}</span>
+                                <span class="text-muted-foreground">Matière</span>
+                                <span class="font-medium">{{ summary.subject }}</span>
+                                <span class="text-muted-foreground">Heures</span>
+                                <span class="font-medium">{{ summary.hours }}h</span>
                             </div>
-                            <div class="space-y-1.5">
-                                <Label for="hours">Heures effectuées *</Label>
-                                <Input id="hours" v-model="form.hours_done" type="number" min="0" step="0.5" />
-                                <p v-if="form.errors.hours_done" class="text-xs text-destructive">{{ form.errors.hours_done }}</p>
-                            </div>
                         </div>
-                        <div class="flex gap-3 pt-2">
-                            <Button type="submit" :disabled="form.processing">{{ t('action.save') }}</Button>
-                            <Button variant="outline" as-child><Link href="/timesheets">{{ t('action.cancel') }}</Link></Button>
-                        </div>
-                    </form>
+                    </div>
+
+                    <!-- Navigation boutons -->
+                    <div class="mt-6 flex gap-3">
+                        <Button v-if="step > 1" variant="outline" @click="back">
+                            <ChevronLeft class="size-4" />Retour
+                        </Button>
+                        <div class="flex-1" />
+                        <Button
+                            v-if="step < 4"
+                            :disabled="!canGoNext || checkingConflicts"
+                            @click="next"
+                        >
+                            {{ checkingConflicts ? 'Vérification…' : 'Suivant' }}<ChevronRight class="size-4" />
+                        </Button>
+                        <Button
+                            v-else
+                            :disabled="form.processing"
+                            @click="form.post('/timesheets')"
+                        >
+                            {{ t('action.save') }}
+                        </Button>
+                        <Button variant="outline" as-child>
+                            <Link href="/timesheets">{{ t('action.cancel') }}</Link>
+                        </Button>
+                    </div>
+
                 </CardContent>
             </Card>
         </div>
