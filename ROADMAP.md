@@ -24,6 +24,9 @@
 - Calendrier Timesheets hebdomadaire + wizard 4 étapes : `WeeklyCalendar` sur `Timesheets/Index`,
   wizard 4 étapes avec pré-check de conflit délégué à `NoTimesheetConflict`, scoping école sur
   `create()`/`store()`/`checkConflict()` (`2026-06-05-timesheets-calendar-wizard.md`)
+- Notifications in-app : canal `database` sur `SchoolPendingNotification`, prop Inertia
+  `unreadNotifications`, `NotificationsController` (markRead/markAllRead), cloche + dropdown
+  dans `AppSidebarHeader.vue` (`2026-08-20-inapp-notifications.md`)
 
 ## 🔴 Dette sécurité découverte (à traiter avant/pendant le sprint) — pas encore de plan écrit
 - [ ] Audit autorisation cross-école sur `TimesheetsController` : `show`/`edit`/`update`/`destroy`
@@ -33,7 +36,6 @@
   que d'autres controllers aient le même pattern — vérifier plus largement, pas juste Timesheets.
 
 ## 🎯 Deadline lundi 24/08 — priorité au nombre de features livrées
-- [ ] Module communication / notifications in-app — pas encore de plan écrit
 - [ ] Layouts mobile (pages/[role]/mobile/) — pas encore de plan écrit
 - [ ] Module présence (absences, certificats) — pas encore de plan écrit
 
@@ -43,6 +45,8 @@
 - [ ] Module évaluations / bulletins PDF
 - [ ] Export CSV (RGPD)
 - [ ] Open Source GPL v3
+- [ ] Notifications in-app : couvrir d'autres événements métier au-delà de la soumission école
+  (feuille de temps assignée, conflit d'horaire, etc.) — v1 volontairement minimale
 
 ---
-*Dernière mise à jour : timesheets-calendar-wizard terminé (+ dette sécurité cross-école découverte), cap sur communication/mobile/présence pour le 24/08*
+*Dernière mise à jour : notifications in-app terminées, cap sur mobile/présence pour le 24/08*
