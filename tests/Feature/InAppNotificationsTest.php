@@ -119,6 +119,16 @@ test('a user cannot mark another users notification as read', function () {
 
     $response->assertNotFound();
     expect($notification->fresh()->read_at)->toBeNull();
+
+    // Prove the route was genuinely live and reachable — not that it 404'd because the
+    // route itself was missing — by confirming the actual owner CAN mark it read via the
+    // same endpoint right after.
+    $this->actingAs($this->admin1)
+        ->withSession(['active_school_id' => $this->school->id])
+        ->patch("/notifications/{$notification->id}")
+        ->assertRedirect();
+
+    expect($notification->fresh()->read_at)->not->toBeNull();
 });
 
 test('mark-all-read only affects the current user notifications', function () {
