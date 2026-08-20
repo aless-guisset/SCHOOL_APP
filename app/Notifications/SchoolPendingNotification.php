@@ -19,7 +19,16 @@ class SchoolPendingNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        return [
+            'title' => "Nouvelle demande d'école : {$this->school->name}",
+            'body'  => "{$this->submittedBy->firstname} {$this->submittedBy->lastname} a soumis une demande de création d'école.",
+            'url'   => '/schools/pending',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage
