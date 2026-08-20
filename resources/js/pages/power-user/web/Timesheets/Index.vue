@@ -32,8 +32,11 @@ const viewMode = ref<'calendar' | 'list'>('calendar');
 
 // ── Navigation semaine ────────────────────────────────────────────────────────
 function addDays(dateStr: string, days: number): string {
-    const d = new Date(dateStr);
-    d.setDate(d.getDate() + days);
+    // dateStr is a date-only 'YYYY-MM-DD' string — parse and mutate entirely in UTC
+    // so the result doesn't shift across DST boundaries depending on the browser's
+    // local timezone (see displayWeek()/dayOfWeekISO() for the same pattern).
+    const d = new Date(`${dateStr}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
     return d.toISOString().slice(0, 10);
 }
 

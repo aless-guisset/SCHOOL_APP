@@ -11,7 +11,7 @@ use App\Rules\NoTimesheetConflict;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,12 +48,13 @@ class TimesheetsController extends Controller
                 ->where('is_active', true)
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
-            'schedules'  => Schedule::with('sectionCourse.course')
-                ->whereHas('sectionCourse')
+            'schedules'  => Schedule::whereHas(
+                'sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId)
+            )
                 ->where('is_active', true)
                 ->orderBy('day_of_week')
                 ->orderBy('start_time')
-                ->get(['id', 'name', 'day_of_week', 'start_time', 'end_time', 'section_course_id']),
+                ->get(['id', 'name', 'day_of_week', 'start_time', 'end_time']),
             'subjects'   => Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::where('school_id', $schoolId)
@@ -156,33 +157,24 @@ class TimesheetsController extends Controller
 
     public function checkConflict(Request $request): JsonResponse
     {
+        $schoolId = session('active_school_id');
+
         $request->validate([
             'schedule_id'         => 'required|integer|exists:schedules,id',
             'date'                => 'required|date',
-            'user_school_role_id' => 'required|integer|exists:users_schools_roles,id',
-            'classroom_id'        => 'required|integer|exists:classrooms,id',
+            'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
+            'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
         ]);
 
-        $schedule  = Schedule::findOrFail($request->schedule_id);
-        $startTime = $schedule->start_time;
-        $endTime   = $schedule->end_time;
         $conflicts = [];
 
-        $base = DB::table('timesheets as t')
-            ->join('schedules as s', 's.id', '=', 't.schedule_id')
-            ->whereNull('t.deleted_at')
-            ->whereNull('s.deleted_at')
-            ->where('t.date', $request->date)
-            ->where('s.start_time', '<', $endTime)
-            ->where('s.end_time', '>', $startTime);
-
-        if ((clone $base)->where('t.user_school_role_id', (int) $request->user_school_role_id)->exists()) {
-            $conflicts[] = 'Ce professeur est déjà occupé sur ce créneau à cette date.';
-        }
-
-        if ((clone $base)->where('t.classroom_id', (int) $request->classroom_id)->exists()) {
-            $conflicts[] = 'Cette salle est déjà occupée sur ce créneau à cette date.';
-        }
+        (new NoTimesheetConflict(
+            scheduleId: (int) $request->schedule_id,
+            userSchoolRoleId: (int) $request->user_school_role_id,
+            classroomId: (int) $request->classroom_id,
+        ))->validate('date', $request->date, function (string $message) use (&$conflicts) {
+            $conflicts[] = $message;
+        });
 
         return response()->json(['conflicts' => $conflicts]);
     }

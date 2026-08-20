@@ -106,6 +106,29 @@ async function next() {
 }
 function back() { step.value--; }
 
+// ── Soumission finale ────────────────────────────────────────────────────────
+// Maps a rejected field back to the wizard step where it's edited, so a user
+// whose submit is rejected on step 4 (e.g. a server-side conflict on `date`)
+// lands back where they can actually fix it instead of staring at a frozen screen.
+const FIELD_STEP: Record<string, number> = {
+    schedule_id: 1,
+    date: 2,
+    user_school_role_id: 3,
+    classroom_id: 3,
+    subject_id: 3,
+    hours_done: 3,
+};
+
+function submit() {
+    form.post('/timesheets', {
+        onError: (errors) => {
+            const firstField = Object.keys(errors)[0];
+            const targetStep = firstField ? FIELD_STEP[firstField] : undefined;
+            if (targetStep) step.value = targetStep;
+        },
+    });
+}
+
 // ── Résumé étape 4 ───────────────────────────────────────────────────────────
 const summary = computed(() => ({
     schedule: selectedSchedule.value
@@ -251,6 +274,14 @@ const breadcrumbs = [
                             <p class="mt-2 text-xs text-muted-foreground">Vous pouvez quand même enregistrer ; le serveur revalidera.</p>
                         </div>
 
+                        <!-- Erreurs de validation serveur (ex: rejet au submit) -->
+                        <div v-if="Object.keys(form.errors).length" class="rounded-md border border-destructive bg-destructive/10 p-3">
+                            <p class="mb-1 text-sm font-medium text-destructive">Erreur lors de l'enregistrement :</p>
+                            <ul class="list-disc pl-4 text-sm text-destructive">
+                                <li v-for="(msg, key) in form.errors" :key="key">{{ msg }}</li>
+                            </ul>
+                        </div>
+
                         <div class="rounded-md bg-muted/40 p-4 text-sm space-y-2">
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1.5">
                                 <span class="text-muted-foreground">Créneau</span>
@@ -285,7 +316,7 @@ const breadcrumbs = [
                         <Button
                             v-else
                             :disabled="form.processing"
-                            @click="form.post('/timesheets')"
+                            @click="submit"
                         >
                             {{ t('action.save') }}
                         </Button>
