@@ -34,13 +34,13 @@ withDefaults(defineProps<{
         </nav>
 
         <!-- Title + description -->
-        <div class="flex items-start justify-between gap-4">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold tracking-tight">{{ title }}</h1>
                 <p v-if="description" class="mt-1 text-sm text-muted-foreground">{{ description }}</p>
             </div>
             <!-- Actions slot (boutons Create, etc.) -->
-            <div class="flex shrink-0 items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2 sm:shrink-0">
                 <slot name="actions" />
             </div>
         </div>
