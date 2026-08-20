@@ -77,6 +77,9 @@ class HandleInertiaRequests extends Middleware
             'unreadNotifications' => $user ? [
                 'count' => $user->unreadNotifications()->count(),
                 'items' => $user->notifications()
+                    ->reorder()
+                    ->orderByRaw('read_at is null desc')
+                    ->latest()
                     ->limit(10)
                     ->get()
                     ->map(fn ($n) => [

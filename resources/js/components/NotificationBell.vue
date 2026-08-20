@@ -47,6 +47,7 @@ function markAllRead() {
         <DropdownMenuTrigger as-child>
             <Button variant="ghost" size="icon" class="relative">
                 <Bell class="size-5" />
+                <span class="sr-only">Notifications{{ count > 0 ? ` (${count} non lues)` : '' }}</span>
                 <span
                     v-if="count > 0"
                     class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground"

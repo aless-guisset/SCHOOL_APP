@@ -50,6 +50,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Page d'attente pour les étudiants sans école
     Route::get('/school/waiting', fn () => Inertia::render('school/Waiting'))
         ->name('school.waiting');
+
+    // Notifications (aucun contexte école requis pour marquer comme lu)
+    Route::patch('/notifications/{notification}', [NotificationsController::class, 'markRead'])
+        ->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])
+        ->name('notifications.read-all');
 });
 
 // ─── Application principale (auth + contexte école requis) ────────────────
@@ -57,11 +63,6 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
 
     // Dashboard (router par rôle côté Vue)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    Route::patch('/notifications/{notification}', [NotificationsController::class, 'markRead'])
-        ->name('notifications.read');
-    Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])
-        ->name('notifications.read-all');
 
     // ── Panel école (accessible à tous les rôles) ─────────────────────────
     Route::get('/schools/{school}/panel', SchoolPanelController::class)->name('school.panel');

@@ -5,6 +5,8 @@ use App\Models\School;
 use App\Models\User;
 use App\Models\UserSchoolRole;
 use App\Notifications\SchoolPendingNotification;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     $this->adminRole = Role::create([
@@ -44,7 +46,7 @@ test('SchoolPendingNotification is sent via mail and database channels', functio
     ]);
     $notification = new SchoolPendingNotification($school, $this->requester);
 
-    expect($notification->via($this->admin1))->toBe(['mail', 'database']);
+    expect($notification->via($this->admin1))->toBe(['database', 'mail']);
 });
 
 test('submitting a school creates a database notification for each active admin', function () {
@@ -129,6 +131,45 @@ test('a user cannot mark another users notification as read', function () {
         ->assertRedirect();
 
     expect($notification->fresh()->read_at)->not->toBeNull();
+});
+
+test('an old unread notification is prioritized over 10 newer read ones in unreadNotifications.items', function () {
+    // 10 recent, already-read notifications for admin1.
+    for ($i = 0; $i < 10; $i++) {
+        DatabaseNotification::create([
+            'id'              => (string) Str::uuid(),
+            'type'            => SchoolPendingNotification::class,
+            'notifiable_type' => User::class,
+            'notifiable_id'   => $this->admin1->id,
+            'data'            => ['title' => "Lue #{$i}", 'body' => 'x', 'url' => null],
+            'read_at'         => now(),
+            'created_at'      => now()->subMinutes($i),
+            'updated_at'      => now(),
+        ]);
+    }
+
+    // One older, still-unread notification — pushed out of the "10 most recent" window
+    // by plain created_at ordering, but must still surface because it's unread.
+    DatabaseNotification::create([
+        'id'              => (string) Str::uuid(),
+        'type'            => SchoolPendingNotification::class,
+        'notifiable_type' => User::class,
+        'notifiable_id'   => $this->admin1->id,
+        'data'            => ['title' => 'Ancienne non lue', 'body' => 'x', 'url' => null],
+        'read_at'         => null,
+        'created_at'      => now()->subDays(30),
+        'updated_at'      => now(),
+    ]);
+
+    $response = $this->actingAs($this->admin1)
+        ->withSession(['active_school_id' => $this->school->id])
+        ->get('/dashboard');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('unreadNotifications.count', 1)
+        ->where('unreadNotifications.items.0.title', 'Ancienne non lue')
+        ->where('unreadNotifications.items.0.read', false)
+    );
 });
 
 test('mark-all-read only affects the current user notifications', function () {
