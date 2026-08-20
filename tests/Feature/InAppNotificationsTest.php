@@ -61,3 +61,32 @@ test('submitting a school creates a database notification for each active admin'
     expect($notification->data['url'])->toBe('/schools/pending');
     expect($notification->read_at)->toBeNull();
 });
+
+test('unreadNotifications prop reflects the current user notifications', function () {
+    $this->actingAs($this->requester)->post(route('school.create'), [
+        'name' => 'Lycée Partagé',
+        'email' => 'partage@example.com',
+    ]);
+
+    $response = $this->actingAs($this->admin1)
+        ->withSession(['active_school_id' => $this->school->id])
+        ->get('/dashboard');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('unreadNotifications.count', 1)
+        ->has('unreadNotifications.items', 1)
+        ->where('unreadNotifications.items.0.title', fn ($title) => str_contains($title, 'Lycée Partagé'))
+        ->where('unreadNotifications.items.0.read', false)
+    );
+});
+
+test('unreadNotifications is empty when the user has no notifications', function () {
+    $response = $this->actingAs($this->admin1)
+        ->withSession(['active_school_id' => $this->school->id])
+        ->get('/dashboard');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('unreadNotifications.count', 0)
+        ->has('unreadNotifications.items', 0)
+    );
+});

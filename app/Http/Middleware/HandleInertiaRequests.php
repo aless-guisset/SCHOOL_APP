@@ -74,6 +74,20 @@ class HandleInertiaRequests extends Middleware
             'pendingCount' => $currentRole === 'Administrateur'
                 ? School::where('status', 'P')->count()
                 : 0,
+            'unreadNotifications' => $user ? [
+                'count' => $user->unreadNotifications()->count(),
+                'items' => $user->notifications()
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($n) => [
+                        'id'         => $n->id,
+                        'title'      => $n->data['title'] ?? '',
+                        'body'       => $n->data['body'] ?? '',
+                        'url'        => $n->data['url'] ?? null,
+                        'read'       => $n->read_at !== null,
+                        'created_at' => $n->created_at->diffForHumans(),
+                    ]),
+            ] : ['count' => 0, 'items' => []],
             'routeName'   => Route::currentRouteName(),
         ];
     }
