@@ -41,10 +41,13 @@ const prevWeek = computed(() => addDays(props.week_start, -7));
 const nextWeek = computed(() => addDays(props.week_start, 7));
 
 function displayWeek(weekStart: string): string {
-    const start = new Date(weekStart);
-    const end   = new Date(weekStart);
-    end.setDate(end.getDate() + 6);
-    const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+    // weekStart is a date-only 'YYYY-MM-DD' string with no timezone meaning.
+    // Parse and format entirely in UTC so the displayed range matches the
+    // actual week_start/week_end regardless of the browser's local timezone.
+    const start = new Date(`${weekStart}T00:00:00Z`);
+    const end   = new Date(`${weekStart}T00:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + 6);
+    const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', timeZone: 'UTC' };
     return `${start.toLocaleDateString('fr-FR', opts)} – ${end.toLocaleDateString('fr-FR', opts)}`;
 }
 
@@ -52,10 +55,22 @@ function navigate(week: string) {
     router.get('/timesheets', { week }, { preserveScroll: true, preserveState: true });
 }
 
+// Browser's local calendar day as 'YYYY-MM-DD' (NOT toISOString(), which is UTC-based).
+function todayLocal(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 // ── Conversion Timesheet → CalendarSlot ──────────────────────────────────────
 function dayOfWeekISO(dateStr: string): number {
+    // dateStr is a date-only 'YYYY-MM-DD' string, parsed by `new Date()` as UTC
+    // midnight — read it back with the UTC getter to avoid a local-timezone
+    // off-by-one-day shift west of UTC.
     const d = new Date(dateStr);
-    const day = d.getDay(); // 0=dim … 6=sam
+    const day = d.getUTCDay(); // 0=dim … 6=sam
     return day === 0 ? 7 : day; // ISO: 1=lun … 7=dim
 }
 
@@ -107,7 +122,7 @@ const columns = [
                         <Button variant="outline" size="icon" @click="navigate(prevWeek)">
                             <ChevronLeft class="size-4" />
                         </Button>
-                        <Button variant="outline" size="sm" @click="navigate(new Date().toISOString().slice(0,10))">
+                        <Button variant="outline" size="sm" @click="navigate(todayLocal())">
                             Aujourd'hui
                         </Button>
                         <Button variant="outline" size="icon" @click="navigate(nextWeek)">
