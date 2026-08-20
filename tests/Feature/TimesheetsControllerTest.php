@@ -8,6 +8,7 @@ use App\Models\School;
 use App\Models\Section;
 use App\Models\SectionCourse;
 use App\Models\SectionUserSchoolRole;
+use App\Models\Subject;
 use App\Models\User;
 use App\Models\UserSchoolRole;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -120,4 +121,96 @@ test('checkConflict rejects a classroom and user_school_role belonging to anothe
         ]))
         ->assertStatus(422)
         ->assertJsonValidationErrors(['user_school_role_id', 'classroom_id']);
+});
+
+test('checkConflict rejects a schedule belonging to another school', function () {
+    $schoolA = makeTimesheetSchool();
+    $schoolB = makeTimesheetSchool();
+
+    $teacherA = makeTimesheetUsr($schoolA, makeTimesheetRole('PROF', 'Professeur'));
+    $teacherB = makeTimesheetUsr($schoolB, makeTimesheetRole('PROF', 'Professeur'));
+
+    $scheduleB = makeTimesheetScheduleFor($schoolB, $teacherB, 'Classe B');
+
+    $classroomA = Classroom::create([
+        'school_id' => $schoolA->id, 'name' => 'Salle A',
+        'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUserA = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $powerUserA->id, 'school_id' => $schoolA->id,
+        'role_id' => makeTimesheetRole('POWER', 'Power User')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUserA)
+        ->getJson('/timesheets/check-conflict?'.http_build_query([
+            'schedule_id'         => $scheduleB->id, // école B
+            'date'                => '2026-09-07',
+            'user_school_role_id' => $teacherA->id,
+            'classroom_id'        => $classroomA->id,
+        ]))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['schedule_id']);
+});
+
+test('store rejects a schedule, user_school_role, or classroom belonging to another school', function () {
+    $schoolA = makeTimesheetSchool();
+    $schoolB = makeTimesheetSchool();
+
+    $teacherA = makeTimesheetUsr($schoolA, makeTimesheetRole('PROF', 'Professeur'));
+    $teacherB = makeTimesheetUsr($schoolB, makeTimesheetRole('PROF', 'Professeur'));
+
+    $scheduleA = makeTimesheetScheduleFor($schoolA, $teacherA, 'Classe A');
+    $scheduleB = makeTimesheetScheduleFor($schoolB, $teacherB, 'Classe B');
+
+    $classroomA = Classroom::create([
+        'school_id' => $schoolA->id, 'name' => 'Salle A',
+        'is_active' => true, 'created_by' => 1,
+    ]);
+    $classroomB = Classroom::create([
+        'school_id' => $schoolB->id, 'name' => 'Salle B',
+        'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $courseA = Course::create([
+        'school_id' => $schoolA->id, 'name' => 'Physique',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $subjectA = Subject::create([
+        'course_id' => $courseA->id, 'name' => 'Physique',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUserA = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $powerUserA->id, 'school_id' => $schoolA->id,
+        'role_id' => makeTimesheetRole('POWER', 'Power User')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $basePayload = [
+        'user_school_role_id' => $teacherA->id,
+        'schedule_id'         => $scheduleA->id,
+        'subject_id'          => $subjectA->id,
+        'classroom_id'        => $classroomA->id,
+        'date'                => '2026-09-07',
+        'hours_done'          => 2,
+    ];
+
+    $this->actingAs($powerUserA)
+        ->postJson('/timesheets', [...$basePayload, 'schedule_id' => $scheduleB->id]) // école B
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['schedule_id']);
+
+    $this->actingAs($powerUserA)
+        ->postJson('/timesheets', [...$basePayload, 'user_school_role_id' => $teacherB->id]) // école B
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['user_school_role_id']);
+
+    $this->actingAs($powerUserA)
+        ->postJson('/timesheets', [...$basePayload, 'classroom_id' => $classroomB->id]) // école B
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['classroom_id']);
 });

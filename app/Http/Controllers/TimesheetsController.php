@@ -64,11 +64,13 @@ class TimesheetsController extends Controller
 
     public function store(Request $request)
     {
+        $schoolId = session('active_school_id');
+
         $data = $request->validate([
-            'user_school_role_id' => 'required|integer|exists:users_schools_roles,id',
-            'schedule_id'         => 'required|integer|exists:schedules,id',
+            'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
+            'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
             'subject_id'          => 'required|integer|exists:subjects,id',
-            'classroom_id'        => 'required|integer|exists:classrooms,id',
+            'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
             'date'                => [
                 'required',
                 'date',
@@ -160,7 +162,7 @@ class TimesheetsController extends Controller
         $schoolId = session('active_school_id');
 
         $request->validate([
-            'schedule_id'         => 'required|integer|exists:schedules,id',
+            'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
             'date'                => 'required|date',
             'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
             'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
@@ -177,5 +179,19 @@ class TimesheetsController extends Controller
         });
 
         return response()->json(['conflicts' => $conflicts]);
+    }
+
+    /**
+     * `schedule_id` has no direct `school_id` column — it's reached via
+     * Schedule → sectionCourse → course → school_id. `Rule::exists` can't
+     * express that multi-hop relation, so use a closure rule instead.
+     */
+    private function scheduleBelongsToSchool(?int $schoolId): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
+            if (! Schedule::whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId))->whereKey($value)->exists()) {
+                $fail('Ce créneau n\'appartient pas à votre établissement.');
+            }
+        };
     }
 }

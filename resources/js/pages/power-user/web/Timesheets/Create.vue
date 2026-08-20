@@ -101,6 +101,7 @@ const canGoNext = computed(() => {
 });
 
 async function next() {
+    form.clearErrors();
     if (step.value === 3) await checkConflicts();
     step.value++;
 }
@@ -267,7 +268,7 @@ const breadcrumbs = [
 
                         <!-- Alertes conflits -->
                         <div v-if="conflicts.length" class="rounded-md border border-destructive bg-destructive/10 p-3">
-                            <p class="mb-1 text-sm font-medium text-destructive">Conflits détectés :</p>
+                            <p class="mb-1 text-sm font-medium text-destructive">Conflit détecté :</p>
                             <ul class="list-disc pl-4 text-sm text-destructive">
                                 <li v-for="c in conflicts" :key="c">{{ c }}</li>
                             </ul>
