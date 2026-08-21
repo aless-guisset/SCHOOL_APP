@@ -14,21 +14,21 @@ use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
 
-function makeSchool(): School
+function makeAttendanceSchool(): School
 {
     return School::create([
         'name' => 'Lycée Test', 'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 }
 
-function makeRole(string $reference, string $name): Role
+function makeAttendanceRole(string $reference, string $name): Role
 {
     return Role::firstOrCreate(['reference' => $reference], [
         'name' => $name, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 }
 
-function makeUsr(School $school, Role $role): UserSchoolRole
+function makeAttendanceUsr(School $school, Role $role): UserSchoolRole
 {
     $user = User::factory()->create();
 
@@ -38,7 +38,7 @@ function makeUsr(School $school, Role $role): UserSchoolRole
     ]);
 }
 
-function makeSection(School $school, string $name = 'Classe A'): Section
+function makeAttendanceSection(School $school, string $name = 'Classe A'): Section
 {
     return Section::create([
         'school_id' => $school->id, 'name' => $name,
@@ -46,9 +46,9 @@ function makeSection(School $school, string $name = 'Classe A'): Section
     ]);
 }
 
-function enrollStudent(Section $section, Role $eleveRole, School $school): SectionUserSchoolRole
+function enrollAttendanceStudent(Section $section, Role $eleveRole, School $school): SectionUserSchoolRole
 {
-    $studentUsr = makeUsr($school, $eleveRole);
+    $studentUsr = makeAttendanceUsr($school, $eleveRole);
 
     return SectionUserSchoolRole::create([
         'section_id' => $section->id, 'user_school_role_id' => $studentUsr->id,
@@ -57,7 +57,7 @@ function enrollStudent(Section $section, Role $eleveRole, School $school): Secti
 }
 
 /** Crée course + section_user (prof) + section_course + schedule + timesheet. Retourne le Timesheet. */
-function makeSessionFor(School $school, Section $section, UserSchoolRole $teacherUsr): Timesheet
+function makeAttendanceSessionFor(School $school, Section $section, UserSchoolRole $teacherUsr): Timesheet
 {
     $course = Course::create([
         'school_id' => $school->id, 'name' => 'Maths',
@@ -95,11 +95,11 @@ function makeSessionFor(School $school, Section $section, UserSchoolRole $teache
 }
 
 test('attendance belongs to a timesheet and a section user', function () {
-    $school = makeSchool();
-    $section = makeSection($school);
-    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
-    $timesheet = makeSessionFor($school, $section, $teacherUsr);
-    $student = enrollStudent($section, makeRole('ELEVE', 'Élève'), $school);
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, makeAttendanceRole('ELEVE', 'Élève'), $school);
 
     $attendance = Attendance::create([
         'timesheet_id' => $timesheet->id, 'section_user_id' => $student->id,
@@ -113,18 +113,18 @@ test('attendance belongs to a timesheet and a section user', function () {
 });
 
 test('roster only includes students of the session section, defaulting to present', function () {
-    $school = makeSchool();
-    $section = makeSection($school);
-    $otherSection = makeSection($school, 'Classe B');
-    $eleveRole = makeRole('ELEVE', 'Élève');
-    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
-    $timesheet = makeSessionFor($school, $section, $teacherUsr);
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $otherSection = makeAttendanceSection($school, 'Classe B');
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
 
-    $student = enrollStudent($section, $eleveRole, $school);
-    enrollStudent($otherSection, $eleveRole, $school); // élève d'une autre section — exclu
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+    enrollAttendanceStudent($otherSection, $eleveRole, $school); // élève d'une autre section — exclu
 
-    $powerUserRole = makeRole('POWER', 'Power User');
-    $powerUser = makeUsr($school, $powerUserRole)->user;
+    $powerUserRole = makeAttendanceRole('POWER', 'Power User');
+    $powerUser = makeAttendanceUsr($school, $powerUserRole)->user;
 
     $this->actingAs($powerUser)
         ->withSession(['active_school_id' => $school->id])
@@ -139,12 +139,12 @@ test('roster only includes students of the session section, defaulting to presen
 });
 
 test('roster reflects an already-recorded absence', function () {
-    $school = makeSchool();
-    $section = makeSection($school);
-    $eleveRole = makeRole('ELEVE', 'Élève');
-    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
-    $timesheet = makeSessionFor($school, $section, $teacherUsr);
-    $student = enrollStudent($section, $eleveRole, $school);
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
 
     Attendance::create([
         'timesheet_id' => $timesheet->id, 'section_user_id' => $student->id,
@@ -152,7 +152,7 @@ test('roster reflects an already-recorded absence', function () {
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
-    $powerUser = makeUsr($school, makeRole('POWER', 'Power User'))->user;
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
 
     $this->actingAs($powerUser)
         ->withSession(['active_school_id' => $school->id])
