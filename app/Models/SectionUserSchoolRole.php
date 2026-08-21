@@ -46,7 +46,7 @@ class SectionUserSchoolRole extends Model
 
     public function userschoolrole()
     {
-        return $this->belongsTo(UserSchoolRole::class);
+        return $this->belongsTo(UserSchoolRole::class, 'user_school_role_id');
     }
 
     public function sectionCourses()
