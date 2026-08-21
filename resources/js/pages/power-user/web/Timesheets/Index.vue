@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { CalendarDays, ChevronLeft, ChevronRight, List, Plus } from 'lucide-vue-next';
+import { CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, List, Plus } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -125,9 +125,9 @@ const columns = [
                         <Button variant="outline" size="icon" @click="navigate(prevWeek)">
                             <ChevronLeft class="size-4" />
                         </Button>
-                        <Button variant="outline" size="sm" class="px-2 sm:px-3" @click="navigate(todayLocal())">
-                            <span class="hidden sm:inline">Aujourd'hui</span>
-                            <CalendarDays class="size-4 sm:hidden" />
+                        <Button variant="outline" size="sm" @click="navigate(todayLocal())">
+                            <span class="sr-only sm:not-sr-only">Aujourd'hui</span>
+                            <CalendarCheck class="size-4 sm:hidden" />
                         </Button>
                         <Button variant="outline" size="icon" @click="navigate(nextWeek)">
                             <ChevronRight class="size-4" />

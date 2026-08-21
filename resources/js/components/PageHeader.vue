@@ -40,7 +40,7 @@ withDefaults(defineProps<{
                 <p v-if="description" class="mt-1 text-sm text-muted-foreground">{{ description }}</p>
             </div>
             <!-- Actions slot (boutons Create, etc.) -->
-            <div class="flex flex-wrap items-center gap-2 sm:shrink-0">
+            <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2 sm:shrink-0">
                 <slot name="actions" />
             </div>
         </div>

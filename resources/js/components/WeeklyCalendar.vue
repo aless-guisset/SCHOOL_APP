@@ -22,7 +22,7 @@ const HOUR_START  = 7;
 const HOUR_END    = 20;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 
-const isMobile = useMediaQuery('(max-width: 639px)');
+const isMobile = useMediaQuery('(max-width: 39.9375rem)');
 const HOUR_PX = computed(() => isMobile.value ? 48 : 64);
 const DAY_COL_PX = computed(() => isMobile.value ? 80 : 120);
 const HOUR_LABEL_COL_PX = computed(() => isMobile.value ? 36 : 48);
