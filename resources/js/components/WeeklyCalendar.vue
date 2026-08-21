@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useMediaQuery } from '@/composables/useMediaQuery';
 
 export interface CalendarSlot {
     id: number | string;
@@ -20,7 +21,11 @@ const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi',
 const HOUR_START  = 7;
 const HOUR_END    = 20;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
-const HOUR_PX     = 64;
+
+const isMobile = useMediaQuery('(max-width: 639px)');
+const HOUR_PX = computed(() => isMobile.value ? 48 : 64);
+const DAY_COL_PX = computed(() => isMobile.value ? 80 : 120);
+const HOUR_LABEL_COL_PX = computed(() => isMobile.value ? 36 : 48);
 
 const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => HOUR_START + i);
 
@@ -61,8 +66,8 @@ function slotStyle(s: CalendarSlot) {
     const duration = toMin(s.endTime) - toMin(s.startTime);
 
     return {
-        top:    `${(startMin / 60) * HOUR_PX}px`,
-        height: `${Math.max((duration / 60) * HOUR_PX - 2, 20)}px`,
+        top:    `${(startMin / 60) * HOUR_PX.value}px`,
+        height: `${Math.max((duration / 60) * HOUR_PX.value - 2, 20)}px`,
     };
 }
 
@@ -73,11 +78,11 @@ function fmt(t: string) {
 
 <template>
     <div class="overflow-x-auto rounded-md border border-border">
-        <div :style="`min-width: ${48 + activeDays.length * 120}px`">
+        <div :style="`min-width: ${HOUR_LABEL_COL_PX + activeDays.length * DAY_COL_PX}px`">
             <!-- En-têtes jours -->
             <div
                 class="grid border-b border-border bg-muted/40"
-                :style="`grid-template-columns: 48px repeat(${activeDays.length}, 1fr)`"
+                :style="`grid-template-columns: ${HOUR_LABEL_COL_PX}px repeat(${activeDays.length}, 1fr)`"
             >
                 <div />
                 <div
@@ -89,7 +94,7 @@ function fmt(t: string) {
             <!-- Corps grille -->
             <div
                 class="grid"
-                :style="`grid-template-columns: 48px repeat(${activeDays.length}, 1fr); height: ${TOTAL_HOURS * HOUR_PX}px`"
+                :style="`grid-template-columns: ${HOUR_LABEL_COL_PX}px repeat(${activeDays.length}, 1fr); height: ${TOTAL_HOURS * HOUR_PX}px`"
             >
                 <!-- Labels heures -->
                 <div class="relative border-r border-border bg-muted/20">
