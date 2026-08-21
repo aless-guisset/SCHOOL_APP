@@ -125,8 +125,9 @@ const columns = [
                         <Button variant="outline" size="icon" @click="navigate(prevWeek)">
                             <ChevronLeft class="size-4" />
                         </Button>
-                        <Button variant="outline" size="sm" @click="navigate(todayLocal())">
-                            Aujourd'hui
+                        <Button variant="outline" size="sm" class="px-2 sm:px-3" @click="navigate(todayLocal())">
+                            <span class="hidden sm:inline">Aujourd'hui</span>
+                            <CalendarDays class="size-4 sm:hidden" />
                         </Button>
                         <Button variant="outline" size="icon" @click="navigate(nextWeek)">
                             <ChevronRight class="size-4" />
