@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityLogsController;
+use App\Http\Controllers\AttendancesController;
 use App\Http\Controllers\ClassroomsController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
@@ -95,6 +96,8 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
         ->name('timesheets.check-conflict');
     Route::resource('timesheets', TimesheetsController::class);
+    Route::post('/timesheets/{timesheet}/attendance', [AttendancesController::class, 'store'])
+        ->name('attendances.store');
     Route::resource('resources', ResourcesController::class);
 });
 

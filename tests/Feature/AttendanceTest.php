@@ -162,3 +162,66 @@ test('roster reflects an already-recorded absence', function () {
             ->where('roster.0.note', 'Certificat médical reçu')
         );
 });
+
+test('storing attendance creates one row per student and upserts on resubmit', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student1 = enrollAttendanceStudent($section, $eleveRole, $school);
+    $student2 = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student1->id, 'is_present' => true,  'note' => null],
+                ['section_user_id' => $student2->id, 'is_present' => false, 'note' => 'Absent non justifié'],
+            ],
+        ])
+        ->assertRedirect();
+
+    expect(Attendance::count())->toBe(2);
+    expect(Attendance::where('section_user_id', $student2->id)->first()->is_present)->toBeFalse();
+    expect(Attendance::where('section_user_id', $student2->id)->first()->note)->toBe('Absent non justifié');
+
+    // Ré-envoi : met à jour, ne duplique pas
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student1->id, 'is_present' => false, 'note' => 'Rentré chez lui malade'],
+                ['section_user_id' => $student2->id, 'is_present' => true,  'note' => null],
+            ],
+        ]);
+
+    expect(Attendance::count())->toBe(2);
+    expect(Attendance::where('section_user_id', $student1->id)->first()->is_present)->toBeFalse();
+    expect(Attendance::where('section_user_id', $student2->id)->first()->is_present)->toBeTrue();
+});
+
+test('storing attendance for a student outside the session section is rejected', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $otherSection = makeAttendanceSection($school, 'Classe B');
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $outsideStudent = enrollAttendanceStudent($otherSection, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $outsideStudent->id, 'is_present' => false, 'note' => null],
+            ],
+        ])
+        ->assertSessionHasErrors('attendances.0.section_user_id');
+
+    expect(Attendance::count())->toBe(0);
+});
