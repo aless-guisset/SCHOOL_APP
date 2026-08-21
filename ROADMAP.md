@@ -30,16 +30,27 @@
 - Responsive mobile (pages quotidiennes) : composable `useMediaQuery`, `PageHeader` empilable,
   grille `WeeklyCalendar` densifiée sous 640px, dropdown notifications plafonné à l'écran
   (`2026-08-20-mobile-responsive.md`)
+- Module présence : table `attendances`, roster élèves par séance (`app/Concerns/
+  ResolvesAttendanceRoster.php`, source unique partagée affichage/validation), upsert batch
+  scopé à la section + à l'école active, carte sur `Timesheets/Show.vue`
+  (`2026-08-21-attendance.md`)
 
-## 🔴 Dette sécurité découverte (à traiter avant/pendant le sprint) — pas encore de plan écrit
+## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées
+
+## 🔴 Dette sécurité découverte (à traiter en priorité, pas encore de plan écrit)
 - [ ] Audit autorisation cross-école sur `TimesheetsController` : `show`/`edit`/`update`/`destroy`
   utilisent le route-model binding implicite SANS vérifier l'école active — un power-user peut
-  lire/modifier/supprimer une feuille de temps d'une autre école par ID. `edit()` expose aussi
-  tous les créneaux de toutes les écoles (même défaut que `create()` avant correction). Probable
-  que d'autres controllers aient le même pattern — vérifier plus largement, pas juste Timesheets.
-
-## 🎯 Deadline lundi 24/08 — priorité au nombre de features livrées
-- [ ] Module présence (absences, certificats) — pas encore de plan écrit
+  lire/modifier/supprimer une feuille de temps d'une autre école par ID, ET (depuis le module
+  présence) lire le roster nominatif des élèves d'une autre école via la prop `roster` de
+  `show()`. Le côté écriture (`attendances.store`) est déjà scopé (`8b72099`) ; c'est
+  spécifiquement le côté lecture de `TimesheetsController` qui reste ouvert, avec un blast radius
+  plus large qu'avant (noms d'élèves, pas juste horaires). `edit()` expose aussi tous les
+  créneaux de toutes les écoles (même défaut que `create()` avant correction). Probable que
+  d'autres controllers aient le même pattern — vérifier plus largement, pas juste Timesheets.
+- [ ] `AttendancesController::store()` compare `session('active_school_id')` en `===` strict —
+  seul endroit du code à faire ça (les ~30 autres passent par un `where()` SQL, comparaison
+  lâche). Sûr avec la config actuelle (mariadb, pas d'émulation PDO) mais latent — passer en
+  `==` par cohérence/robustesse.
 
 ## 🟡 Priorité normale (plus tard)
 - [ ] Tests PHPUnit (classroom libre, prof dispo, section dispo)
@@ -54,4 +65,5 @@
   computed JS si ça remonte comme gênant en usage réel
 
 ---
-*Dernière mise à jour : responsive mobile terminé, cap sur le module présence pour le 24/08*
+*Dernière mise à jour : module présence terminé — sprint du 24/08 complet, priorité passe à
+l'audit sécurité cross-école sur TimesheetsController*
