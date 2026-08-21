@@ -54,7 +54,7 @@ function markAllRead() {
                 >{{ count > 9 ? '9+' : count }}</span>
             </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="w-80">
+        <DropdownMenuContent align="end" class="w-80 max-w-[calc(100vw-2rem)]">
             <div class="flex items-center justify-between px-2 py-1.5">
                 <DropdownMenuLabel class="p-0">Notifications</DropdownMenuLabel>
                 <button
