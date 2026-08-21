@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\ResolvesAttendanceRoster;
 use App\Models\Attendance;
 use App\Models\Classroom;
 use App\Models\Schedule;
@@ -19,6 +20,8 @@ use Inertia\Response;
 
 class TimesheetsController extends Controller
 {
+    use ResolvesAttendanceRoster;
+
     public function index(Request $request): Response
     {
         $schoolId  = session('active_school_id');
@@ -106,9 +109,9 @@ class TimesheetsController extends Controller
 
     private function roster(Timesheet $timesheet): array
     {
-        $sectionId = $timesheet->schedule?->sectionCourse?->sectionUser?->section_id;
+        $students = $this->eligibleAttendanceStudents($timesheet);
 
-        if (! $sectionId) {
+        if (! $students) {
             return [];
         }
 
@@ -116,9 +119,7 @@ class TimesheetsController extends Controller
             ->get()
             ->keyBy('section_user_id');
 
-        return SectionUserSchoolRole::where('section_id', $sectionId)
-            ->where('is_active', true)
-            ->whereHas('userschoolrole', fn ($q) => $q->whereHas('role', fn ($q) => $q->where('name', 'Élève')))
+        return $students
             ->with('userschoolrole.user')
             ->get()
             ->map(function (SectionUserSchoolRole $su) use ($attendances) {

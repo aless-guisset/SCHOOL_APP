@@ -225,3 +225,105 @@ test('storing attendance for a student outside the session section is rejected',
 
     expect(Attendance::count())->toBe(0);
 });
+
+test("storing attendance for the teacher's own section_user_id is rejected", function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+
+    $teacherSectionUser = SectionUserSchoolRole::where('section_id', $section->id)
+        ->where('user_school_role_id', $teacherUsr->id)
+        ->first();
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $teacherSectionUser->id, 'is_present' => false, 'note' => null],
+            ],
+        ])
+        ->assertSessionHasErrors('attendances.0.section_user_id');
+
+    expect(Attendance::count())->toBe(0);
+});
+
+test('roster is an empty array when no students are enrolled in the section', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/timesheets/{$timesheet->id}")
+        ->assertInertia(fn ($page) => $page
+            ->component('power-user/web/Timesheets/Show')
+            ->has('roster', 0)
+        );
+});
+
+test('storing attendance on a timesheet belonging to another school is rejected', function () {
+    $schoolA = makeAttendanceSchool();
+    $schoolB = makeAttendanceSchool();
+
+    $sectionA = makeAttendanceSection($schoolA);
+    $teacherUsrA = makeAttendanceUsr($schoolA, makeAttendanceRole('PROF', 'Professeur'));
+    makeAttendanceSessionFor($schoolA, $sectionA, $teacherUsrA);
+
+    $sectionB = makeAttendanceSection($schoolB, 'Classe B');
+    $teacherUsrB = makeAttendanceUsr($schoolB, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheetB = makeAttendanceSessionFor($schoolB, $sectionB, $teacherUsrB);
+
+    $powerUserA = makeAttendanceUsr($schoolA, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post("/timesheets/{$timesheetB->id}/attendance", [
+            'attendances' => [],
+        ])
+        ->assertNotFound();
+
+    expect(Attendance::count())->toBe(0);
+});
+
+test('created_by is preserved and updated_by changes when a different user resubmits', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerRole = makeAttendanceRole('POWER', 'Power User');
+    $powerUserA = makeAttendanceUsr($school, $powerRole)->user;
+    $powerUserB = makeAttendanceUsr($school, $powerRole)->user;
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'is_present' => true, 'note' => null],
+            ],
+        ]);
+
+    $attendance = Attendance::where('section_user_id', $student->id)->first();
+    expect($attendance->created_by)->toBe($powerUserA->id);
+    expect($attendance->updated_by)->toBe($powerUserA->id);
+
+    $this->actingAs($powerUserB)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'is_present' => false, 'note' => 'Retard'],
+            ],
+        ]);
+
+    $attendance->refresh();
+    expect($attendance->created_by)->toBe($powerUserA->id);
+    expect($attendance->updated_by)->toBe($powerUserB->id);
+});
