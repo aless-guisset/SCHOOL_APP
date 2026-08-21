@@ -111,3 +111,54 @@ test('attendance belongs to a timesheet and a section user', function () {
     expect($attendance->sectionUser->id)->toBe($student->id);
     expect($attendance->is_present)->toBeFalse();
 });
+
+test('roster only includes students of the session section, defaulting to present', function () {
+    $school = makeSchool();
+    $section = makeSection($school);
+    $otherSection = makeSection($school, 'Classe B');
+    $eleveRole = makeRole('ELEVE', 'Élève');
+    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
+    $timesheet = makeSessionFor($school, $section, $teacherUsr);
+
+    $student = enrollStudent($section, $eleveRole, $school);
+    enrollStudent($otherSection, $eleveRole, $school); // élève d'une autre section — exclu
+
+    $powerUserRole = makeRole('POWER', 'Power User');
+    $powerUser = makeUsr($school, $powerUserRole)->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/timesheets/{$timesheet->id}")
+        ->assertInertia(fn ($page) => $page
+            ->component('power-user/web/Timesheets/Show')
+            ->has('roster', 1)
+            ->where('roster.0.section_user_id', $student->id)
+            ->where('roster.0.is_present', true)
+            ->where('roster.0.note', null)
+        );
+});
+
+test('roster reflects an already-recorded absence', function () {
+    $school = makeSchool();
+    $section = makeSection($school);
+    $eleveRole = makeRole('ELEVE', 'Élève');
+    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
+    $timesheet = makeSessionFor($school, $section, $teacherUsr);
+    $student = enrollStudent($section, $eleveRole, $school);
+
+    Attendance::create([
+        'timesheet_id' => $timesheet->id, 'section_user_id' => $student->id,
+        'is_present' => false, 'note' => 'Certificat médical reçu',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUser = makeUsr($school, makeRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/timesheets/{$timesheet->id}")
+        ->assertInertia(fn ($page) => $page
+            ->where('roster.0.is_present', false)
+            ->where('roster.0.note', 'Certificat médical reçu')
+        );
+});

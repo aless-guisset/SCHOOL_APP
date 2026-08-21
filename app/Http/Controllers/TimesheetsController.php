@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Attendance;
 use App\Models\Classroom;
 use App\Models\Schedule;
+use App\Models\SectionUserSchoolRole;
 use App\Models\Subject;
 use App\Models\Timesheet;
 use App\Models\UserSchoolRole;
@@ -98,7 +100,41 @@ class TimesheetsController extends Controller
 
         return Inertia::render('power-user/web/Timesheets/Show', [
             'timesheet' => $timesheet,
+            'roster'    => $this->roster($timesheet),
         ]);
+    }
+
+    private function roster(Timesheet $timesheet): array
+    {
+        $sectionId = $timesheet->schedule?->sectionCourse?->sectionUser?->section_id;
+
+        if (! $sectionId) {
+            return [];
+        }
+
+        $attendances = Attendance::where('timesheet_id', $timesheet->id)
+            ->get()
+            ->keyBy('section_user_id');
+
+        return SectionUserSchoolRole::where('section_id', $sectionId)
+            ->where('is_active', true)
+            ->whereHas('userschoolrole', fn ($q) => $q->whereHas('role', fn ($q) => $q->where('name', 'Élève')))
+            ->with('userschoolrole.user')
+            ->get()
+            ->map(function (SectionUserSchoolRole $su) use ($attendances) {
+                $attendance = $attendances->get($su->id);
+
+                return [
+                    'section_user_id' => $su->id,
+                    'name'             => $su->userschoolrole?->user
+                        ? "{$su->userschoolrole->user->lastname} {$su->userschoolrole->user->firstname}"
+                        : '—',
+                    'is_present' => $attendance?->is_present ?? true,
+                    'note'       => $attendance?->note,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function edit(Timesheet $timesheet): Response
