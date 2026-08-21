@@ -27,6 +27,9 @@
 - Notifications in-app : canal `database` sur `SchoolPendingNotification`, prop Inertia
   `unreadNotifications`, `NotificationsController` (markRead/markAllRead), cloche + dropdown
   dans `AppSidebarHeader.vue` (`2026-08-20-inapp-notifications.md`)
+- Responsive mobile (pages quotidiennes) : composable `useMediaQuery`, `PageHeader` empilable,
+  grille `WeeklyCalendar` densifiée sous 640px, dropdown notifications plafonné à l'écran
+  (`2026-08-20-mobile-responsive.md`)
 
 ## 🔴 Dette sécurité découverte (à traiter avant/pendant le sprint) — pas encore de plan écrit
 - [ ] Audit autorisation cross-école sur `TimesheetsController` : `show`/`edit`/`update`/`destroy`
@@ -36,7 +39,6 @@
   que d'autres controllers aient le même pattern — vérifier plus largement, pas juste Timesheets.
 
 ## 🎯 Deadline lundi 24/08 — priorité au nombre de features livrées
-- [ ] Layouts mobile (pages/[role]/mobile/) — pas encore de plan écrit
 - [ ] Module présence (absences, certificats) — pas encore de plan écrit
 
 ## 🟡 Priorité normale (plus tard)
@@ -47,6 +49,9 @@
 - [ ] Open Source GPL v3
 - [ ] Notifications in-app : couvrir d'autres événements métier au-delà de la soumission école
   (feuille de temps assignée, conflit d'horaire, etc.) — v1 volontairement minimale
+- [ ] Mobile : corriger le flash de mise en page SSR sur `WeeklyCalendar` (grille desktop rendue
+  puis snap vers mobile après hydration) — passer par des CSS custom properties plutôt que des
+  computed JS si ça remonte comme gênant en usage réel
 
 ---
-*Dernière mise à jour : notifications in-app terminées, cap sur mobile/présence pour le 24/08*
+*Dernière mise à jour : responsive mobile terminé, cap sur le module présence pour le 24/08*
