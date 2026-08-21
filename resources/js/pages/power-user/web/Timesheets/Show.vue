@@ -1,14 +1,22 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { Edit, Trash2 } from 'lucide-vue-next';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
+
+type RosterEntry = {
+    section_user_id: number;
+    name: string;
+    is_present: boolean;
+    note: string | null;
+};
 
 const props = defineProps<{
     timesheet: {
@@ -20,6 +28,7 @@ const props = defineProps<{
         subject: { name: string } | null;
         classroom: { name: string } | null;
     };
+    roster: RosterEntry[];
 }>();
 
 const title = `Feuille — ${props.timesheet.date}`;
@@ -33,6 +42,18 @@ function destroy() {
     if (confirm('Supprimer cette feuille de temps ?')) {
         router.delete(`/timesheets/${props.timesheet.id}`);
     }
+}
+
+const attendanceForm = useForm({
+    attendances: props.roster.map(r => ({
+        section_user_id: r.section_user_id,
+        is_present: r.is_present,
+        note: r.note ?? '',
+    })),
+});
+
+function saveAttendance() {
+    attendanceForm.post(`/timesheets/${props.timesheet.id}/attendance`, { preserveScroll: true });
 }
 </script>
 
@@ -80,6 +101,39 @@ function destroy() {
                             <dd class="font-medium">{{ timesheet.hours_done }}h</dd>
                         </div>
                     </dl>
+                </CardContent>
+            </Card>
+
+            <Card class="mt-4">
+                <CardHeader><CardTitle class="text-base">Présences</CardTitle></CardHeader>
+                <CardContent>
+                    <div v-if="roster.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+                        Aucun élève inscrit dans cette section.
+                    </div>
+                    <div v-else class="space-y-3">
+                        <div
+                            v-for="(entry, i) in attendanceForm.attendances" :key="entry.section_user_id"
+                            class="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0"
+                        >
+                            <span class="text-sm font-medium">{{ roster[i].name }}</span>
+                            <div class="flex items-center gap-2">
+                                <Input
+                                    v-if="!entry.is_present"
+                                    v-model="entry.note"
+                                    placeholder="Note (optionnel)"
+                                    class="h-8 w-48 text-xs"
+                                />
+                                <Button
+                                    :variant="entry.is_present ? 'outline' : 'destructive'"
+                                    size="sm"
+                                    @click="entry.is_present = !entry.is_present"
+                                >{{ entry.is_present ? 'Présent' : 'Absent' }}</Button>
+                            </div>
+                        </div>
+                        <Button class="mt-2" :disabled="attendanceForm.processing" @click="saveAttendance">
+                            Enregistrer les présences
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
         </div>
