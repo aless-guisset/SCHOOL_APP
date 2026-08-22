@@ -163,12 +163,18 @@ class TimesheetsController extends Controller
 
     public function update(Request $request, Timesheet $timesheet)
     {
-        $scheduleId      = $request->input('schedule_id', $timesheet->schedule_id);
+        $schoolId = session('active_school_id');
+
+        $scheduleId       = $request->input('schedule_id', $timesheet->schedule_id);
         $userSchoolRoleId = $request->input('user_school_role_id', $timesheet->user_school_role_id);
-        $classroomId     = $request->input('classroom_id', $timesheet->classroom_id);
+        $classroomId      = $request->input('classroom_id', $timesheet->classroom_id);
 
         $data = $request->validate([
-            'date'       => [
+            'user_school_role_id' => ['sometimes', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
+            'schedule_id'         => ['sometimes', 'integer', $this->scheduleBelongsToSchool($schoolId)],
+            'subject_id'          => ['sometimes', 'integer', $this->subjectBelongsToSchool($schoolId)],
+            'classroom_id'        => ['sometimes', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
+            'date'                => [
                 'sometimes',
                 'date',
                 new NoTimesheetConflict(
