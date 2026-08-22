@@ -42,17 +42,14 @@
   l'appartenance, + fix `withTrashed()` sur 4 modèles (régression : un parent soft-deleted
   rendait un enregistrement inaccessible même pour son propriétaire légitime)
   (`2026-08-21-cross-school-scoping.md`)
+- 10 pages Vue manquantes qui faisaient planter en 500 les routes `roles.*`,
+  `user-school-roles.*` et `section-courses.*` (`admin/web/Roles/*`, `admin/web/
+  UserSchoolRoles/{Index,Create}`, `power-user/web/SectionCourses/*`) — pré-existant, découvert
+  par la revue finale de l'audit sécurité
 
 ## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées, dette sécurité fermée
 
 ## 🟡 Dette restante (non bloquante, à traiter quand le temps le permet)
-- [ ] 10 pages Vue référencées par `Inertia::render()` n'existent pas et font planter leur route
-  en 500 (pas 404 client, vraie erreur serveur) : `admin/web/Roles/{Index,Create,Edit,Show}`,
-  `admin/web/UserSchoolRoles/{Index,Create}`, `power-user/web/SectionCourses/
-  {Index,Create,Edit,Show}`. Pré-existant, sans rapport avec le scoping — découvert par la revue
-  finale de l'audit sécurité. Impact concret : les routes `roles.*` et `user-school-roles.*`
-  (déplacées dans le groupe admin le 21/08) sont inutilisables même pour un admin légitime, et le
-  module `SectionCourses` est mort en prod.
 - [ ] `AttendancesController::store()` compare `session('active_school_id')` en `===` strict —
   seul endroit du code à faire ça (les ~30 autres passent par un `where()` SQL, comparaison
   lâche). Sûr avec la config actuelle (mariadb, pas d'émulation PDO) mais latent — passer en
