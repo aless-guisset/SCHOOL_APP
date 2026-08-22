@@ -564,3 +564,129 @@ test('a schedule is still reachable by its rightful owner after its course is so
         ->get("/schedules/{$sessionA['schedule']->id}")
         ->assertOk();
 });
+
+// ---- Positive controls: legitimate same-school access must still work ----
+// `ScopesRouteBindingToActiveSchool` is applied per-model; a bug in one model's
+// `applySchoolScope()` could 404 its own rightful owner without any of the
+// "cannot view another school's X" tests above catching it. One positive test
+// per scoped model closes that blind spot.
+
+test('a power user can still view their own schools course', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+
+    $courseA = Course::create([
+        'school_id' => $schoolA->id, 'name' => 'Maths A',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/courses/{$courseA->id}")
+        ->assertOk();
+});
+
+test('a power user can still view their own schools section', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+
+    $sectionA = Section::create([
+        'school_id' => $schoolA->id, 'name' => 'Classe A',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/sections/{$sectionA->id}")
+        ->assertOk();
+});
+
+test('a power user can still view their own schools lesson', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+
+    $courseA = Course::create([
+        'school_id' => $schoolA->id, 'name' => 'Maths A',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $subjectA = Subject::create([
+        'course_id' => $courseA->id, 'name' => 'Algèbre A',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $lessonA = Lesson::create([
+        'school_id' => $schoolA->id, 'subject_id' => $subjectA->id, 'name' => 'Leçon A1',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/lessons/{$lessonA->id}")
+        ->assertOk();
+});
+
+test('a power user can still view their own schools resource', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+
+    $resourceA = Resource::create([
+        'school_id' => $schoolA->id, 'name' => 'Imprimante A',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/resources/{$resourceA->id}")
+        ->assertOk();
+});
+
+test('a power user can still view their own schools section-course', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/section-courses/{$sessionA['sectionCourse']->id}")
+        ->assertOk();
+});
+
+test('a power user can still view their own schools subject', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/subjects/{$sessionA['subject']->id}")
+        ->assertOk();
+});
+
+test('a power user can still view their own schools timesheet', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/timesheets/{$sessionA['timesheet']->id}")
+        ->assertOk();
+});
+
+test('a power user can still view their own schools schedule', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/schedules/{$sessionA['schedule']->id}")
+        ->assertOk();
+});
