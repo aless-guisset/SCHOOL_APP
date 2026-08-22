@@ -72,19 +72,34 @@
 
 ## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées, dette sécurité fermée
 
-## 🟡 Priorité normale (plus tard)
-- [ ] Tests PHPUnit (classroom libre, prof dispo, section dispo)
-- [ ] Module cantine (optionnel, activable par école)
-- [ ] Module évaluations / bulletins PDF
-- [ ] Export CSV (RGPD)
-- [ ] Open Source GPL v3
-- [ ] Notifications in-app : couvrir d'autres événements métier au-delà de la soumission école
-  (feuille de temps assignée, conflit d'horaire, etc.) — v1 volontairement minimale
-- [ ] Mobile : corriger le flash de mise en page SSR sur `WeeklyCalendar` (grille desktop rendue
-  puis snap vers mobile après hydration) — passer par des CSS custom properties plutôt que des
-  computed JS si ça remonte comme gênant en usage réel
+## ✅ Complété (backlog "priorité normale")
+- Licence Open Source GPL v3 (`LICENSE` + `composer.json`/`package.json`)
+- Mobile : flash SSR desktop→mobile sur `WeeklyCalendar` éliminé — dimensions passées en
+  custom properties CSS (`--wc-*`) résolues par media query dès la première peinture, au lieu
+  d'un calcul JS dépendant de `onMounted`
+- Tests PHPUnit de disponibilité : 4 tests ajoutés à `TimesheetConflictTest.php` isolant la
+  disponibilité réelle (créneau non-chevauchant, créneaux adjacents à la limite, `ignoreId` sur
+  update, timesheet soft-deleted qui libère le créneau) — le fixture `scheduleD` existait déjà
+  mais n'était jamais utilisé
+- Export CSV RGPD : `UsersController::export()`, réservé admin, couvre le droit d'accès/
+  portabilité (art. 15/20)
+- Notifications in-app étendues : `TimesheetAssignedNotification` et
+  `TimesheetCancelledNotification` (canal database + mail), au-delà de la soumission école
+- Module cantine v1 (inscription + présence repas) : optionnel par école
+  (`School::cantine_enabled`), `cantine_registrations` (récurrent par jour) +
+  `cantine_presences` (occurrence par date), même pattern inscription/occurrence que le module
+  présence des cours
+- Module notes/bulletins PDF v1 (notes par matière, pas de moyennes/appréciations) :
+  `barryvdh/laravel-dompdf`, saisie réservée aux rôles de gestion, consultation scopée par rôle
+  (un élève ne voit et ne télécharge que ses propres notes/bulletin)
+
+## 🟡 Dette connue (non bloquante)
+- [ ] Un professeur ne peut pas encore consulter les notes de ses élèves (module bulletins v1) —
+  scope volontairement limité à "l'élève voit les siennes" pour rester sûr sans complexifier
+  l'éligibilité par section/matière enseignée. Lien nav "Notes" retiré du rôle Professeur en
+  attendant.
 
 ---
-*Dernière mise à jour : dette sécurité entièrement fermée — middleware de rôle sur les routes
-Power User + faille routes/api.php (CRUD users/roles/schools sans restriction de rôle) corrigées
-et déployées*
+*Dernière mise à jour : backlog "priorité normale" entièrement traité (licence GPL v3, fix
+mobile SSR, tests disponibilité, export CSV RGPD, notifications étendues, cantine, bulletins
+PDF) — tout est testé et déployé*
