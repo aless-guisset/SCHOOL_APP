@@ -326,3 +326,22 @@ test('a multi-school user can view both of their schools panels', function () {
         ->get("/schools/{$schoolC->id}/panel")
         ->assertOk();
 });
+
+test('the edit timesheet schedule dropdown only lists the active schools schedules', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+    makeScopingSessionFor($schoolB, $teacherB); // une autre école, ne doit pas apparaître
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/timesheets/{$sessionA['timesheet']->id}/edit")
+        ->assertInertia(fn ($page) => $page
+            ->has('schedules', 1)
+            ->where('schedules.0.id', $sessionA['schedule']->id)
+        );
+});

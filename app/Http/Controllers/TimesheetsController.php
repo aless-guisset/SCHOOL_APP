@@ -149,7 +149,11 @@ class TimesheetsController extends Controller
                 ->where('is_active', true)
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
-            'schedules'  => Schedule::get(['id', 'name', 'start_time', 'end_time']),
+            'schedules'  => Schedule::whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId))
+                ->where('is_active', true)
+                ->orderBy('day_of_week')
+                ->orderBy('start_time')
+                ->get(['id', 'name', 'day_of_week', 'start_time', 'end_time']),
             'subjects'   => Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::where('school_id', $schoolId)
