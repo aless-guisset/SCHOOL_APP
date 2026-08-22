@@ -55,14 +55,26 @@
 - Tests positifs "accès à sa propre école fonctionne toujours" ajoutés pour les 8 modèles scopés
   qui n'en avaient pas (`Course`/`Section`/`Lesson`/`Resource`/`SectionCourse`/`Subject`/
   `Schedule`/`Timesheet`) — seul `Classroom` en avait un jusqu'ici
+- Middleware `EnsureCanManage` (alias `can-manage`) : les routes d'écriture Power User
+  (`courses`/`sections`/`section-courses`/`classrooms`/`subjects`/`lessons`/`schedules`/
+  `timesheets`/`resources`/`planning.duplicate`/`attendances.store`) sont maintenant réservées
+  à Administrateur/Power User/Directeur (aligné sur `MANAGE_ROLES`/`canManage` déjà existants) ;
+  Professeur/Élève gardent l'accès lecture (`index`/`show`) conformément à CLAUDE.md
 
 ## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées, dette sécurité fermée
 
-## 🟡 Dette restante (non bloquante, à traiter quand le temps le permet)
-- [ ] Aucun middleware de rôle sur les routes Power User (`courses`, `sections`, `timesheets`,
-  etc.) — un Professeur/Élève peut écrire dans sa propre école sur ces routes. Volontairement
-  hors scope de l'audit cross-école (c'est une frontière de rôle, pas de tenant), mais à garder
-  en tête.
+## 🔴 Nouvelle dette sécurité découverte (à traiter en priorité)
+- [ ] `routes/api.php` expose `api/users`, `api/roles`, `api/schools`, `api/classrooms`,
+  `api/subjects`, `api/lessons`, `api/schedules`, `api/timesheets`, `api/resources` en CRUD
+  complet derrière `auth:sanctum` seul (`guard => ['web']` dans `config/sanctum.php`, donc tout
+  utilisateur authentifié via la session web normale, sans token) — aucun middleware `admin` ni
+  `school.context` ni `can-manage`. Un Élève authentifié peut lister/créer/modifier/supprimer
+  n'importe quel utilisateur ou rôle de la plateforme via `api/users`/`api/roles`, et contourne
+  le scoping école sur les modèles où il s'applique normalement côté web. Découvert en
+  inspectant `route:list` pendant le fix du middleware de rôle — hors scope de ce fix, pas encore
+  traité. Aucun `createToken`/`PersonalAccessToken` dans le code : rien n'émet de token
+  aujourd'hui, mais la faille est exploitable directement en navigant vers ces URLs depuis un
+  navigateur déjà connecté au site.
 
 ## 🟡 Priorité normale (plus tard)
 - [ ] Tests PHPUnit (classroom libre, prof dispo, section dispo)
@@ -77,5 +89,6 @@
   computed JS si ça remonte comme gênant en usage réel
 
 ---
-*Dernière mise à jour : audit + correction sécurité cross-école terminé (lecture ET écriture) —
-sprint du 24/08 complet*
+*Dernière mise à jour : middleware de rôle sur les routes Power User ajouté — nouvelle faille
+trouvée sur routes/api.php (CRUD users/roles/schools sans aucune restriction de rôle), pas encore
+corrigée*
