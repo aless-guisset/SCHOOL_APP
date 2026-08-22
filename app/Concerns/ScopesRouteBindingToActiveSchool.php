@@ -11,6 +11,12 @@ trait ScopesRouteBindingToActiveSchool
      * empêche un power-user d'accéder à une ressource d'une autre école en
      * devinant son ID dans l'URL. Échec fermé : sans école active, aucun match
      * (Laravel lève ModelNotFoundException → 404, comportement standard).
+     *
+     * Ne couvre volontairement pas `resolveSoftDeletableRouteBinding()` — si une
+     * route venait à être déclarée avec `->withTrashed()`, Laravel appellerait
+     * cette autre méthode et contournerait le scoping ci-dessous. Aucune route
+     * de ce type n'existe aujourd'hui sur les modèles utilisant ce trait ; à
+     * surveiller si `withTrashed()` est ajouté un jour à l'une d'elles.
      */
     public function resolveRouteBinding($value, $field = null)
     {
