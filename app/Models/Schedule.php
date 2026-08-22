@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Concerns\ScopesRouteBindingToActiveSchool;
 use Database\Factories\ScheduleFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[UseFactory(ScheduleFactory::class)]
 class Schedule extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ScopesRouteBindingToActiveSchool;
 
     // ISO-8601 : 1 = lundi … 7 = dimanche
     const MONDAY = 1;
@@ -72,5 +74,10 @@ class Schedule extends Model
     public function getIsPassedThisWeekAttribute(): bool
     {
         return $this->day_of_week < now()->dayOfWeekIso;
+    }
+
+    protected function applySchoolScope(Builder $query, int $schoolId): Builder
+    {
+        return $query->whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId));
     }
 }

@@ -246,3 +246,17 @@ test('a power user cannot view another schools timesheet by guessing its id', fu
         ->get("/timesheets/{$sessionB['timesheet']->id}")
         ->assertNotFound();
 });
+
+test('a power user cannot view another schools schedule by guessing its id', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/schedules/{$sessionB['schedule']->id}")
+        ->assertNotFound();
+});
