@@ -60,21 +60,17 @@
   `timesheets`/`resources`/`planning.duplicate`/`attendances.store`) sont maintenant réservées
   à Administrateur/Power User/Directeur (aligné sur `MANAGE_ROLES`/`canManage` déjà existants) ;
   Professeur/Élève gardent l'accès lecture (`index`/`show`) conformément à CLAUDE.md
+- `routes/api.php` n'avait aucune restriction de rôle sur `api/users`/`api/roles`/`api/schools`/
+  `api/classrooms`/`api/subjects`/`api/lessons`/`api/schedules`/`api/timesheets`/
+  `api/resources` (juste être connecté suffisait, `guard => ['web']` dans `config/sanctum.php`)
+  — n'importe quel utilisateur, même Élève, pouvait faire du CRUD complet sur n'importe quel
+  compte ou rôle de la plateforme. Découvert en inspectant `route:list` pendant le fix du
+  middleware de rôle Power User. Surface morte en pratique (aucun `createToken`, aucune page Vue
+  ne consomme ces endpoints) mais exploitable dès maintenant depuis un navigateur déjà connecté.
+  Corrigé en appliquant les mêmes middlewares `admin`/`can-manage` que les routes web
+  équivalentes, tests de régression dans `ApiAuthorizationTest.php`
 
 ## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées, dette sécurité fermée
-
-## 🔴 Nouvelle dette sécurité découverte (à traiter en priorité)
-- [ ] `routes/api.php` expose `api/users`, `api/roles`, `api/schools`, `api/classrooms`,
-  `api/subjects`, `api/lessons`, `api/schedules`, `api/timesheets`, `api/resources` en CRUD
-  complet derrière `auth:sanctum` seul (`guard => ['web']` dans `config/sanctum.php`, donc tout
-  utilisateur authentifié via la session web normale, sans token) — aucun middleware `admin` ni
-  `school.context` ni `can-manage`. Un Élève authentifié peut lister/créer/modifier/supprimer
-  n'importe quel utilisateur ou rôle de la plateforme via `api/users`/`api/roles`, et contourne
-  le scoping école sur les modèles où il s'applique normalement côté web. Découvert en
-  inspectant `route:list` pendant le fix du middleware de rôle — hors scope de ce fix, pas encore
-  traité. Aucun `createToken`/`PersonalAccessToken` dans le code : rien n'émet de token
-  aujourd'hui, mais la faille est exploitable directement en navigant vers ces URLs depuis un
-  navigateur déjà connecté au site.
 
 ## 🟡 Priorité normale (plus tard)
 - [ ] Tests PHPUnit (classroom libre, prof dispo, section dispo)
@@ -89,6 +85,6 @@
   computed JS si ça remonte comme gênant en usage réel
 
 ---
-*Dernière mise à jour : middleware de rôle sur les routes Power User ajouté — nouvelle faille
-trouvée sur routes/api.php (CRUD users/roles/schools sans aucune restriction de rôle), pas encore
-corrigée*
+*Dernière mise à jour : dette sécurité entièrement fermée — middleware de rôle sur les routes
+Power User + faille routes/api.php (CRUD users/roles/schools sans restriction de rôle) corrigées
+et déployées*
