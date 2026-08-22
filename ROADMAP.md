@@ -46,6 +46,10 @@
   `user-school-roles.*` et `section-courses.*` (`admin/web/Roles/*`, `admin/web/
   UserSchoolRoles/{Index,Create}`, `power-user/web/SectionCourses/*`) — pré-existant, découvert
   par la revue finale de l'audit sécurité
+- `TimesheetsController::update()` ne persistait pas `schedule_id`/`subject_id`/`classroom_id`/
+  `user_school_role_id` (lus seulement pour la vérification de conflit) — les dropdowns du
+  formulaire d'édition changeaient visuellement mais rien n'était enregistré. Corrigé avec le
+  même scoping école que `store()`, tests de régression dans `TimesheetUpdateTest.php`
 
 ## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées, dette sécurité fermée
 
@@ -54,10 +58,6 @@
   seul endroit du code à faire ça (les ~30 autres passent par un `where()` SQL, comparaison
   lâche). Sûr avec la config actuelle (mariadb, pas d'émulation PDO) mais latent — passer en
   `==` par cohérence/robustesse.
-- [ ] `TimesheetsController::update()` valide `schedule_id`/`subject_id`/`classroom_id`/
-  `user_school_role_id` (pour la règle de conflit) mais ne les persiste jamais dans `$data` —
-  les dropdowns du formulaire d'édition changent visuellement mais rien n'est enregistré.
-  Découvert par la revue finale de l'audit sécurité, hors scope de ce plan.
 - [ ] Positive test control manquant sur 7 des 9 modèles scopés (`Course`/`Section`/`Lesson`/
   `Resource`/`Subject`/`Schedule`/`Timesheet`) : seul `Classroom` a un test "accès à sa propre
   école fonctionne toujours" — un futur changement qui bloquerait l'accès légitime pour tout le
