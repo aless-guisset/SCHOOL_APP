@@ -10,6 +10,8 @@ use App\Models\SectionUserSchoolRole;
 use App\Models\Subject;
 use App\Models\Timesheet;
 use App\Models\UserSchoolRole;
+use App\Notifications\TimesheetAssignedNotification;
+use App\Notifications\TimesheetCancelledNotification;
 use App\Rules\NoTimesheetConflict;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -92,6 +94,11 @@ class TimesheetsController extends Controller
         $data['is_active'] = true;
 
         $timesheet = Timesheet::create($data);
+
+        $teacher = UserSchoolRole::with('user')->find($timesheet->user_school_role_id);
+        if ($teacher?->user && $teacher->user->id !== $request->user()->id) {
+            $teacher->user->notify(new TimesheetAssignedNotification($timesheet, $request->user()));
+        }
 
         return redirect()->route('timesheets.show', $timesheet)
             ->with('flash', ['type' => 'success', 'message' => 'Feuille de temps créée.']);
@@ -195,10 +202,17 @@ class TimesheetsController extends Controller
             ->with('flash', ['type' => 'success', 'message' => 'Feuille de temps mise à jour.']);
     }
 
-    public function destroy(Timesheet $timesheet)
+    public function destroy(Request $request, Timesheet $timesheet)
     {
-        $timesheet->update(['is_active' => false, 'updated_by' => request()->user()->id]);
+        $teacher = UserSchoolRole::with('user')->find($timesheet->user_school_role_id);
+        $date = $timesheet->date;
+
+        $timesheet->update(['is_active' => false, 'updated_by' => $request->user()->id]);
         $timesheet->delete();
+
+        if ($teacher?->user && $teacher->user->id !== $request->user()->id) {
+            $teacher->user->notify(new TimesheetCancelledNotification($date, $request->user()));
+        }
 
         return redirect()->route('timesheets.index')
             ->with('flash', ['type' => 'success', 'message' => 'Feuille de temps supprimée.']);
