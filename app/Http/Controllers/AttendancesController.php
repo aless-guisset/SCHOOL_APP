@@ -15,7 +15,7 @@ class AttendancesController extends Controller
 
     public function store(Request $request, Timesheet $timesheet): RedirectResponse
     {
-        abort_unless($timesheet->userSchoolRole?->school_id === session('active_school_id'), 404);
+        abort_unless($timesheet->userSchoolRole?->school_id == session('active_school_id'), 404);
 
         $validSectionUserIds = $this->eligibleAttendanceStudents($timesheet)?->pluck('id')->all() ?? [];
 
