@@ -75,6 +75,9 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::post('/schools/{school}/reject', [SchoolsController::class, 'reject'])->name('schools.reject');
         Route::resource('schools', SchoolsController::class);
         Route::resource('roles', RolesController::class);
+        // Route littérale déclarée avant le resource : `show` (`{user}`) est un
+        // joker qui capturerait sinon "export" comme un id de show.
+        Route::get('/users/export', [UsersController::class, 'export'])->name('users.export');
         Route::resource('users', UsersController::class);
         Route::get('/logs', [ActivityLogsController::class, 'index'])->name('logs.index');
         Route::resource('translations', TranslationsController::class)->except(['show']);

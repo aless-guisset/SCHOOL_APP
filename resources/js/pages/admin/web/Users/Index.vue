@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus } from 'lucide-vue-next';
+import { Download, Plus } from 'lucide-vue-next';
 import DataTable from '@/components/DataTable.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -39,6 +39,9 @@ const columns = [
             <FlashMessage />
             <PageHeader :title="t('nav.users')" :description="`${users.total} utilisateur(s)`">
                 <template #actions>
+                    <Button as-child variant="outline" size="sm">
+                        <a href="/users/export"><Download class="size-4" />Exporter CSV</a>
+                    </Button>
                     <Button as-child size="sm">
                         <Link href="/users/create"><Plus class="size-4" />{{ t('action.create') }}</Link>
                     </Button>
