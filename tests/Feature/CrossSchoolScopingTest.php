@@ -260,3 +260,36 @@ test('a power user cannot view another schools schedule by guessing its id', fun
         ->get("/schedules/{$sessionB['schedule']->id}")
         ->assertNotFound();
 });
+
+test('a non-admin power user cannot assign roles via user-school-roles', function () {
+    $school = makeScopingSchool('École A');
+    $powerUser = makeScopingUsr($school, makeScopingRole('POWER', 'Power User'))->user;
+    $targetUser = \App\Models\User::factory()->create();
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/user-school-roles', [
+            'user_id' => $targetUser->id,
+            'school_id' => $school->id,
+            'role_id' => makeScopingRole('ADMIN', 'Administrateur')->id,
+        ])
+        ->assertForbidden();
+});
+
+test('an admin can still assign roles via user-school-roles', function () {
+    $school = makeScopingSchool('École A');
+    $adminRole = makeScopingRole('ADMIN', 'Administrateur');
+    $admin = makeScopingUsr($school, $adminRole)->user;
+    $targetUser = \App\Models\User::factory()->create();
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/user-school-roles', [
+            'user_id' => $targetUser->id,
+            'school_id' => $school->id,
+            'role_id' => makeScopingRole('PROF', 'Professeur')->id,
+        ])
+        ->assertRedirect();
+
+    expect(\App\Models\UserSchoolRole::where('user_id', $targetUser->id)->where('school_id', $school->id)->exists())->toBeTrue();
+});

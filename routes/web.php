@@ -78,11 +78,11 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::resource('users', UsersController::class);
         Route::get('/logs', [ActivityLogsController::class, 'index'])->name('logs.index');
         Route::resource('translations', TranslationsController::class)->except(['show']);
-    });
 
-    // ── Admin : assignations rôles ────────────────────────────────────────
-    Route::resource('user-school-roles', UserSchoolRolesController::class)
-        ->only(['index', 'create', 'store', 'destroy']);
+        // ── Admin : assignations rôles ─────────────────────────────────────
+        Route::resource('user-school-roles', UserSchoolRolesController::class)
+            ->only(['index', 'create', 'store', 'destroy']);
+    });
 
     // ── Power User / Secrétariat ──────────────────────────────────────────
     Route::resource('courses', CoursesController::class);
