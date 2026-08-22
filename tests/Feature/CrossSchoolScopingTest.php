@@ -5,9 +5,13 @@ use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\Resource;
 use App\Models\Role;
+use App\Models\Schedule;
 use App\Models\School;
 use App\Models\Section;
+use App\Models\SectionCourse;
+use App\Models\SectionUserSchoolRole;
 use App\Models\Subject;
+use App\Models\Timesheet;
 use App\Models\UserSchoolRole;
 
 function makeScopingSchool(string $name = 'École A'): School
@@ -149,5 +153,96 @@ test('a power user cannot view another schools resource by guessing its id', fun
     $this->actingAs($powerUserA)
         ->withSession(['active_school_id' => $schoolA->id])
         ->get("/resources/{$resourceB->id}")
+        ->assertNotFound();
+});
+
+/**
+ * Construit une chaîne complète école → section → cours → section_course → schedule →
+ * timesheet pour un professeur donné. Retourne toutes les entités créées.
+ */
+function makeScopingSessionFor(School $school, UserSchoolRole $teacherUsr): array
+{
+    $section = Section::create([
+        'school_id' => $school->id, 'name' => 'Classe '.$school->name,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $course = Course::create([
+        'school_id' => $school->id, 'name' => 'Maths '.$school->name,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $teacherSectionUser = SectionUserSchoolRole::create([
+        'section_id' => $section->id, 'user_school_role_id' => $teacherUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $sectionCourse = SectionCourse::create([
+        'section_user_id' => $teacherSectionUser->id, 'course_id' => $course->id,
+        'total_hours' => 60, 'hours_per_session' => 2, 'name' => 'Maths '.$section->name,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $schedule = Schedule::create([
+        'section_course_id' => $sectionCourse->id, 'name' => 'Lundi',
+        'day_of_week' => 1, 'start_time' => '10:00:00', 'end_time' => '12:00:00',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $classroom = Classroom::create([
+        'school_id' => $school->id, 'name' => 'Salle '.$school->name,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $subject = Subject::create([
+        'course_id' => $course->id, 'name' => 'Algèbre '.$school->name,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $timesheet = Timesheet::create([
+        'user_school_role_id' => $teacherUsr->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => '2026-08-24', 'hours_done' => 2,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    return [
+        'section' => $section, 'course' => $course, 'sectionCourse' => $sectionCourse,
+        'schedule' => $schedule, 'timesheet' => $timesheet, 'subject' => $subject,
+    ];
+}
+
+test('a power user cannot view another schools section-course by guessing its id', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/section-courses/{$sessionB['sectionCourse']->id}")
+        ->assertNotFound();
+});
+
+test('a power user cannot view another schools subject by guessing its id', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/subjects/{$sessionB['subject']->id}")
+        ->assertNotFound();
+});
+
+test('a power user cannot view another schools timesheet by guessing its id', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/timesheets/{$sessionB['timesheet']->id}")
         ->assertNotFound();
 });

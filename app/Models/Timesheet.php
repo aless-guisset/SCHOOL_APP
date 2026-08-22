@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Concerns\ScopesRouteBindingToActiveSchool;
 use Database\Factories\TimesheetFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[UseFactory(TimesheetFactory::class)]
 class Timesheet extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ScopesRouteBindingToActiveSchool;
 
     protected $fillable = [
         'user_school_role_id',
@@ -39,6 +41,11 @@ class Timesheet extends Model
     public function userSchoolRole(): BelongsTo
     {
         return $this->belongsTo(UserSchoolRole::class);
+    }
+
+    protected function applySchoolScope(Builder $query, int $schoolId): Builder
+    {
+        return $query->whereHas('userSchoolRole', fn ($q) => $q->where('school_id', $schoolId));
     }
 
     public function schedule(): BelongsTo
