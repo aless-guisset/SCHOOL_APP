@@ -131,6 +131,7 @@ class SchoolsController extends Controller
             'address'      => 'sometimes|nullable|string',
             'description'  => 'sometimes|nullable|string',
             'is_active'    => 'sometimes|boolean',
+            'cantine_enabled' => 'sometimes|boolean',
         ]);
 
         $data['updated_by'] = $request->user()->id;

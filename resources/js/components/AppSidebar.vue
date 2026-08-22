@@ -27,7 +27,7 @@ import { useSidebarNav } from '@/composables/useSidebarNav';
 
 const page = usePage<{
     currentRole: string | null;
-    school: { id: number; name: string } | null;
+    school: { id: number; name: string; cantine_enabled?: boolean } | null;
     userSchools: Array<{ id: number; name: string; is_active: boolean; is_default: boolean }>;
     pendingCount: number;
     routeName: string | null;
@@ -39,7 +39,20 @@ const userSchools = computed(() => page.props.userSchools ?? []);
 const pendingCount = computed(() => page.props.pendingCount ?? 0);
 const hasMultipleSchools = computed(() => userSchools.value.length > 1);
 
-const navGroups = computed(() => useSidebarNav(currentRole.value));
+// Le nav "Cantine" est déclaré statiquement dans useSidebarNav (qui n'a pas
+// accès à l'état de l'école active) ; on le retire ici si le module n'est pas
+// activé pour l'école active.
+const navGroups = computed(() => {
+    const cantineEnabled = activeSchool.value?.cantine_enabled ?? false;
+    const groups = useSidebarNav(currentRole.value);
+
+    if (cantineEnabled) return groups;
+
+    return groups.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => item.routeName !== 'cantine.index'),
+    }));
+});
 
 function switchSchool(schoolId: number) {
     router.post('/school/activate', { school_id: schoolId });

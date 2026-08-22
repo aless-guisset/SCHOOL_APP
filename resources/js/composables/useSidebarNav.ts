@@ -15,6 +15,7 @@ import {
     Settings,
     ShieldCheck,
     Users,
+    Utensils,
     type LucideIcon,
 } from 'lucide-vue-next';
 
@@ -73,6 +74,8 @@ const nav: NavMap = {
                 { label: 'Feuilles de temps', icon: Clock, route: '/timesheets', routeName: 'timesheets.index' },
                 { label: 'Salles', icon: DoorOpen, route: '/classrooms', routeName: 'classrooms.index' },
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
+                // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
+                { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
             ],
         },
     ],
@@ -87,6 +90,8 @@ const nav: NavMap = {
                 { label: 'Sections', icon: GraduationCap, route: '/sections', routeName: 'sections.index' },
                 { label: 'Cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Horaires', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
+                // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
+                { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
             ],
         },
     ],

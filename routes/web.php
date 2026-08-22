@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityLogsController;
 use App\Http\Controllers\AttendancesController;
+use App\Http\Controllers\CantineController;
 use App\Http\Controllers\ClassroomsController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
@@ -113,7 +114,16 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::post('/timesheets/{timesheet}/attendance', [AttendancesController::class, 'store'])
             ->name('attendances.store');
         Route::resource('resources', ResourcesController::class)->only($writeOnly);
+
+        // ── Cantine (module optionnel, activable par école) ────────────────
+        Route::get('/cantine/create', [CantineController::class, 'create'])->name('cantine.create');
+        Route::post('/cantine', [CantineController::class, 'store'])->name('cantine.store');
+        Route::delete('/cantine/{cantineRegistration}', [CantineController::class, 'destroy'])->name('cantine.destroy');
+        Route::post('/cantine/roster', [CantineController::class, 'storePresences'])->name('cantine.roster.store');
     });
+
+    Route::get('/cantine', [CantineController::class, 'index'])->name('cantine.index');
+    Route::get('/cantine/roster', [CantineController::class, 'roster'])->name('cantine.roster');
 
     Route::resource('courses', CoursesController::class)->only(['index', 'show']);
     Route::resource('sections', SectionsController::class)->only(['index', 'show']);

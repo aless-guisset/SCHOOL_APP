@@ -4,6 +4,7 @@ import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +14,10 @@ import AppLayout from '@/layouts/AppLayout.vue';
 const { t } = useTranslation();
 
 const props = defineProps<{
-    school: { id: number; name: string; email: string | null; phone_number: string | null; address: string | null; description: string | null };
+    school: {
+        id: number; name: string; email: string | null; phone_number: string | null;
+        address: string | null; description: string | null; cantine_enabled: boolean;
+    };
 }>();
 
 const form = useForm({
@@ -22,6 +26,7 @@ const form = useForm({
     phone_number: props.school.phone_number ?? '',
     address: props.school.address ?? '',
     description: props.school.description ?? '',
+    cantine_enabled: props.school.cantine_enabled,
 });
 
 const breadcrumbs = [
@@ -63,6 +68,10 @@ const breadcrumbs = [
                         <div class="space-y-1.5">
                             <Label for="description">{{ t('label.description') }}</Label>
                             <Textarea id="description" v-model="form.description" rows="3" />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <Checkbox id="cantine_enabled" v-model="form.cantine_enabled" />
+                            <Label for="cantine_enabled">Module cantine activé</Label>
                         </div>
                         <div class="flex gap-3 pt-2">
                             <Button type="submit" :disabled="form.processing">{{ t('action.save') }}</Button>

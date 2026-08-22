@@ -22,6 +22,7 @@ class School extends Model
         'address',
         'status',
         'is_active',
+        'cantine_enabled',
         'created_by',
         'updated_by',
     ];
@@ -29,5 +30,6 @@ class School extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_deleted' => 'boolean',
+        'cantine_enabled' => 'boolean',
     ];
 }

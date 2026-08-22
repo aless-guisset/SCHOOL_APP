@@ -64,6 +64,7 @@ class HandleInertiaRequests extends Middleware
             'school'      => $activeSchool ? [
                 'id'   => $activeSchool->id,
                 'name' => $activeSchool->name,
+                'cantine_enabled' => $activeSchool->cantine_enabled,
             ] : null,
             'currentRole' => $currentRole,
             'userSchools' => $userSchools,
