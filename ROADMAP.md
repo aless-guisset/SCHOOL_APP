@@ -34,23 +34,41 @@
   ResolvesAttendanceRoster.php`, source unique partagée affichage/validation), upsert batch
   scopé à la section + à l'école active, carte sur `Timesheets/Show.vue`
   (`2026-08-21-attendance.md`)
+- Audit + correction autorisation cross-école : trait `ScopesRouteBindingToActiveSchool`
+  appliqué à 9 modèles (lecture, via route-model binding), + scoping des champs FK côté
+  écriture sur 5 controllers (Subjects/Schedules/SectionCourses/Lessons/Timesheets — trouvé par
+  la revue finale, hors périmètre de l'audit initial qui ne couvrait que la lecture), + route
+  `user-school-roles` remise dans le groupe admin, + `SchoolPanelController` vérifie
+  l'appartenance, + fix `withTrashed()` sur 4 modèles (régression : un parent soft-deleted
+  rendait un enregistrement inaccessible même pour son propriétaire légitime)
+  (`2026-08-21-cross-school-scoping.md`)
 
-## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées
+## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées, dette sécurité fermée
 
-## 🔴 Dette sécurité découverte (à traiter en priorité, pas encore de plan écrit)
-- [ ] Audit autorisation cross-école sur `TimesheetsController` : `show`/`edit`/`update`/`destroy`
-  utilisent le route-model binding implicite SANS vérifier l'école active — un power-user peut
-  lire/modifier/supprimer une feuille de temps d'une autre école par ID, ET (depuis le module
-  présence) lire le roster nominatif des élèves d'une autre école via la prop `roster` de
-  `show()`. Le côté écriture (`attendances.store`) est déjà scopé (`8b72099`) ; c'est
-  spécifiquement le côté lecture de `TimesheetsController` qui reste ouvert, avec un blast radius
-  plus large qu'avant (noms d'élèves, pas juste horaires). `edit()` expose aussi tous les
-  créneaux de toutes les écoles (même défaut que `create()` avant correction). Probable que
-  d'autres controllers aient le même pattern — vérifier plus largement, pas juste Timesheets.
+## 🟡 Dette restante (non bloquante, à traiter quand le temps le permet)
+- [ ] 10 pages Vue référencées par `Inertia::render()` n'existent pas et font planter leur route
+  en 500 (pas 404 client, vraie erreur serveur) : `admin/web/Roles/{Index,Create,Edit,Show}`,
+  `admin/web/UserSchoolRoles/{Index,Create}`, `power-user/web/SectionCourses/
+  {Index,Create,Edit,Show}`. Pré-existant, sans rapport avec le scoping — découvert par la revue
+  finale de l'audit sécurité. Impact concret : les routes `roles.*` et `user-school-roles.*`
+  (déplacées dans le groupe admin le 21/08) sont inutilisables même pour un admin légitime, et le
+  module `SectionCourses` est mort en prod.
 - [ ] `AttendancesController::store()` compare `session('active_school_id')` en `===` strict —
   seul endroit du code à faire ça (les ~30 autres passent par un `where()` SQL, comparaison
   lâche). Sûr avec la config actuelle (mariadb, pas d'émulation PDO) mais latent — passer en
   `==` par cohérence/robustesse.
+- [ ] `TimesheetsController::update()` valide `schedule_id`/`subject_id`/`classroom_id`/
+  `user_school_role_id` (pour la règle de conflit) mais ne les persiste jamais dans `$data` —
+  les dropdowns du formulaire d'édition changent visuellement mais rien n'est enregistré.
+  Découvert par la revue finale de l'audit sécurité, hors scope de ce plan.
+- [ ] Positive test control manquant sur 7 des 9 modèles scopés (`Course`/`Section`/`Lesson`/
+  `Resource`/`Subject`/`Schedule`/`Timesheet`) : seul `Classroom` a un test "accès à sa propre
+  école fonctionne toujours" — un futur changement qui bloquerait l'accès légitime pour tout le
+  monde ne serait pas détecté par la suite actuelle.
+- [ ] Aucun middleware de rôle sur les routes Power User (`courses`, `sections`, `timesheets`,
+  etc.) — un Professeur/Élève peut écrire dans sa propre école sur ces routes. Volontairement
+  hors scope de l'audit cross-école (c'est une frontière de rôle, pas de tenant), mais à garder
+  en tête.
 
 ## 🟡 Priorité normale (plus tard)
 - [ ] Tests PHPUnit (classroom libre, prof dispo, section dispo)
@@ -65,5 +83,5 @@
   computed JS si ça remonte comme gênant en usage réel
 
 ---
-*Dernière mise à jour : module présence terminé — sprint du 24/08 complet, priorité passe à
-l'audit sécurité cross-école sur TimesheetsController*
+*Dernière mise à jour : audit + correction sécurité cross-école terminé (lecture ET écriture) —
+sprint du 24/08 complet*
