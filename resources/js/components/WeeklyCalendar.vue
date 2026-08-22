@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { useMediaQuery } from '@/composables/useMediaQuery';
 
 export interface CalendarSlot {
     id: number | string;
@@ -22,11 +21,12 @@ const HOUR_START  = 7;
 const HOUR_END    = 20;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 
-const isMobile = useMediaQuery('(max-width: 39.9375rem)');
-const HOUR_PX = computed(() => isMobile.value ? 48 : 64);
-const DAY_COL_PX = computed(() => isMobile.value ? 80 : 120);
-const HOUR_LABEL_COL_PX = computed(() => isMobile.value ? 36 : 48);
-
+// Les dimensions desktop/mobile sont résolues par le navigateur via les media
+// queries CSS ci-dessous (custom properties --wc-*), pas par une détection JS
+// de la largeur d'écran : `useMediaQuery` ne peut donner une valeur correcte
+// qu'après `onMounted` (pour rester en accord avec le rendu SSR initial), ce
+// qui produisait un flash "grille desktop → grille mobile" à l'hydratation.
+// Une media query CSS, elle, est déjà correcte dès la toute première peinture.
 const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => HOUR_START + i);
 
 const activeDays = computed(() => {
@@ -66,8 +66,8 @@ function slotStyle(s: CalendarSlot) {
     const duration = toMin(s.endTime) - toMin(s.startTime);
 
     return {
-        top:    `${(startMin / 60) * HOUR_PX.value}px`,
-        height: `${Math.max((duration / 60) * HOUR_PX.value - 2, 20)}px`,
+        top:    `calc(${startMin / 60} * var(--wc-hour-px))`,
+        height: `max(calc(${duration / 60} * var(--wc-hour-px) - 2px), 20px)`,
     };
 }
 
@@ -77,12 +77,12 @@ function fmt(t: string) {
 </script>
 
 <template>
-    <div class="overflow-x-auto rounded-md border border-border">
-        <div :style="`min-width: ${HOUR_LABEL_COL_PX + activeDays.length * DAY_COL_PX}px`">
+    <div class="wc-root overflow-x-auto rounded-md border border-border">
+        <div :style="`min-width: calc(var(--wc-hour-label-col-px) + ${activeDays.length} * var(--wc-day-col-px))`">
             <!-- En-têtes jours -->
             <div
                 class="grid border-b border-border bg-muted/40"
-                :style="`grid-template-columns: ${HOUR_LABEL_COL_PX}px repeat(${activeDays.length}, 1fr)`"
+                :style="`grid-template-columns: var(--wc-hour-label-col-px) repeat(${activeDays.length}, 1fr)`"
             >
                 <div />
                 <div
@@ -94,14 +94,14 @@ function fmt(t: string) {
             <!-- Corps grille -->
             <div
                 class="grid"
-                :style="`grid-template-columns: ${HOUR_LABEL_COL_PX}px repeat(${activeDays.length}, 1fr); height: ${TOTAL_HOURS * HOUR_PX}px`"
+                :style="`grid-template-columns: var(--wc-hour-label-col-px) repeat(${activeDays.length}, 1fr); height: calc(${TOTAL_HOURS} * var(--wc-hour-px))`"
             >
                 <!-- Labels heures -->
                 <div class="relative border-r border-border bg-muted/20">
                     <div
                         v-for="h in hours.slice(0, -1)" :key="h"
                         class="absolute right-0 left-0 flex items-start justify-end pr-1.5"
-                        :style="`top: ${(h - HOUR_START) * HOUR_PX}px`"
+                        :style="`top: calc(${h - HOUR_START} * var(--wc-hour-px))`"
                     >
                         <span class="mt-0.5 text-[10px] leading-none text-muted-foreground">{{ h }}h</span>
                     </div>
@@ -115,7 +115,7 @@ function fmt(t: string) {
                     <div
                         v-for="h in hours.slice(0, -1)" :key="h"
                         class="pointer-events-none absolute inset-x-0 border-t border-border/30"
-                        :style="`top: ${(h - HOUR_START) * HOUR_PX}px; height: ${HOUR_PX}px`"
+                        :style="`top: calc(${h - HOUR_START} * var(--wc-hour-px)); height: var(--wc-hour-px)`"
                     />
                     <template v-for="s in (byDay[day] ?? [])" :key="s.id">
                         <Link
@@ -145,3 +145,19 @@ function fmt(t: string) {
         </div>
     </div>
 </template>
+
+<style scoped>
+.wc-root {
+    --wc-hour-px: 64px;
+    --wc-day-col-px: 120px;
+    --wc-hour-label-col-px: 48px;
+}
+
+@media (max-width: 39.9375rem) {
+    .wc-root {
+        --wc-hour-px: 48px;
+        --wc-day-col-px: 80px;
+        --wc-hour-label-col-px: 36px;
+    }
+}
+</style>
