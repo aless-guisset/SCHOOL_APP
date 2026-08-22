@@ -13,12 +13,16 @@ test('profile page is displayed', function () {
 });
 
 test('profile information can be updated', function () {
+    // ProfileValidationRules::profileRules() attend firstname/lastname, pas
+    // le `name` unique du starter kit Laravel par défaut — l'app a été
+    // adaptée pour utiliser des prénom/nom séparés (cf. CLAUDE.md).
     $user = User::factory()->create();
 
     $response = $this
         ->actingAs($user)
         ->patch(route('profile.update'), [
-            'name' => 'Test User',
+            'firstname' => 'Test',
+            'lastname' => 'User',
             'email' => 'test@example.com',
         ]);
 
@@ -28,7 +32,8 @@ test('profile information can be updated', function () {
 
     $user->refresh();
 
-    expect($user->name)->toBe('Test User');
+    expect($user->firstname)->toBe('Test');
+    expect($user->lastname)->toBe('User');
     expect($user->email)->toBe('test@example.com');
     expect($user->email_verified_at)->toBeNull();
 });
@@ -39,7 +44,8 @@ test('email verification status is unchanged when the email address is unchanged
     $response = $this
         ->actingAs($user)
         ->patch(route('profile.update'), [
-            'name' => 'Test User',
+            'firstname' => 'Test',
+            'lastname' => 'User',
             'email' => $user->email,
         ]);
 
@@ -51,6 +57,10 @@ test('email verification status is unchanged when the email address is unchanged
 });
 
 test('user can delete their account', function () {
+    // User utilise SoftDeletes (convention de toute l'app, cf. CLAUDE.md
+    // « Soft deletes sur tous les modèles métier ») : destroy() ne fait
+    // jamais disparaître la ligne, fresh() renvoie donc le modèle "trashed",
+    // jamais null.
     $user = User::factory()->create();
 
     $response = $this
@@ -64,7 +74,7 @@ test('user can delete their account', function () {
         ->assertRedirect(route('home'));
 
     $this->assertGuest();
-    expect($user->fresh())->toBeNull();
+    expect($user->fresh()->trashed())->toBeTrue();
 });
 
 test('correct password must be provided to delete account', function () {
