@@ -45,7 +45,7 @@ class Timesheet extends Model
 
     protected function applySchoolScope(Builder $query, int $schoolId): Builder
     {
-        return $query->whereHas('userSchoolRole', fn ($q) => $q->where('school_id', $schoolId));
+        return $query->whereHas('userSchoolRole', fn ($q) => $q->withTrashed()->where('school_id', $schoolId));
     }
 
     public function schedule(): BelongsTo

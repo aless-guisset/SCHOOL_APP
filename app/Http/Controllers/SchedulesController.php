@@ -45,8 +45,10 @@ class SchedulesController extends Controller
 
     public function store(Request $request)
     {
+        $schoolId = session('active_school_id');
+
         $data = $request->validate([
-            'section_course_id' => 'required|integer|exists:sections_courses,id',
+            'section_course_id' => ['required', 'integer', $this->sectionCourseBelongsToSchool($schoolId)],
             'name'              => 'required|max:100',
             'day_of_week'       => 'required|integer|between:1,7',
             'start_time'        => 'required|date_format:H:i',
@@ -102,5 +104,19 @@ class SchedulesController extends Controller
 
         return redirect()->route('schedules.index')
             ->with('flash', ['type' => 'success', 'message' => 'Créneau supprimé.']);
+    }
+
+    /**
+     * `section_course_id` has no direct `school_id` column — it's reached via
+     * SectionCourse → course → school_id. `Rule::exists` can't express that
+     * relation, so use a closure rule instead.
+     */
+    private function sectionCourseBelongsToSchool(?int $schoolId): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
+            if (! SectionCourse::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))->whereKey($value)->exists()) {
+                $fail('Ce cours de section n\'appartient pas à votre établissement.');
+            }
+        };
     }
 }

@@ -37,13 +37,15 @@ class LessonsController extends Controller
 
     public function store(Request $request)
     {
+        $schoolId = session('active_school_id');
+
         $data = $request->validate([
-            'subject_id'  => 'required|integer|exists:subjects,id',
+            'subject_id'  => ['required', 'integer', $this->subjectBelongsToSchool($schoolId)],
             'name'        => 'required|max:100',
             'description' => 'nullable|string',
         ]);
 
-        $data['school_id'] = session('active_school_id');
+        $data['school_id'] = $schoolId;
         $data['created_by'] = $request->user()->id;
         $data['is_active'] = true;
 
@@ -77,8 +79,10 @@ class LessonsController extends Controller
 
     public function update(Request $request, Lesson $lesson)
     {
+        $schoolId = session('active_school_id');
+
         $data = $request->validate([
-            'subject_id'  => 'sometimes|integer|exists:subjects,id',
+            'subject_id'  => ['sometimes', 'integer', $this->subjectBelongsToSchool($schoolId)],
             'name'        => 'sometimes|required|max:100',
             'description' => 'sometimes|nullable|string',
             'is_active'   => 'sometimes|boolean',
@@ -98,5 +102,19 @@ class LessonsController extends Controller
 
         return redirect()->route('lessons.index')
             ->with('flash', ['type' => 'success', 'message' => 'Leçon supprimée.']);
+    }
+
+    /**
+     * `subject_id` has no direct `school_id` column — it's reached via
+     * Subject → course → school_id. `Rule::exists` can't express that
+     * relation, so use a closure rule instead.
+     */
+    private function subjectBelongsToSchool(?int $schoolId): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
+            if (! Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))->whereKey($value)->exists()) {
+                $fail('Cette matière n\'appartient pas à votre établissement.');
+            }
+        };
     }
 }

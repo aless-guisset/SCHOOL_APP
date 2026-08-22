@@ -376,3 +376,191 @@ test('duplicating a weeks planning does not duplicate another schools timesheets
         ->latest('id')->first();
     expect($duplicated->user_school_role_id)->toBe($teacherA->id);
 });
+
+// ---- Write-side FK scoping (finding #1) ----
+
+test('SubjectsController store rejects a course_id from another school', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+
+    $courseB = Course::create([
+        'school_id' => $schoolB->id, 'name' => 'Maths B',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/subjects', [
+            'course_id' => $courseB->id,
+            'name'      => 'Algèbre injectée',
+        ])
+        ->assertSessionHasErrors('course_id');
+});
+
+test('SubjectsController store accepts a legitimate same-school course_id', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+
+    $courseA = Course::create([
+        'school_id' => $schoolA->id, 'name' => 'Maths A',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/subjects', [
+            'course_id' => $courseA->id,
+            'name'      => 'Algèbre A',
+        ])
+        ->assertRedirect();
+
+    expect(Subject::where('name', 'Algèbre A')->where('course_id', $courseA->id)->exists())->toBeTrue();
+});
+
+test('SchedulesController store rejects a section_course_id from another school', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/schedules', [
+            'section_course_id' => $sessionB['sectionCourse']->id,
+            'name'              => 'Créneau injecté',
+            'day_of_week'       => 2,
+            'start_time'        => '08:00',
+            'end_time'          => '09:00',
+        ])
+        ->assertSessionHasErrors('section_course_id');
+});
+
+test('SectionCoursesController store rejects a section_user_id from another school', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+    $courseA = Course::create([
+        'school_id' => $schoolA->id, 'name' => 'Maths A',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    // section_user_id vient de l'école B, course_id est légitime (école A)
+    $sectionUserB = SectionUserSchoolRole::whereHas(
+        'userschoolrole', fn ($q) => $q->where('school_id', $schoolB->id)
+    )->firstOrFail();
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/section-courses', [
+            'section_user_id'   => $sectionUserB->id,
+            'course_id'         => $courseA->id,
+            'name'              => 'Association injectée',
+            'total_hours'       => 10,
+            'hours_per_session' => 2,
+        ])
+        ->assertSessionHasErrors('section_user_id');
+});
+
+test('SectionCoursesController store rejects a course_id from another school', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+    $courseB = Course::create([
+        'school_id' => $schoolB->id, 'name' => 'Maths B',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $sectionUserA = SectionUserSchoolRole::whereHas(
+        'userschoolrole', fn ($q) => $q->where('school_id', $schoolA->id)
+    )->firstOrFail();
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/section-courses', [
+            'section_user_id'   => $sectionUserA->id,
+            'course_id'         => $courseB->id,
+            'name'              => 'Association injectée',
+            'total_hours'       => 10,
+            'hours_per_session' => 2,
+        ])
+        ->assertSessionHasErrors('course_id');
+});
+
+test('LessonsController store rejects a subject_id from another school', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/lessons', [
+            'subject_id' => $sessionB['subject']->id,
+            'name'       => 'Leçon injectée',
+        ])
+        ->assertSessionHasErrors('subject_id');
+});
+
+test('TimesheetsController store rejects a subject_id from another school', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+    $sessionB = makeScopingSessionFor($schoolB, $teacherB);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/timesheets', [
+            'user_school_role_id' => $teacherA->id,
+            'schedule_id'         => $sessionA['schedule']->id,
+            'subject_id'          => $sessionB['subject']->id,
+            'classroom_id'        => Classroom::where('school_id', $schoolA->id)->firstOrFail()->id,
+            'date'                => '2026-08-25',
+            'hours_done'          => 2,
+        ])
+        ->assertSessionHasErrors('subject_id');
+});
+
+// ---- Soft-deleted intermediate parent must not 404 for same-school access (finding #2) ----
+
+test('a subject is still reachable by its rightful owner after its course is soft-deleted', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+    $sessionA['course']->delete();
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/subjects/{$sessionA['subject']->id}")
+        ->assertOk();
+});
+
+test('a schedule is still reachable by its rightful owner after its course is soft-deleted', function () {
+    $schoolA = makeScopingSchool('École A');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+    $sessionA['course']->delete();
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/schedules/{$sessionA['schedule']->id}")
+        ->assertOk();
+});

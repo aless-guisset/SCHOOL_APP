@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\Subject;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,8 +37,10 @@ class SubjectsController extends Controller
 
     public function store(Request $request)
     {
+        $schoolId = session('active_school_id');
+
         $data = $request->validate([
-            'course_id'   => 'required|integer|exists:courses,id',
+            'course_id'   => ['required', 'integer', Rule::exists('courses', 'id')->where('school_id', $schoolId)],
             'name'        => 'required|max:100',
             'description' => 'nullable|string',
         ]);
@@ -75,8 +78,10 @@ class SubjectsController extends Controller
 
     public function update(Request $request, Subject $subject)
     {
+        $schoolId = session('active_school_id');
+
         $data = $request->validate([
-            'course_id'   => 'sometimes|integer|exists:courses,id',
+            'course_id'   => ['sometimes', 'integer', Rule::exists('courses', 'id')->where('school_id', $schoolId)],
             'name'        => 'sometimes|required|max:100',
             'description' => 'sometimes|nullable|string',
             'is_active'   => 'sometimes|boolean',

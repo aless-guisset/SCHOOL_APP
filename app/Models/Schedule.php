@@ -78,6 +78,7 @@ class Schedule extends Model
 
     protected function applySchoolScope(Builder $query, int $schoolId): Builder
     {
-        return $query->whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId));
+        return $query->whereHas('sectionCourse', fn ($q) => $q->withTrashed()
+            ->whereHas('course', fn ($q2) => $q2->withTrashed()->where('school_id', $schoolId)));
     }
 }

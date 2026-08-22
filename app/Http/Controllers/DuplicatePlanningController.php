@@ -30,6 +30,7 @@ class DuplicatePlanningController extends Controller
 
         $schoolId = session('active_school_id');
 
+        // .toDateString() (not the default Carbon stringification, which includes time-of-day) keeps this a plain lexicographic date-range comparison — required under SQLite (test driver) and harmless-but-consistent under MySQL.
         $sourceTimesheets = Timesheet::whereBetween('date', [$sourceMonday->toDateString(), $sourceSunday->toDateString()])
             ->whereHas('userSchoolRole', fn ($q) => $q->where('school_id', $schoolId))
             ->whereNull('deleted_at')

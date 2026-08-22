@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\SectionCourse;
 use App\Models\SectionUserSchoolRole;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -45,9 +46,11 @@ class SectionCoursesController extends Controller
 
     public function store(Request $request)
     {
+        $schoolId = session('active_school_id');
+
         $data = $request->validate([
-            'section_user_id'   => 'required|integer|exists:section_users,id',
-            'course_id'         => 'required|integer|exists:courses,id',
+            'section_user_id'   => ['required', 'integer', $this->sectionUserBelongsToSchool($schoolId)],
+            'course_id'         => ['required', 'integer', Rule::exists('courses', 'id')->where('school_id', $schoolId)],
             'name'              => 'required|max:100',
             'total_hours'       => 'required|integer|min:1',
             'hours_per_session' => 'required|integer|min:1',
@@ -111,5 +114,19 @@ class SectionCoursesController extends Controller
 
         return redirect()->route('section-courses.index')
             ->with('flash', ['type' => 'success', 'message' => 'Association supprimée.']);
+    }
+
+    /**
+     * `section_user_id` has no direct `school_id` column — it's reached via
+     * SectionUserSchoolRole → userschoolrole → school_id. `Rule::exists` can't
+     * express that relation, so use a closure rule instead.
+     */
+    private function sectionUserBelongsToSchool(?int $schoolId): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
+            if (! SectionUserSchoolRole::whereHas('userschoolrole', fn ($q) => $q->where('school_id', $schoolId))->whereKey($value)->exists()) {
+                $fail('Cette inscription n\'appartient pas à votre établissement.');
+            }
+        };
     }
 }

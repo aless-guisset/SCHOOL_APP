@@ -74,7 +74,7 @@ class TimesheetsController extends Controller
         $data = $request->validate([
             'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
             'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
-            'subject_id'          => 'required|integer|exists:subjects,id',
+            'subject_id'          => ['required', 'integer', $this->subjectBelongsToSchool($schoolId)],
             'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
             'date'                => [
                 'required',
@@ -232,6 +232,20 @@ class TimesheetsController extends Controller
         return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
             if (! Schedule::whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId))->whereKey($value)->exists()) {
                 $fail('Ce créneau n\'appartient pas à votre établissement.');
+            }
+        };
+    }
+
+    /**
+     * `subject_id` has no direct `school_id` column — it's reached via
+     * Subject → course → school_id. `Rule::exists` can't express that
+     * relation, so use a closure rule instead.
+     */
+    private function subjectBelongsToSchool(?int $schoolId): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
+            if (! Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))->whereKey($value)->exists()) {
+                $fail('Cette matière n\'appartient pas à votre établissement.');
             }
         };
     }
