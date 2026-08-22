@@ -326,4 +326,87 @@ class TimesheetConflictTest extends TestCase
         // Assert
         $this->assertEmpty($errors, 'Pas de conflit attendu (sections différentes).');
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // 4. Disponibilité réelle — même professeur/salle/section, créneau horaire libre
+    //
+    // Les tests ci-dessus prouvent l'absence de conflit en faisant varier
+    // plusieurs facteurs à la fois (prof ET section ET salle différents). Ceux-ci
+    // isolent le seul facteur temps : professeur, salle et section identiques à
+    // un timesheet existant, mais sur un créneau réellement libre.
+    // ════════════════════════════════════════════════════════════════════════
+
+    #[Test]
+    public function professeur_salle_et_section_disponibles_sur_un_creneau_non_chevauchant(): void
+    {
+        // Arrange — prof1/salle1/section1 déjà occupés sur scheduleA (10h-12h)
+        $this->makeExistingTimesheet($this->teacher1, $this->scheduleA, $this->classroom1);
+
+        // Act — même prof, même salle, même section (scheduleD → sectionCourse1),
+        // mais sur un créneau 08h-10h qui ne chevauche pas 10h-12h
+        $errors = $this->validate(
+            scheduleId:  $this->scheduleD->id,
+            teacherId:   $this->teacher1->id,
+            classroomId: $this->classroom1->id,
+        );
+
+        // Assert
+        $this->assertEmpty($errors, 'Prof/salle/section libres sur un créneau non-chevauchant.');
+    }
+
+    #[Test]
+    public function creneaux_adjacents_qui_se_touchent_sans_se_chevaucher_ne_sont_pas_en_conflit(): void
+    {
+        // Arrange — scheduleD (08h-10h) occupé par prof1/salle1
+        $this->makeExistingTimesheet($this->teacher1, $this->scheduleD, $this->classroom1);
+
+        // Act — scheduleA (10h-12h) : commence exactement quand scheduleD finit.
+        // La formule de chevauchement (start1 < end2 AND end1 > start2) ne doit
+        // pas considérer deux créneaux adjacents comme se chevauchant.
+        $errors = $this->validate(
+            scheduleId:  $this->scheduleA->id,
+            teacherId:   $this->teacher1->id,
+            classroomId: $this->classroom1->id,
+        );
+
+        // Assert
+        $this->assertEmpty($errors, 'Deux créneaux adjacents (10h pile) ne se chevauchent pas.');
+    }
+
+    #[Test]
+    public function un_timesheet_ne_se_met_pas_en_conflit_avec_lui_meme_lors_dune_mise_a_jour(): void
+    {
+        // Arrange — timesheet existant sur scheduleA/prof1/salle1
+        $timesheet = $this->makeExistingTimesheet($this->teacher1, $this->scheduleA, $this->classroom1);
+
+        // Act — on revalide les mêmes prof/salle/créneau en s'excluant soi-même
+        // via ignoreId (cas d'une mise à jour qui ne change rien à l'horaire)
+        $errors = $this->validate(
+            scheduleId:  $this->scheduleA->id,
+            teacherId:   $this->teacher1->id,
+            classroomId: $this->classroom1->id,
+            ignoreId:    $timesheet->id,
+        );
+
+        // Assert
+        $this->assertEmpty($errors, 'Un timesheet ne doit jamais entrer en conflit avec lui-même.');
+    }
+
+    #[Test]
+    public function un_timesheet_supprime_ne_bloque_plus_le_creneau(): void
+    {
+        // Arrange — timesheet créé puis soft-deleted
+        $timesheet = $this->makeExistingTimesheet($this->teacher1, $this->scheduleA, $this->classroom1);
+        $timesheet->delete();
+
+        // Act — un autre professeur peut désormais prendre ce créneau/cette salle
+        $errors = $this->validate(
+            scheduleId:  $this->scheduleA->id,
+            teacherId:   $this->teacher2->id,
+            classroomId: $this->classroom1->id,
+        );
+
+        // Assert
+        $this->assertEmpty($errors, 'Un timesheet soft-deleted ne doit plus compter comme occupant le créneau.');
+    }
 }
