@@ -7,6 +7,7 @@ use App\Http\Controllers\ClassroomsController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DuplicatePlanningController;
+use App\Http\Controllers\GradesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ResourcesController;
@@ -120,10 +121,18 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::post('/cantine', [CantineController::class, 'store'])->name('cantine.store');
         Route::delete('/cantine/{cantineRegistration}', [CantineController::class, 'destroy'])->name('cantine.destroy');
         Route::post('/cantine/roster', [CantineController::class, 'storePresences'])->name('cantine.roster.store');
+
+        // ── Notes / bulletins ────────────────────────────────────────────────
+        Route::get('/grades/create', [GradesController::class, 'create'])->name('grades.create');
+        Route::post('/grades', [GradesController::class, 'store'])->name('grades.store');
+        Route::delete('/grades/{grade}', [GradesController::class, 'destroy'])->name('grades.destroy');
     });
 
     Route::get('/cantine', [CantineController::class, 'index'])->name('cantine.index');
     Route::get('/cantine/roster', [CantineController::class, 'roster'])->name('cantine.roster');
+
+    Route::get('/grades', [GradesController::class, 'index'])->name('grades.index');
+    Route::get('/grades/bulletin/{sectionUser}', [GradesController::class, 'bulletin'])->name('grades.bulletin');
 
     Route::resource('courses', CoursesController::class)->only(['index', 'show']);
     Route::resource('sections', SectionsController::class)->only(['index', 'show']);
