@@ -345,3 +345,34 @@ test('the edit timesheet schedule dropdown only lists the active schools schedul
             ->where('schedules.0.id', $sessionA['schedule']->id)
         );
 });
+
+test('duplicating a weeks planning does not duplicate another schools timesheets', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $powerUserA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+    $teacherA = makeScopingUsr($schoolA, makeScopingRole('PROF', 'Professeur'));
+    $teacherB = makeScopingUsr($schoolB, makeScopingRole('PROF', 'Professeur'));
+
+    // Même semaine source (lundi 2026-08-24) pour les deux écoles
+    $sessionA = makeScopingSessionFor($schoolA, $teacherA);
+    makeScopingSessionFor($schoolB, $teacherB);
+
+    $countBefore = \App\Models\Timesheet::count();
+
+    $response = $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/planning/duplicate', [
+            'source_week_start' => '2026-08-24',
+            'year_end'          => '2026-08-31',
+        ]);
+
+    $response->assertOk();
+
+    // Seul le timesheet de l'école A doit avoir été dupliqué (1 nouvelle semaine ajoutée)
+    $countAfter = \App\Models\Timesheet::count();
+    expect($countAfter - $countBefore)->toBe(1);
+
+    $duplicated = \App\Models\Timesheet::where('id', '!=', $sessionA['timesheet']->id)
+        ->latest('id')->first();
+    expect($duplicated->user_school_role_id)->toBe($teacherA->id);
+});

@@ -28,7 +28,10 @@ class DuplicatePlanningController extends Controller
         // Timesheets de la semaine source (lun → dim)
         $sourceSunday = $sourceMonday->copy()->endOfWeek(Carbon::SUNDAY);
 
-        $sourceTimesheets = Timesheet::whereBetween('date', [$sourceMonday, $sourceSunday])
+        $schoolId = session('active_school_id');
+
+        $sourceTimesheets = Timesheet::whereBetween('date', [$sourceMonday->toDateString(), $sourceSunday->toDateString()])
+            ->whereHas('userSchoolRole', fn ($q) => $q->where('school_id', $schoolId))
             ->whereNull('deleted_at')
             ->get();
 
