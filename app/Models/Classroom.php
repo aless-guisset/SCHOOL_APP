@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Concerns\ScopesRouteBindingToActiveSchool;
 use Database\Factories\ClassroomFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[UseFactory(ClassroomFactory::class)]
 class Classroom extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ScopesRouteBindingToActiveSchool;
 
     protected $fillable = [
         'school_id',
@@ -40,5 +42,10 @@ class Classroom extends Model
     public function timesheets()
     {
         return $this->hasMany(Timesheet::class);
+    }
+
+    protected function applySchoolScope(Builder $query, int $schoolId): Builder
+    {
+        return $query->where('school_id', $schoolId);
     }
 }

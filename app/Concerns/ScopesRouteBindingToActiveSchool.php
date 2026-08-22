@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Concerns;
+
+use Illuminate\Database\Eloquent\Builder;
+
+trait ScopesRouteBindingToActiveSchool
+{
+    /**
+     * Résout le binding de route en le limitant à l'école active en session —
+     * empêche un power-user d'accéder à une ressource d'une autre école en
+     * devinant son ID dans l'URL. Échec fermé : sans école active, aucun match
+     * (Laravel lève ModelNotFoundException → 404, comportement standard).
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field ??= $this->getRouteKeyName();
+        $schoolId = session('active_school_id');
+
+        if (! $schoolId) {
+            return null;
+        }
+
+        return $this->applySchoolScope($this->where($field, $value), $schoolId)->first();
+    }
+
+    abstract protected function applySchoolScope(Builder $query, int $schoolId): Builder;
+}
