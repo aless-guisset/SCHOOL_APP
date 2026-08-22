@@ -84,21 +84,43 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
             ->only(['index', 'create', 'store', 'destroy']);
     });
 
-    // ── Power User / Secrétariat ──────────────────────────────────────────
-    Route::resource('courses', CoursesController::class);
-    Route::resource('sections', SectionsController::class);
-    Route::resource('section-courses', SectionCoursesController::class);
-    Route::resource('classrooms', ClassroomsController::class);
-    Route::resource('subjects', SubjectsController::class);
-    Route::resource('lessons', LessonsController::class);
-    Route::resource('schedules', SchedulesController::class);
-    Route::post('/planning/duplicate', DuplicatePlanningController::class)->name('planning.duplicate');
-    Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
-        ->name('timesheets.check-conflict');
-    Route::resource('timesheets', TimesheetsController::class);
-    Route::post('/timesheets/{timesheet}/attendance', [AttendancesController::class, 'store'])
-        ->name('attendances.store');
-    Route::resource('resources', ResourcesController::class);
+    // ── Power User / Secrétariat ────────────────────────────────────────────
+    // Lecture ouverte à tout rôle de l'école active (Professeur/Élève inclus,
+    // cf. CLAUDE.md « Professeur / Étudiant : lecture ») ; écriture réservée
+    // aux rôles de gestion (mêmes rôles que MANAGE_ROLES/canManage).
+    //
+    // Le bloc écriture (avec ses routes littérales `create`/`edit` et
+    // `timesheets/check-conflict`) DOIT être enregistré avant le bloc lecture :
+    // `show` (`{course}`) est un joker qui capture tout segment non reconnu
+    // plus tôt dans la table de routage, y compris "create" ou "check-conflict".
+    $writeOnly = ['create', 'store', 'edit', 'update', 'destroy'];
+
+    Route::middleware('can-manage')->group(function () use ($writeOnly) {
+        Route::resource('courses', CoursesController::class)->only($writeOnly);
+        Route::resource('sections', SectionsController::class)->only($writeOnly);
+        Route::resource('section-courses', SectionCoursesController::class)->only($writeOnly);
+        Route::resource('classrooms', ClassroomsController::class)->only($writeOnly);
+        Route::resource('subjects', SubjectsController::class)->only($writeOnly);
+        Route::resource('lessons', LessonsController::class)->only($writeOnly);
+        Route::resource('schedules', SchedulesController::class)->only($writeOnly);
+        Route::post('/planning/duplicate', DuplicatePlanningController::class)->name('planning.duplicate');
+        Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
+            ->name('timesheets.check-conflict');
+        Route::resource('timesheets', TimesheetsController::class)->only($writeOnly);
+        Route::post('/timesheets/{timesheet}/attendance', [AttendancesController::class, 'store'])
+            ->name('attendances.store');
+        Route::resource('resources', ResourcesController::class)->only($writeOnly);
+    });
+
+    Route::resource('courses', CoursesController::class)->only(['index', 'show']);
+    Route::resource('sections', SectionsController::class)->only(['index', 'show']);
+    Route::resource('section-courses', SectionCoursesController::class)->only(['index', 'show']);
+    Route::resource('classrooms', ClassroomsController::class)->only(['index', 'show']);
+    Route::resource('subjects', SubjectsController::class)->only(['index', 'show']);
+    Route::resource('lessons', LessonsController::class)->only(['index', 'show']);
+    Route::resource('schedules', SchedulesController::class)->only(['index', 'show']);
+    Route::resource('timesheets', TimesheetsController::class)->only(['index', 'show']);
+    Route::resource('resources', ResourcesController::class)->only(['index', 'show']);
 });
 
 require __DIR__.'/settings.php';
