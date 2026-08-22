@@ -50,18 +50,15 @@
   `user_school_role_id` (lus seulement pour la vérification de conflit) — les dropdowns du
   formulaire d'édition changeaient visuellement mais rien n'était enregistré. Corrigé avec le
   même scoping école que `store()`, tests de régression dans `TimesheetUpdateTest.php`
+- `AttendancesController::store()` passé en `==` (au lieu de `===` strict) pour la comparaison
+  `school_id`, par cohérence avec le reste du code
+- Tests positifs "accès à sa propre école fonctionne toujours" ajoutés pour les 8 modèles scopés
+  qui n'en avaient pas (`Course`/`Section`/`Lesson`/`Resource`/`SectionCourse`/`Subject`/
+  `Schedule`/`Timesheet`) — seul `Classroom` en avait un jusqu'ici
 
 ## 🎯 Sprint 24/08 : terminé — toutes les features prévues sont livrées, dette sécurité fermée
 
 ## 🟡 Dette restante (non bloquante, à traiter quand le temps le permet)
-- [ ] `AttendancesController::store()` compare `session('active_school_id')` en `===` strict —
-  seul endroit du code à faire ça (les ~30 autres passent par un `where()` SQL, comparaison
-  lâche). Sûr avec la config actuelle (mariadb, pas d'émulation PDO) mais latent — passer en
-  `==` par cohérence/robustesse.
-- [ ] Positive test control manquant sur 7 des 9 modèles scopés (`Course`/`Section`/`Lesson`/
-  `Resource`/`Subject`/`Schedule`/`Timesheet`) : seul `Classroom` a un test "accès à sa propre
-  école fonctionne toujours" — un futur changement qui bloquerait l'accès légitime pour tout le
-  monde ne serait pas détecté par la suite actuelle.
 - [ ] Aucun middleware de rôle sur les routes Power User (`courses`, `sections`, `timesheets`,
   etc.) — un Professeur/Élève peut écrire dans sa propre école sur ces routes. Volontairement
   hors scope de l'audit cross-école (c'est une frontière de rôle, pas de tenant), mais à garder
