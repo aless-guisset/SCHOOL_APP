@@ -17,6 +17,14 @@ class SchoolPanelController extends Controller
 {
     public function __invoke(Request $request, School $school): Response
     {
+        abort_unless(
+            $request->user()->schoolRoles()
+                ->where('school_id', $school->id)
+                ->where('is_active', true)
+                ->exists(),
+            404
+        );
+
         $schoolId = $school->id;
 
         // Stats rapides

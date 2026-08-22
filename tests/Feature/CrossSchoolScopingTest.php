@@ -293,3 +293,36 @@ test('an admin can still assign roles via user-school-roles', function () {
 
     expect(\App\Models\UserSchoolRole::where('user_id', $targetUser->id)->where('school_id', $school->id)->exists())->toBeTrue();
 });
+
+test('a user cannot view another schools panel', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolB = makeScopingSchool('École B');
+    $userA = makeScopingUsr($schoolA, makeScopingRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($userA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/schools/{$schoolB->id}/panel")
+        ->assertNotFound();
+});
+
+test('a multi-school user can view both of their schools panels', function () {
+    $schoolA = makeScopingSchool('École A');
+    $schoolC = makeScopingSchool('École C');
+    $role = makeScopingRole('POWER', 'Power User');
+    $usrA = makeScopingUsr($schoolA, $role);
+    $user = $usrA->user;
+    UserSchoolRole::create([
+        'user_id' => $user->id, 'school_id' => $schoolC->id, 'role_id' => $role->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($user)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/schools/{$schoolA->id}/panel")
+        ->assertOk();
+
+    $this->actingAs($user)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->get("/schools/{$schoolC->id}/panel")
+        ->assertOk();
+});
