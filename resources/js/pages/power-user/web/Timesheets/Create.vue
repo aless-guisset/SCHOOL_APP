@@ -116,8 +116,22 @@ const dateWarning = computed(() => {
 });
 
 // ── Étape 3 : check conflits avant confirmation ────────────────────────────────
-type Conflict = { id: number; type: 'teacher' | 'classroom' | 'section'; message: string };
+type RawConflict = { id: number; type: 'teacher' | 'classroom' | 'section'; message: string };
+type Conflict = { id: number; messages: string[] };
 const conflicts = ref<Conflict[]>([]);
+
+// Un même Timesheet peut déclencher plusieurs types de conflit à la fois
+// (ex: le prof ET la section sont déjà occupés par la même séance) — le
+// serveur renvoie alors plusieurs entrées avec le même id. On les regroupe
+// ici pour n'afficher qu'UNE case à cocher par séance réellement en conflit,
+// sinon cocher l'une cochait visuellement les deux (même id, même état).
+function dedupeConflicts(raw: RawConflict[]): Conflict[] {
+    const byId = new Map<number, string[]>();
+    for (const c of raw) {
+        (byId.get(c.id) ?? byId.set(c.id, []).get(c.id)!).push(c.message);
+    }
+    return Array.from(byId, ([id, messages]) => ({ id, messages }));
+}
 const checkingConflicts = ref(false);
 const conflictCheckFailed = ref(false);
 
@@ -151,7 +165,7 @@ async function checkConflicts() {
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        conflicts.value = json.conflicts ?? [];
+        conflicts.value = dedupeConflicts(json.conflicts ?? []);
     } catch {
         // Pre-check couldn't run (network error, unparseable response, etc.) — this is not
         // the same as an actual conflict being found. Don't block the wizard: the server
@@ -381,7 +395,7 @@ const breadcrumbs = [
                                     @update:model-value="() => toggleReplace(c.id)"
                                 />
                                 <span>
-                                    <span class="text-destructive">{{ c.message }}</span>
+                                    <span v-for="msg in c.messages" :key="msg" class="block text-destructive">{{ msg }}</span>
                                     <span class="block text-xs text-muted-foreground">
                                         Cocher pour remplacer ce cours existant par le nouveau. Laisser décoché pour le conserver
                                         (l'enregistrement sera alors refusé s'il reste en conflit).
