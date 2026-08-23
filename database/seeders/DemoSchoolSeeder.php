@@ -87,6 +87,9 @@ class DemoSchoolSeeder extends Seeder
         $teachers = $this->makeTeachers($school);
         $this->command?->info('Professeurs prêts.');
 
+        $this->makeStaff($school);
+        $this->command?->info('Comptes Power User/Secrétariat/Directeur prêts.');
+
         $section = $this->makeSection($school);
         $classrooms = $this->makeClassrooms($school);
         $this->command?->info('Section et salles prêtes.');
@@ -128,6 +131,11 @@ class DemoSchoolSeeder extends Seeder
         if ($demoUser) {
             $this->command?->info('  user_id  : '.$demoUser->id);
         }
+        $this->command?->info('Autres comptes (mot de passe commun "password") :');
+        $this->command?->info('  Power User    : power-user.demo@school.com');
+        $this->command?->info('  Secrétariat   : secretariat.demo@school.com');
+        $this->command?->info('  Directeur     : directeur.demo@school.com');
+        $this->command?->info('  Professeurs   : prof.maths.demo@school.com / prof.francais.demo@school.com / prof.histoire.demo@school.com');
     }
 
     private function makeSchool(): School
@@ -186,6 +194,40 @@ class DemoSchoolSeeder extends Seeder
             'Histoire-Géographie' => $julie,
             'EPS' => $julie,
         ];
+    }
+
+    /**
+     * Comptes de démo pour les rôles de gestion (Power User/Secrétariat) et
+     * de consultation (Directeur) — aucun des seeders existants n'en crée
+     * de liés spécifiquement à l'école de démo (seul admin@school.com,
+     * généré par UserSeeder, existe, et il est rattaché à la première
+     * école de la base, pas forcément celle-ci).
+     */
+    private function makeStaff(School $school): void
+    {
+        $roles = [
+            'POWER' => ['power-user.demo@school.com', 'Nadia', 'Rousseau'],
+            'SEC'   => ['secretariat.demo@school.com', 'Claire', 'Dubois'],
+            'DIR'   => ['directeur.demo@school.com', 'Thomas', 'Girard'],
+        ];
+
+        foreach ($roles as $reference => [$email, $first, $last]) {
+            $role = Role::where('reference', $reference)->firstOrFail();
+
+            $user = User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'firstname' => $first, 'lastname' => $last,
+                    'password' => self::sharedPasswordHash(), 'email_verified_at' => now(),
+                    'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
+                ]
+            );
+
+            UserSchoolRole::firstOrCreate(
+                ['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $role->id],
+                ['status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1]
+            );
+        }
     }
 
     private function makeSection(School $school): Section
