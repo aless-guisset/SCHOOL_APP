@@ -248,32 +248,22 @@ class CantineController extends Controller
         $schoolId = session('active_school_id');
         $this->abortUnlessCantineEnabled($schoolId);
 
-        $validRegistrationIds = CantineRegistration::where('school_id', $schoolId)
-            ->where('is_active', true)
-            ->pluck('id')
-            ->all();
+        $validOrderIds = CantineOrder::whereHas('menu', fn ($q) => $q->where('school_id', $schoolId))
+            ->pluck('id')->all();
 
         $data = $request->validate([
-            'date' => 'required|date',
             'presences' => 'required|array',
-            'presences.*.cantine_registration_id' => ['required', 'integer', 'in:'.implode(',', $validRegistrationIds ?: [0])],
+            'presences.*.cantine_order_id' => ['required', 'integer', 'in:'.implode(',', $validOrderIds ?: [0])],
             'presences.*.is_present' => 'required|boolean',
             'presences.*.note' => 'nullable|string|max:1000',
         ]);
 
         foreach ($data['presences'] as $row) {
-            $presence = CantinePresence::firstOrNew([
-                'cantine_registration_id' => $row['cantine_registration_id'],
-                'date' => $data['date'],
+            CantineOrder::whereKey($row['cantine_order_id'])->update([
+                'is_present' => $row['is_present'],
+                'note' => $row['note'] ?? null,
+                'updated_by' => $request->user()->id,
             ]);
-            $presence->is_present = $row['is_present'];
-            $presence->note = $row['note'] ?? null;
-            $presence->status = 'A';
-            $presence->updated_by = $request->user()->id;
-            if (! $presence->exists) {
-                $presence->created_by = $request->user()->id;
-            }
-            $presence->save();
         }
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Présences cantine enregistrées.']);

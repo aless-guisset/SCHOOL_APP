@@ -119,7 +119,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         // ── Cantine (module optionnel, activable par école) ────────────────
         Route::post('/cantine/menus', [CantineController::class, 'storeMenu'])->name('cantine.menus.store');
         Route::delete('/cantine/menus/{cantineMenu}', [CantineController::class, 'destroyMenu'])->name('cantine.menus.destroy');
-        Route::post('/cantine/roster', [CantineController::class, 'storePresences'])->name('cantine.roster.store');
+        Route::post('/cantine/presence', [CantineController::class, 'storePresences'])->name('cantine.presence.store');
 
         // ── Notes / bulletins ────────────────────────────────────────────────
         Route::get('/grades/create', [GradesController::class, 'create'])->name('grades.create');

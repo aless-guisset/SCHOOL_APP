@@ -315,3 +315,42 @@ test('a student cannot cancel another students order', function () {
 
     expect(CantineOrder::find($orderA->id))->not->toBeNull();
 });
+
+test('a power user can mark presence for orders of a given day', function () {
+    $school = makeCantineSchool();
+    $powerUser = makeCantineUsr($school, makeCantineRole('POWER', 'Power User'))->user;
+    $student = makeCantineStudent($school);
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $order = CantineOrder::create(['section_user_id' => $student->id, 'cantine_menu_id' => $menu->id, 'date' => $date, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/presence', [
+            'presences' => [
+                ['cantine_order_id' => $order->id, 'is_present' => false, 'note' => 'Absent, non signalé'],
+            ],
+        ])
+        ->assertRedirect();
+
+    $order->refresh();
+    expect($order->is_present)->toBeFalse();
+    expect($order->note)->toBe('Absent, non signalé');
+});
+
+test('storePresences rejects a cantine_order_id from another school', function () {
+    $schoolA = makeCantineSchool();
+    $schoolB = makeCantineSchool();
+    $powerUserA = makeCantineUsr($schoolA, makeCantineRole('POWER', 'Power User'))->user;
+    $studentB = makeCantineStudent($schoolB);
+    $date = Carbon::today()->toDateString();
+    $menuB = CantineMenu::create(['school_id' => $schoolB->id, 'date' => $date, 'label' => 'Plat B', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $orderB = CantineOrder::create(['section_user_id' => $studentB->id, 'cantine_menu_id' => $menuB->id, 'date' => $date, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->post('/cantine/presence', [
+            'presences' => [['cantine_order_id' => $orderB->id, 'is_present' => false]],
+        ])
+        ->assertSessionHasErrors('presences.0.cantine_order_id');
+});
