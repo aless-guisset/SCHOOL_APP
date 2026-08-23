@@ -448,14 +448,17 @@ test('store ignores a replace_conflict_ids entry that is not actually conflictin
     expect(Timesheet::find($unrelated->id))->not->toBeNull(); // jamais touché
 });
 
-test('store still rejects a real conflict when replace_conflict_ids is not provided', function () {
+test('store allows a real conflict to coexist when replace_conflict_ids is not provided', function () {
+    // Le conflit n'est plus bloquant : le pré-check (checkConflict()) a déjà
+    // averti l'utilisateur, qui choisit explicitement de remplacer (case
+    // cochée) ou de garder les deux (case décochée, comportement par défaut).
     $school = makeTimesheetSchool();
     $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
     $schedule = makeTimesheetScheduleFor($school, $teacher);
     $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
     $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
 
-    Timesheet::create([
+    $existing = Timesheet::create([
         'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
         'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
         'date' => '2026-09-07', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
@@ -469,7 +472,11 @@ test('store still rejects a real conflict when replace_conflict_ids is not provi
             'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
             'date' => '2026-09-07', 'hours_done' => 3,
         ])
-        ->assertSessionHasErrors('date');
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(Timesheet::find($existing->id))->not->toBeNull(); // l'ancien survit
+    expect(Timesheet::where('schedule_id', $schedule->id)->where('date', '2026-09-07')->count())->toBe(2);
 });
 
 test('index exposes the schools sections and filters timesheets by section_id', function () {

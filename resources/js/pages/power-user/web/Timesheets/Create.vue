@@ -397,8 +397,8 @@ const breadcrumbs = [
                                 <span>
                                     <span v-for="msg in c.messages" :key="msg" class="block text-destructive">{{ msg }}</span>
                                     <span class="block text-xs text-muted-foreground">
-                                        Cocher pour remplacer ce cours existant par le nouveau. Laisser décoché pour le conserver
-                                        (l'enregistrement sera alors refusé s'il reste en conflit).
+                                        Cocher pour remplacer ce cours existant par le nouveau. Laisser décoché pour conserver
+                                        les deux (l'ancien et le nouveau coexisteront sur ce créneau).
                                     </span>
                                 </span>
                             </label>

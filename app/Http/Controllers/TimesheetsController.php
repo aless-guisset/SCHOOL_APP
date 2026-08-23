@@ -110,20 +110,19 @@ class TimesheetsController extends Controller
 
         $this->resolveConflictReplacements($request, $schoolId);
 
+        // Le conflit n'est plus bloquant ici : le pré-check (checkConflict())
+        // a déjà averti l'utilisateur avant cette soumission, et
+        // resolveConflictReplacements() ci-dessus a supprimé les séances
+        // qu'il a explicitement choisi de remplacer. Si un conflit subsiste
+        // (case non cochée), on laisse quand même créer la nouvelle séance —
+        // l'ancienne et la nouvelle coexistent, c'est un choix assumé de
+        // l'utilisateur, pas une erreur à bloquer.
         $data = $request->validate([
             'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
             'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
             'subject_id'          => ['required', 'integer', $this->subjectBelongsToSchool($schoolId)],
             'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
-            'date'                => [
-                'required',
-                'date',
-                new NoTimesheetConflict(
-                    scheduleId: (int) $request->schedule_id,
-                    userSchoolRoleId: (int) $request->user_school_role_id,
-                    classroomId: (int) $request->classroom_id,
-                ),
-            ],
+            'date'                => ['required', 'date'],
             'hours_done'          => 'required|numeric|min:0',
         ]);
 
