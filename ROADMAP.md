@@ -131,14 +131,21 @@
 - Lien nav "Feuilles de temps" manquant pour le rôle Élève (`useSidebarNav.ts`) — seul "Mon
   horaire" (vue récurrente sans dates) était présent, la vue par occurrence datée était
   inaccessible
+- Génération automatique du planning annuel (auto-sync `Schedule` → `Timesheet`) : chaque
+  `Schedule` porte désormais un prof/salle/matière par défaut ; les `Timesheet` futurs sont
+  générés automatiquement via `ScheduleObserver` + `ScheduleTimesheetSync::sync()` jusqu'à
+  `School.year_end_date` (nouveau réglage sur `Schedules/Index.vue`, réservé Power User/
+  Secrétariat/Professeur, endpoint `school-year.update`) ; séances modifiées manuellement
+  (`is_customized`) ne sont jamais écrasées par la resynchronisation ; "Dupliquer pour l'année"
+  (`DuplicatePlanningController`) retiré, devenu redondant
 
 ## 🟡 Note pour plus tard (pas encore de plan)
 - [ ] Jours fériés/congés automatiques : quand la localité de l'école sera ajoutée (fonctionnalité
   pas encore construite), en déduire les jours fériés du pays (fête nationale, Noël, etc.) pour
-  les exclure automatiquement de la planification (génération de feuilles de temps, duplication
-  de planning sur l'année). Nécessite d'abord le champ localité/pays sur `School`.
+  les exclure automatiquement de la planification (via `ScheduleTimesheetSync::generate()`).
+  Nécessite d'abord le champ localité/pays sur `School`.
 
 ---
-*Dernière mise à jour : grille calendrier (MonthCalendar) pour les vues Mois/Trimestre des
-feuilles de temps, fix nav Élève, fix duplication planning (réponse Inertia + respect des
-conflits), note ajoutée pour les jours fériés futurs*
+*Dernière mise à jour : génération automatique du planning annuel (Schedule → Timesheet via
+ScheduleObserver + ScheduleTimesheetSync), année scolaire configurable par école, retrait de
+DuplicatePlanningController redondant*
