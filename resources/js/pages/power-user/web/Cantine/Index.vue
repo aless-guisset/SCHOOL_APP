@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +59,9 @@ function removeMenu(id: number) {
 // ── Staff : présences ────────────────────────────────────────────────────────
 const presenceForm = useForm({
     presences: (props.roster ?? []).map(r => ({ cantine_order_id: r.id, is_present: r.is_present, note: r.note ?? '' })),
+});
+watch(() => props.roster, (newRoster) => {
+    presenceForm.presences = (newRoster ?? []).map(r => ({ cantine_order_id: r.id, is_present: r.is_present, note: r.note ?? '' }));
 });
 function savePresences() {
     presenceForm.post('/cantine/presence', { preserveScroll: true });
