@@ -125,8 +125,12 @@
   bloquer toute la génération
 - `Timesheets/Index.vue` : vue par période (Semaine / Mois / Trimestre) en plus de la semaine
   seule — `TimesheetsController::index()` accepte `period` + `date` (ancre), calcule la plage
-  correspondante ; le calendrier grille (`WeeklyCalendar`) reste réservé à la vue semaine, mois/
-  trimestre utilisent la vue liste
+  correspondante ; nouveau composant `MonthCalendar.vue` (même palette de couleurs par jour que
+  `WeeklyCalendar`) affiche une grille mois pour la vue Mois, et jusqu'à 3 grilles côte à côte
+  pour la vue Trimestre — le toggle calendrier/liste est désormais disponible sur les 3 périodes
+- Lien nav "Feuilles de temps" manquant pour le rôle Élève (`useSidebarNav.ts`) — seul "Mon
+  horaire" (vue récurrente sans dates) était présent, la vue par occurrence datée était
+  inaccessible
 
 ## 🟡 Note pour plus tard (pas encore de plan)
 - [ ] Jours fériés/congés automatiques : quand la localité de l'école sera ajoutée (fonctionnalité
@@ -135,5 +139,6 @@
   de planning sur l'année). Nécessite d'abord le champ localité/pays sur `School`.
 
 ---
-*Dernière mise à jour : vue Semaine/Mois/Trimestre sur les feuilles de temps, fix duplication
-planning (réponse Inertia + respect des conflits), note ajoutée pour les jours fériés futurs*
+*Dernière mise à jour : grille calendrier (MonthCalendar) pour les vues Mois/Trimestre des
+feuilles de temps, fix nav Élève, fix duplication planning (réponse Inertia + respect des
+conflits), note ajoutée pour les jours fériés futurs*

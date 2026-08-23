@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import WeeklyCalendar, { type CalendarSlot } from '@/components/WeeklyCalendar.vue';
+import MonthCalendar, { type MonthSlot } from '@/components/MonthCalendar.vue';
 import DataTable from '@/components/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { useSchool } from '@/composables/useSchool';
@@ -36,7 +37,7 @@ const props = defineProps<{
     week_start: string;  // YYYY-MM-DD (lundi) — pour WeeklyCalendar, vue semaine uniquement
 }>();
 
-const viewMode = ref<'calendar' | 'list'>(props.period === 'week' ? 'calendar' : 'list');
+const viewMode = ref<'calendar' | 'list'>('calendar');
 
 // ── Navigation (semaine / mois / trimestre) ──────────────────────────────────
 function addDays(dateStr: string, days: number): string {
@@ -89,7 +90,6 @@ function navigate(date: string, period: Period = props.period) {
 
 function setPeriod(period: Period) {
     if (period === props.period) return;
-    if (period !== 'week') viewMode.value = 'list';
     navigate(props.anchor_date, period);
 }
 
@@ -127,6 +127,39 @@ const calendarSlots = computed<CalendarSlot[]>(() =>
             href:     `/timesheets/${ts.id}`,
         }))
 );
+
+// ── Conversion Timesheet → MonthSlot (vues mois/trimestre) ───────────────────
+const monthSlots = computed<MonthSlot[]>(() =>
+    props.timesheets.map(ts => ({
+        id: ts.id,
+        date: ts.date,
+        label: ts.user_school_role
+            ? `${ts.schedule ? fmtTime(ts.schedule.start_time) + ' ' : ''}${ts.user_school_role.user.lastname}`
+            : '—',
+        sublabel: ts.subject?.name,
+        href: `/timesheets/${ts.id}`,
+    }))
+);
+
+function fmtTime(t: string): string {
+    return t.substring(0, 5);
+}
+
+// Un mois-grille par mois calendaire couvert par la plage affichée (1 pour
+// la vue mois, jusqu'à 3 pour la vue trimestre).
+const monthStarts = computed<string[]>(() => {
+    const starts: string[] = [];
+    const cursor = new Date(`${props.range_start}T00:00:00Z`);
+    cursor.setUTCDate(1);
+    const end = new Date(`${props.range_end}T00:00:00Z`);
+
+    while (cursor <= end) {
+        starts.push(cursor.toISOString().slice(0, 10));
+        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+
+    return starts;
+});
 
 // ── DataTable columns ─────────────────────────────────────────────────────────
 const columns = [
@@ -179,10 +212,9 @@ const columns = [
                         </Button>
                     </div>
 
-                    <!-- Toggle vue (calendrier disponible seulement en vue semaine) -->
+                    <!-- Toggle vue -->
                     <div class="flex items-center overflow-hidden rounded-md border border-border">
                         <button
-                            v-if="period === 'week'"
                             class="px-2.5 py-1.5 transition-colors"
                             :class="viewMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
                             title="Vue calendrier"
@@ -202,12 +234,21 @@ const columns = [
                 </template>
             </PageHeader>
 
-            <!-- Calendrier (vue semaine uniquement) -->
-            <div v-if="period === 'week' && viewMode === 'calendar'" class="mt-4">
-                <div v-if="calendarSlots.length === 0" class="rounded-md border border-border py-12 text-center text-sm text-muted-foreground">
-                    Aucune feuille de temps cette semaine.
+            <!-- Calendrier : grille semaine, ou 1-3 grilles mois selon la période -->
+            <div v-if="viewMode === 'calendar'" class="mt-4">
+                <template v-if="period === 'week'">
+                    <div v-if="calendarSlots.length === 0" class="rounded-md border border-border py-12 text-center text-sm text-muted-foreground">
+                        Aucune feuille de temps cette semaine.
+                    </div>
+                    <WeeklyCalendar v-else :slots="calendarSlots" />
+                </template>
+                <div v-else class="grid gap-4" :class="period === 'trimester' ? 'lg:grid-cols-3' : ''">
+                    <MonthCalendar
+                        v-for="monthStart in monthStarts" :key="monthStart"
+                        :slots="monthSlots"
+                        :month-start="monthStart"
+                    />
                 </div>
-                <WeeklyCalendar v-else :slots="calendarSlots" />
             </div>
 
             <!-- Liste -->
