@@ -16,14 +16,26 @@ const { t } = useTranslation();
 
 const DAY_LABELS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
-type Schedule = { id: number; name: string; day_of_week: number; start_time: string; end_time: string };
+type Schedule = {
+    id: number; name: string; day_of_week: number; start_time: string; end_time: string;
+    section_id: number | null; section_name: string | null;
+};
 
 const props = defineProps<{
     userSchoolRoles: Array<{ id: number; label: string }>;
     schedules: Schedule[];
+    sections: Array<{ id: number; name: string }>;
     subjects: Array<{ id: number; name: string }>;
     classrooms: Array<{ id: number; name: string }>;
 }>();
+
+// ── Filtre par classe (purement côté client, ne change pas le schedule choisi) ─
+const sectionFilter = ref('all');
+const filteredSchedules = computed(() =>
+    sectionFilter.value === 'all'
+        ? props.schedules
+        : props.schedules.filter(s => String(s.section_id) === sectionFilter.value)
+);
 
 // ── État wizard ───────────────────────────────────────────────────────────────
 const step = ref(1);
@@ -215,6 +227,16 @@ const breadcrumbs = [
                     <!-- Étape 1 : Créneau -->
                     <div v-if="step === 1" class="space-y-4">
                         <h2 class="font-semibold">Sélectionner un créneau</h2>
+                        <div v-if="sections.length" class="space-y-1.5">
+                            <Label>Filtrer par classe</Label>
+                            <Select v-model="sectionFilter">
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Toutes les classes</SelectItem>
+                                    <SelectItem v-for="sec in sections" :key="sec.id" :value="String(sec.id)">{{ sec.name }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <div class="space-y-1.5">
                             <Label>Créneau *</Label>
                             <Select v-model="form.schedule_id">
@@ -222,11 +244,13 @@ const breadcrumbs = [
                                     <SelectValue placeholder="Choisir un créneau" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem v-for="s in schedules" :key="s.id" :value="String(s.id)">
+                                    <SelectItem v-for="s in filteredSchedules" :key="s.id" :value="String(s.id)">
                                         {{ DAY_LABELS[s.day_of_week] }} · {{ s.start_time.slice(0,5) }}–{{ s.end_time.slice(0,5) }} · {{ s.name }}
+                                        <span v-if="s.section_name" class="text-muted-foreground">— {{ s.section_name }}</span>
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
+                            <p v-if="!filteredSchedules.length" class="text-xs text-muted-foreground">Aucun créneau pour cette classe.</p>
                         </div>
                         <div v-if="selectedSchedule" class="rounded-md bg-muted/40 p-3 text-sm">
                             <p><span class="font-medium">Jour :</span> {{ DAY_LABELS[selectedSchedule.day_of_week] }}</p>

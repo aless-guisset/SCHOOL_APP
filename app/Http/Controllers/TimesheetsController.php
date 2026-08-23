@@ -6,6 +6,7 @@ use App\Concerns\ResolvesAttendanceRoster;
 use App\Models\Attendance;
 use App\Models\Classroom;
 use App\Models\Schedule;
+use App\Models\Section;
 use App\Models\SectionUserSchoolRole;
 use App\Models\Subject;
 use App\Models\Timesheet;
@@ -33,6 +34,7 @@ class TimesheetsController extends Controller
         $anchor = $request->input('date')
             ? Carbon::parse($request->input('date'))
             : now();
+        $sectionId = $request->integer('section_id') ?: null;
 
         [$rangeStart, $rangeEnd] = match ($period) {
             'week' => [$anchor->copy()->startOfWeek(Carbon::MONDAY), $anchor->copy()->endOfWeek(Carbon::SUNDAY)],
@@ -46,6 +48,10 @@ class TimesheetsController extends Controller
         $timesheets = Timesheet::whereHas(
             'userSchoolRole', fn ($q) => $q->where('school_id', $schoolId)
         )
+            ->when($sectionId, fn ($q) => $q->whereHas(
+                'schedule.sectionCourse.sectionUser',
+                fn ($q2) => $q2->where('section_id', $sectionId)
+            ))
             ->with(['userSchoolRole.user', 'schedule', 'subject', 'classroom'])
             ->whereBetween('date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->orderBy('date')
@@ -59,6 +65,9 @@ class TimesheetsController extends Controller
             'range_end' => $rangeEnd->toDateString(),
             // Gardé pour WeeklyCalendar (grille visuelle, valable seulement en vue semaine).
             'week_start' => $anchor->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
+            'sections' => Section::where('school_id', $schoolId)
+                ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'section_id' => $sectionId,
         ]);
     }
 
@@ -76,9 +85,18 @@ class TimesheetsController extends Controller
                 'sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId)
             )
                 ->where('is_active', true)
+                ->with('sectionCourse.sectionUser.section')
                 ->orderBy('day_of_week')
                 ->orderBy('start_time')
-                ->get(['id', 'name', 'day_of_week', 'start_time', 'end_time']),
+                ->get()
+                ->map(fn ($s) => [
+                    'id' => $s->id, 'name' => $s->name, 'day_of_week' => $s->day_of_week,
+                    'start_time' => $s->start_time, 'end_time' => $s->end_time,
+                    'section_id' => $s->sectionCourse?->sectionUser?->section_id,
+                    'section_name' => $s->sectionCourse?->sectionUser?->section?->name,
+                ]),
+            'sections' => Section::where('school_id', $schoolId)
+                ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'subjects'   => Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::where('school_id', $schoolId)

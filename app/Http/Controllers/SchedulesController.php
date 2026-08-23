@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Classroom;
 use App\Models\Schedule;
+use App\Models\Section;
 use App\Models\SectionCourse;
 use App\Models\Subject;
 use App\Models\UserSchoolRole;
@@ -14,14 +15,19 @@ use Inertia\Response;
 
 class SchedulesController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $schoolId = session('active_school_id');
+        $sectionId = $request->integer('section_id') ?: null;
 
         $schedules = Schedule::whereHas(
             'sectionCourse.course',
             fn ($q) => $q->where('school_id', $schoolId)
         )
+            ->when($sectionId, fn ($q) => $q->whereHas(
+                'sectionCourse.sectionUser',
+                fn ($q2) => $q2->where('section_id', $sectionId)
+            ))
             ->with(['sectionCourse.course'])
             ->where('is_active', true)
             ->orderBy('day_of_week')
@@ -32,6 +38,9 @@ class SchedulesController extends Controller
 
         return Inertia::render('power-user/web/Schedules/Index', [
             'schedules' => $schedules,
+            'sections' => Section::where('school_id', $schoolId)
+                ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'section_id' => $sectionId,
             'school' => $school ? [
                 'id' => $school->id,
                 'year_end_date' => $school->year_end_date?->toDateString(),

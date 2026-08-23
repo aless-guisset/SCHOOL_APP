@@ -115,3 +115,29 @@ test('index exposes the schools year_end_date', function () {
             ->where('school.year_end_date', '2027-06-30')
         );
 });
+
+test('index exposes the schools sections and filters schedules by section_id', function () {
+    $f = makeSchedulesTestFixture();
+
+    // Une deuxième section/cours/schedule dans la même école, pour vérifier
+    // que le filtre isole bien une classe des autres.
+    $section2 = Section::create(['school_id' => $f['school']->id, 'name' => 'Classe 2', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $sectionUser2 = SectionUserSchoolRole::create(['section_id' => $section2->id, 'user_school_role_id' => $f['usr']->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $sectionCourse2 = SectionCourse::create(['section_user_id' => $sectionUser2->id, 'course_id' => Course::create(['school_id' => $f['school']->id, 'name' => 'Cours 2', 'status' => 'A', 'is_active' => true, 'created_by' => 1])->id, 'total_hours' => 60, 'hours_per_session' => 2, 'name' => 'SC2', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    \App\Models\Schedule::create(['section_course_id' => $f['sectionCourse']->id, 'name' => 'Lundi', 'day_of_week' => 1, 'start_time' => '08:00:00', 'end_time' => '10:00:00', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\Schedule::create(['section_course_id' => $sectionCourse2->id, 'name' => 'Mardi', 'day_of_week' => 2, 'start_time' => '08:00:00', 'end_time' => '10:00:00', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($f['powerUser'])
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get('/schedules')
+        ->assertInertia(fn ($page) => $page->has('sections', 2));
+
+    $this->actingAs($f['powerUser'])
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get('/schedules?section_id='.$section2->id)
+        ->assertInertia(fn ($page) => $page
+            ->has('schedules', 1)
+            ->where('section_id', $section2->id)
+        );
+});

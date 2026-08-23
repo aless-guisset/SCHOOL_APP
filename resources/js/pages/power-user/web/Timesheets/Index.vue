@@ -8,6 +8,7 @@ import WeeklyCalendar, { type CalendarSlot } from '@/components/WeeklyCalendar.v
 import MonthCalendar, { type MonthSlot } from '@/components/MonthCalendar.vue';
 import DataTable from '@/components/DataTable.vue';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -35,6 +36,8 @@ const props = defineProps<{
     range_start: string; // YYYY-MM-DD
     range_end: string;   // YYYY-MM-DD
     week_start: string;  // YYYY-MM-DD (lundi) — pour WeeklyCalendar, vue semaine uniquement
+    sections: Array<{ id: number; name: string }>;
+    section_id: number | null;
 }>();
 
 const viewMode = ref<'calendar' | 'list'>('calendar');
@@ -85,12 +88,25 @@ function displayRange(): string {
 }
 
 function navigate(date: string, period: Period = props.period) {
-    router.get('/timesheets', { date, period }, { preserveScroll: true, preserveState: true });
+    router.get('/timesheets', {
+        date, period,
+        section_id: sectionFilter.value !== 'all' ? sectionFilter.value : undefined,
+    }, { preserveScroll: true, preserveState: true });
 }
 
 function setPeriod(period: Period) {
     if (period === props.period) return;
     navigate(props.anchor_date, period);
+}
+
+// ── Filtre par classe ────────────────────────────────────────────────────────
+const sectionFilter = ref(props.section_id ? String(props.section_id) : 'all');
+function applySectionFilter() {
+    router.get('/timesheets', {
+        date: props.anchor_date,
+        period: props.period,
+        section_id: sectionFilter.value === 'all' ? undefined : sectionFilter.value,
+    }, { preserveScroll: true, preserveState: true });
 }
 
 // Browser's local calendar day as 'YYYY-MM-DD' (NOT toISOString(), which is UTC-based).
@@ -188,6 +204,15 @@ const columns = [
                 :description="`${timesheets.length} entrée(s) · ${displayRange()}`"
             >
                 <template #actions>
+                    <!-- Filtre par classe -->
+                    <Select v-if="sections.length" v-model="sectionFilter" @update:model-value="applySectionFilter">
+                        <SelectTrigger class="h-9 w-40"><SelectValue placeholder="Toutes les classes" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Toutes les classes</SelectItem>
+                            <SelectItem v-for="sec in sections" :key="sec.id" :value="String(sec.id)">{{ sec.name }}</SelectItem>
+                        </SelectContent>
+                    </Select>
+
                     <!-- Toggle période -->
                     <div class="flex items-center overflow-hidden rounded-md border border-border">
                         <button

@@ -355,3 +355,37 @@ test('update marks is_customized true when classroom_id genuinely changes', func
 
     expect($timesheet->fresh()->is_customized)->toBeTrue();
 });
+
+test('index exposes the schools sections and filters timesheets by section_id', function () {
+    $school = makeTimesheetSchool();
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+
+    $scheduleA = makeTimesheetScheduleFor($school, $teacher, 'Classe A');
+    $scheduleB = makeTimesheetScheduleFor($school, $teacher, 'Classe B');
+
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subjectA = Subject::create(['course_id' => $scheduleA->sectionCourse->course_id, 'name' => 'Algèbre A', 'is_active' => true, 'created_by' => 1]);
+    $subjectB = Subject::create(['course_id' => $scheduleB->sectionCourse->course_id, 'name' => 'Algèbre B', 'is_active' => true, 'created_by' => 1]);
+
+    // Même date pour les deux, pour vérifier que seule la classe filtrée apparaît.
+    $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString();
+
+    Timesheet::create(['user_school_role_id' => $teacher->id, 'schedule_id' => $scheduleA->id, 'subject_id' => $subjectA->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    Timesheet::create(['user_school_role_id' => $teacher->id, 'schedule_id' => $scheduleB->id, 'subject_id' => $subjectB->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $sectionAId = $scheduleA->sectionCourse->sectionUser->section_id;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets')
+        ->assertInertia(fn (Assert $page) => $page->has('sections', 2)->has('timesheets', 2));
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets?section_id='.$sectionAId)
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('timesheets', 1)
+            ->where('section_id', $sectionAId)
+        );
+});

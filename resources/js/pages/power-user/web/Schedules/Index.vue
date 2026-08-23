@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -27,8 +28,19 @@ type Schedule = {
 
 const props = defineProps<{
     schedules: Schedule[];
+    sections: Array<{ id: number; name: string }>;
+    section_id: number | null;
     school: { id: number; year_end_date: string | null } | null;
 }>();
+
+// ── Filtre par classe ────────────────────────────────────────────────────────
+const sectionFilter = ref(props.section_id ? String(props.section_id) : 'all');
+function applySectionFilter() {
+    router.get('/schedules', sectionFilter.value === 'all' ? {} : { section_id: sectionFilter.value }, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+}
 
 // ── Toggle vue ───────────────────────────────────────────────────────────────
 const viewMode = ref<'calendar' | 'list'>('calendar');
@@ -113,6 +125,15 @@ function saveYearEnd() {
 
             <PageHeader :title="t('nav.schedules')" :description="`${schedules.length} créneau(x)`">
                 <template #actions>
+                    <!-- Filtre par classe -->
+                    <Select v-if="sections.length" v-model="sectionFilter" @update:model-value="applySectionFilter">
+                        <SelectTrigger class="h-9 w-40"><SelectValue placeholder="Toutes les classes" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Toutes les classes</SelectItem>
+                            <SelectItem v-for="sec in sections" :key="sec.id" :value="String(sec.id)">{{ sec.name }}</SelectItem>
+                        </SelectContent>
+                    </Select>
+
                     <!-- Toggle calendrier / liste -->
                     <div class="flex items-center overflow-hidden rounded-md border border-border">
                         <button
