@@ -78,10 +78,23 @@ watch(selectedSchedule, (schedule) => {
     }
 });
 
-// `min` + `step="7"` sur l'input date (voir template) : le sélecteur natif du
-// navigateur ne propose alors que des dates tombant sur le même jour de
-// semaine que le créneau — impossible de se tromper de jour à la souris.
-const minDate = computed(() => selectedSchedule.value ? nextOccurrence(selectedSchedule.value.day_of_week) : undefined);
+// Décale la date de ±7 jours (garde le même jour de semaine) — boutons dans
+// le template, plus fiable d'un navigateur à l'autre que `step` sur un input
+// date natif (le support de `step` pour restreindre le sélecteur au clic
+// varie trop selon les navigateurs pour être utilisable seul).
+function shiftDate(days: number) {
+    if (!form.date) return;
+    const d = new Date(`${form.date}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    form.date = d.toISOString().slice(0, 10);
+}
+
+// Libellé lisible de la date choisie (ex: "Lundi 24 août 2026").
+const formattedDate = computed(() => {
+    if (!form.date) return '';
+    const d = new Date(`${form.date}T00:00:00Z`);
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+});
 
 // ── Étape 2 : validation date vs jour du schedule ─────────────────────────────
 // Filet de sécurité : reste utile si une date invalide passe malgré tout
@@ -265,16 +278,23 @@ const breadcrumbs = [
                             <span class="text-muted-foreground">Jour du créneau :</span>
                             <span class="ml-1 font-medium">{{ DAY_LABELS[selectedSchedule.day_of_week] }}</span>
                         </div>
+
+                        <!-- Navigation par semaine : garde toujours le bon jour de semaine -->
+                        <div class="flex items-center gap-2">
+                            <Button type="button" variant="outline" size="icon" :disabled="!form.date" @click="shiftDate(-7)">
+                                <ChevronLeft class="size-4" />
+                            </Button>
+                            <div class="flex-1 rounded-md border border-border px-3 py-2 text-center text-sm font-medium capitalize">
+                                {{ formattedDate || 'Sélectionnez un créneau d\'abord' }}
+                            </div>
+                            <Button type="button" variant="outline" size="icon" :disabled="!form.date" @click="shiftDate(7)">
+                                <ChevronRight class="size-4" />
+                            </Button>
+                        </div>
+
                         <div class="space-y-1.5">
-                            <Label for="date">Date *</Label>
-                            <Input
-                                id="date" v-model="form.date" type="date"
-                                :min="minDate" step="7"
-                                :class="{ 'border-destructive': form.errors.date }"
-                            />
-                            <p class="text-xs text-muted-foreground">
-                                Seules les dates tombant un {{ selectedSchedule ? DAY_LABELS[selectedSchedule.day_of_week] : '...' }} sont proposées.
-                            </p>
+                            <Label for="date">Ou choisir une date précise *</Label>
+                            <Input id="date" v-model="form.date" type="date" :class="{ 'border-destructive': form.errors.date }" />
                             <p v-if="form.errors.date" class="text-xs text-destructive">{{ form.errors.date }}</p>
                         </div>
                         <div v-if="dateWarning" class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
