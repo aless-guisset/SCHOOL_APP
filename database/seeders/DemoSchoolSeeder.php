@@ -291,17 +291,25 @@ class DemoSchoolSeeder extends Seeder
     /** @return \Illuminate\Support\Collection<int, Schedule> */
     private function makeSchedules(\Illuminate\Support\Collection $sectionCourses): \Illuminate\Support\Collection
     {
+        $this->cleanupStaleSchedules($sectionCourses);
+
         $schedules = collect();
 
         foreach (self::TIMETABLE as $day => $slots) {
             foreach ($slots as [$start, $end, $courseName]) {
-                $schedules->push(Schedule::firstOrCreate(
+                // Clé d'identité stable (section_course_id, day_of_week,
+                // start_time) plutôt que `name` : le libellé a changé entre
+                // deux versions de ce seeder, ce qui aurait recréé des
+                // créneaux en double à chaque évolution du format du nom.
+                $schedules->push(Schedule::updateOrCreate(
                     [
                         'section_course_id' => $sectionCourses[$courseName]->id,
-                        'name' => self::DAY_NAMES[$day].' '.substr($start, 0, 5).'-'.substr($end, 0, 5),
+                        'day_of_week' => $day,
+                        'start_time' => $start,
                     ],
                     [
-                        'day_of_week' => $day, 'start_time' => $start, 'end_time' => $end,
+                        'name' => self::DAY_NAMES[$day].' '.substr($start, 0, 5).'-'.substr($end, 0, 5),
+                        'end_time' => $end,
                         'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
                     ]
                 ));
@@ -309,6 +317,43 @@ class DemoSchoolSeeder extends Seeder
         }
 
         return $schedules;
+    }
+
+    /**
+     * Supprime tout Schedule d'une version précédente de ce seeder qui ne
+     * correspond plus à la grille horaire actuelle (identifié par
+     * section_course_id + day_of_week + start_time) — sans ce nettoyage,
+     * un ancien créneau (ex : "Lundi 08:00-10:00" vs l'ancien format "Maths
+     * — Lundi matin" à 08:00-10:00 mais un autre jour) reste en base et
+     * chevauche le nouveau. forceDelete() (pas un simple soft delete) pour
+     * que la contrainte FK cascadeOnDelete() nettoie aussi les Timesheets/
+     * Attendances qui en dépendaient — acceptable ici car ce sont des
+     * données de démo entièrement régénérées par ce seeder, jamais de
+     * données réelles d'utilisateur.
+     */
+    private function cleanupStaleSchedules(\Illuminate\Support\Collection $sectionCourses): void
+    {
+        $validKeys = collect();
+        foreach (self::TIMETABLE as $day => $slots) {
+            foreach ($slots as [$start, , $courseName]) {
+                $validKeys->push($sectionCourses[$courseName]->id.'|'.$day.'|'.$start);
+            }
+        }
+
+        $sectionCourseIds = $sectionCourses->pluck('id');
+
+        $stale = Schedule::withTrashed()
+            ->whereIn('section_course_id', $sectionCourseIds)
+            ->get()
+            ->reject(fn (Schedule $s) => $validKeys->contains($s->section_course_id.'|'.$s->day_of_week.'|'.$s->start_time));
+
+        foreach ($stale as $schedule) {
+            $schedule->forceDelete();
+        }
+
+        if ($stale->isNotEmpty()) {
+            $this->command?->info("Nettoyage : {$stale->count()} ancien(s) créneau(x) obsolète(s) supprimé(s).");
+        }
     }
 
     /**
