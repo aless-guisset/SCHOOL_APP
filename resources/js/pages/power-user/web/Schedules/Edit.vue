@@ -23,7 +23,11 @@ const props = defineProps<{
     schedule: {
         id: number; name: string; day_of_week: number;
         start_time: string; end_time: string;
+        user_school_role_id: number | null; subject_id: number | null; classroom_id: number | null;
     };
+    userSchoolRoles: Array<{ id: number; label: string }>;
+    subjects: Array<{ id: number; name: string }>;
+    classrooms: Array<{ id: number; name: string }>;
 }>();
 
 const form = useForm({
@@ -31,6 +35,9 @@ const form = useForm({
     day_of_week: String(props.schedule.day_of_week),
     start_time: props.schedule.start_time.substring(0, 5),
     end_time: props.schedule.end_time.substring(0, 5),
+    user_school_role_id: props.schedule.user_school_role_id ? String(props.schedule.user_school_role_id) : '',
+    subject_id: props.schedule.subject_id ? String(props.schedule.subject_id) : '',
+    classroom_id: props.schedule.classroom_id ? String(props.schedule.classroom_id) : '',
 });
 
 const breadcrumbs = [
@@ -60,6 +67,33 @@ const breadcrumbs = [
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem v-for="d in DAYS" :key="d.value" :value="d.value">{{ d.label }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label>Professeur</Label>
+                            <Select v-model="form.user_school_role_id">
+                                <SelectTrigger><SelectValue placeholder="Aucun (à compléter plus tard)" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="r in userSchoolRoles" :key="r.id" :value="String(r.id)">{{ r.label }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label>Salle</Label>
+                            <Select v-model="form.classroom_id">
+                                <SelectTrigger><SelectValue placeholder="Aucune (à compléter plus tard)" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="c in classrooms" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label>Matière</Label>
+                            <Select v-model="form.subject_id">
+                                <SelectTrigger><SelectValue placeholder="Aucune (à compléter plus tard)" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="s in subjects" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

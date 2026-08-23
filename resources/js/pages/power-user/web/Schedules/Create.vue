@@ -21,6 +21,9 @@ const DAYS = [
 
 defineProps<{
     sectionCourses: Array<{ id: number; name: string; course: { name: string } | null }>;
+    userSchoolRoles: Array<{ id: number; label: string }>;
+    subjects: Array<{ id: number; name: string }>;
+    classrooms: Array<{ id: number; name: string }>;
 }>();
 
 const form = useForm({
@@ -29,6 +32,9 @@ const form = useForm({
     day_of_week: '',
     start_time: '',
     end_time: '',
+    user_school_role_id: '',
+    subject_id: '',
+    classroom_id: '',
 });
 
 const breadcrumbs = [
@@ -78,6 +84,45 @@ const breadcrumbs = [
                                 </SelectContent>
                             </Select>
                             <p v-if="form.errors.day_of_week" class="text-xs text-destructive">{{ form.errors.day_of_week }}</p>
+                        </div>
+
+                        <div class="rounded-md border border-border p-3 text-xs text-muted-foreground">
+                            Optionnel : si prof/salle/matière sont définis, les séances de ce
+                            créneau sont générées et resynchronisées automatiquement jusqu'à la
+                            fin de l'année scolaire de l'école.
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <Label>Professeur</Label>
+                            <Select v-model="form.user_school_role_id">
+                                <SelectTrigger><SelectValue placeholder="Aucun (à compléter plus tard)" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="r in userSchoolRoles" :key="r.id" :value="String(r.id)">{{ r.label }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p v-if="form.errors.user_school_role_id" class="text-xs text-destructive">{{ form.errors.user_school_role_id }}</p>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <Label>Salle</Label>
+                            <Select v-model="form.classroom_id">
+                                <SelectTrigger><SelectValue placeholder="Aucune (à compléter plus tard)" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="c in classrooms" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p v-if="form.errors.classroom_id" class="text-xs text-destructive">{{ form.errors.classroom_id }}</p>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <Label>Matière</Label>
+                            <Select v-model="form.subject_id">
+                                <SelectTrigger><SelectValue placeholder="Aucune (à compléter plus tard)" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="s in subjects" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p v-if="form.errors.subject_id" class="text-xs text-destructive">{{ form.errors.subject_id }}</p>
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-2">
