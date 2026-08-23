@@ -62,23 +62,46 @@ class DemoSchoolSeeder extends Seeder
 
     public function run(): void
     {
+        // Étapes loguées au fil de l'eau : la commande ssh d'un hébergeur
+        // distant peut couper une connexion restée silencieuse plusieurs
+        // secondes (constaté sur Railway) — un seeder qui ne produit aucune
+        // sortie avant sa toute dernière ligne y est particulièrement
+        // exposé (contrairement à DatabaseSeeder, qui log chaque sous-seeder).
         $school = $this->makeSchool();
+        $this->command?->info('École créée/trouvée.');
+
         $teachers = $this->makeTeachers($school);
+        $this->command?->info('Professeurs prêts.');
+
         $section = $this->makeSection($school);
         $classrooms = $this->makeClassrooms($school);
+        $this->command?->info('Section et salles prêtes.');
 
         $courses = $this->makeCoursesAndSubjects($school);
+        $this->command?->info('Cours et matières prêts.');
+
         $students = $this->makeStudents($school, $section);
         $demoUser = $students->firstWhere('email', self::DEMO_STUDENT_EMAIL);
+        $this->command?->info('20 élèves prêts.');
 
         $sectionCourses = $this->makeSectionCourses($section, $courses);
         $schedules = $this->makeSchedules($sectionCourses);
+        $this->command?->info('Emploi du temps (8h-16h, 5 jours) prêt.');
+
         $timesheets = $this->makeTimesheets($schedules, $classrooms, $teachers);
+        $this->command?->info('Feuilles de temps ('.$timesheets->count().') prêtes.');
 
         $this->makeAttendances($timesheets, $section);
+        $this->command?->info('Présences prêtes.');
+
         $this->makeCantine($school, $students);
+        $this->command?->info('Cantine prête.');
+
         $this->makeGrades($students, $courses);
+        $this->command?->info('Notes prêtes.');
+
         $this->makeNotifications($demoUser, $timesheets, $teachers);
+        $this->command?->info('Notifications prêtes.');
 
         $this->command?->info('');
         $this->command?->info('=== École de démo prête ===');
@@ -339,19 +362,31 @@ class DemoSchoolSeeder extends Seeder
             ->whereHas('userschoolrole', fn ($q) => $q->whereHas('role', fn ($q2) => $q2->where('reference', 'ELEVE')))
             ->get();
 
+        // Volume élevé (timesheets × élèves, ~1600 lignes) : insertOrIgnore()
+        // en lot plutôt que firstOrCreate() ligne par ligne, pour rester
+        // rapide et éviter une longue phase silencieuse (une session ssh
+        // distante peut couper une connexion restée inactive trop longtemps).
+        $now = now();
+        $rows = [];
+
         foreach ($timesheets as $timesheet) {
             foreach ($students as $student) {
                 $isPresent = fake()->boolean(88);
 
-                Attendance::firstOrCreate(
-                    ['timesheet_id' => $timesheet->id, 'section_user_id' => $student->id],
-                    [
-                        'is_present' => $isPresent,
-                        'note' => $isPresent ? null : fake()->randomElement(['Malade', 'Justifié', 'Absence non justifiée']),
-                        'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
-                    ]
-                );
+                $rows[] = [
+                    'timesheet_id' => $timesheet->id,
+                    'section_user_id' => $student->id,
+                    'is_present' => $isPresent,
+                    'note' => $isPresent ? null : fake()->randomElement(['Malade', 'Justifié', 'Absence non justifiée']),
+                    'status' => 'A', 'is_active' => true,
+                    'created_by' => 1, 'updated_by' => 1,
+                    'created_at' => $now, 'updated_at' => $now,
+                ];
             }
+        }
+
+        foreach (array_chunk($rows, 200) as $chunk) {
+            Attendance::insertOrIgnore($chunk);
         }
     }
 
