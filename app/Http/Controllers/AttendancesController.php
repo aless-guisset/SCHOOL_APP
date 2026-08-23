@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Concerns\ResolvesAttendanceRoster;
 use App\Models\Attendance;
 use App\Models\Timesheet;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,6 +17,11 @@ class AttendancesController extends Controller
     public function store(Request $request, Timesheet $timesheet): RedirectResponse
     {
         abort_unless($timesheet->userSchoolRole?->school_id == session('active_school_id'), 404);
+
+        // On ne peut pas prendre les présences d'un cours qui n'a pas encore eu lieu.
+        if (Carbon::parse($timesheet->date)->gt(Carbon::today())) {
+            return back()->withErrors(['attendances' => 'Ce cours n\'a pas encore eu lieu, impossible de prendre les présences à l\'avance.']);
+        }
 
         $validSectionUserIds = $this->eligibleAttendanceStudents($timesheet)?->pluck('id')->all() ?? [];
 

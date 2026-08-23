@@ -2,6 +2,7 @@
 
 use App\Models\Attendance;
 use App\Models\Classroom;
+use Carbon\Carbon;
 use App\Models\Course;
 use App\Models\Role;
 use App\Models\Schedule;
@@ -57,7 +58,7 @@ function enrollAttendanceStudent(Section $section, Role $eleveRole, School $scho
 }
 
 /** Crée course + section_user (prof) + section_course + schedule + timesheet. Retourne le Timesheet. */
-function makeAttendanceSessionFor(School $school, Section $section, UserSchoolRole $teacherUsr): Timesheet
+function makeAttendanceSessionFor(School $school, Section $section, UserSchoolRole $teacherUsr, ?string $date = null): Timesheet
 {
     $course = Course::create([
         'school_id' => $school->id, 'name' => 'Maths',
@@ -89,7 +90,11 @@ function makeAttendanceSessionFor(School $school, Section $section, UserSchoolRo
     return Timesheet::create([
         'user_school_role_id' => $teacherUsr->id, 'schedule_id' => $schedule->id,
         'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
-        'date' => '2026-08-24', 'hours_done' => 2,
+        // Un lundi dans le passé par défaut (jamais dans le futur, quelle que
+        // soit la date du jour) : AttendancesController::store() rejette
+        // désormais les présences pour un cours qui n'a pas encore eu lieu.
+        'date' => $date ?? Carbon::now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString(),
+        'hours_done' => 2,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 }
@@ -326,4 +331,49 @@ test('created_by is preserved and updated_by changes when a different user resub
     $attendance->refresh();
     expect($attendance->created_by)->toBe($powerUserA->id);
     expect($attendance->updated_by)->toBe($powerUserB->id);
+});
+
+test('storing attendance for a session that has not happened yet is rejected', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $futureDate = Carbon::tomorrow()->toDateString();
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr, $futureDate);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'is_present' => true, 'note' => null],
+            ],
+        ])
+        ->assertSessionHasErrors('attendances');
+
+    expect(Attendance::count())->toBe(0);
+});
+
+test('storing attendance for a session happening today is accepted', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr, Carbon::today()->toDateString());
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'is_present' => true, 'note' => null],
+            ],
+        ])
+        ->assertRedirect();
+
+    expect(Attendance::count())->toBe(1);
 });

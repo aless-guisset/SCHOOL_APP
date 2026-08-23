@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { Edit, Trash2 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +59,12 @@ const attendanceForm = useForm({
 function saveAttendance() {
     attendanceForm.post(`/timesheets/${props.timesheet.id}/attendance`, { preserveScroll: true });
 }
+
+// Un cours qui n'a pas encore eu lieu ne peut pas avoir ses présences prises
+// à l'avance — le backend (AttendancesController::store()) refuse déjà la
+// requête, ceci évite en plus d'afficher des contrôles inutilisables.
+const isFutureSession = computed(() => new Date(`${props.timesheet.date}T00:00:00`) > new Date(new Date().toDateString()));
+const canEditAttendance = computed(() => canManage.value && !isFutureSession.value);
 </script>
 
 <template>
@@ -113,6 +120,9 @@ function saveAttendance() {
                     <div v-if="roster.length === 0" class="py-6 text-center text-sm text-muted-foreground">
                         Aucun élève inscrit dans cette section.
                     </div>
+                    <div v-else-if="isFutureSession" class="py-6 text-center text-sm text-muted-foreground">
+                        Ce cours n'a pas encore eu lieu — les présences pourront être prises à partir du {{ timesheet.date }}.
+                    </div>
                     <div v-else class="space-y-3">
                         <div
                             v-for="(entry, i) in attendanceForm.attendances" :key="entry.section_user_id"
@@ -120,7 +130,7 @@ function saveAttendance() {
                         >
                             <span class="text-sm font-medium">{{ roster[i].name }}</span>
                             <div class="flex items-center gap-2">
-                                <template v-if="canManage">
+                                <template v-if="canEditAttendance">
                                     <Input
                                         v-if="!entry.is_present"
                                         v-model="entry.note"
@@ -138,7 +148,7 @@ function saveAttendance() {
                                 </Badge>
                             </div>
                         </div>
-                        <Button v-if="canManage" class="mt-2" :disabled="attendanceForm.processing" @click="saveAttendance">
+                        <Button v-if="canEditAttendance" class="mt-2" :disabled="attendanceForm.processing" @click="saveAttendance">
                             Enregistrer les présences
                         </Button>
                     </div>
