@@ -145,3 +145,34 @@ test('sync skips a date where a conflict exists without blocking other occurrenc
     expect($result['created'])->toBe(2); // aujourd'hui + 2 semaines
     expect(Timesheet::where('schedule_id', $schedule->id)->where('date', $conflictDate->toDateString())->exists())->toBeFalse();
 });
+
+test('sync never touches past timesheets', function () {
+    $today = Carbon::today();
+    $dow = $today->dayOfWeekIso;
+    $yearEnd = $today->copy()->addWeeks(2)->toDateString();
+    ['schedule' => $schedule, 'usr' => $usr, 'classroom' => $classroom, 'subject' => $subject] = makeSyncSchedule($yearEnd, $dow);
+
+    // Manually insert a past timesheet with a distinctive hours_done value.
+    $pastDate = $today->copy()->subWeek()->toDateString();
+    $pastTimesheet = Timesheet::create([
+        'user_school_role_id' => $usr->id,
+        'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id,
+        'classroom_id' => $classroom->id,
+        'date' => $pastDate,
+        'hours_done' => 2,
+        'status' => 'A',
+        'is_active' => true,
+        'created_by' => 1,
+    ]);
+    $pastTimesheetId = $pastTimesheet->id;
+
+    $result = (new ScheduleTimesheetSync())->sync($schedule->fresh());
+
+    // The past timesheet should never be touched.
+    $pastTimesheetAfter = Timesheet::find($pastTimesheetId);
+    expect($pastTimesheetAfter)->not->toBeNull();
+    expect($pastTimesheetAfter->id)->toBe($pastTimesheetId);
+    expect($pastTimesheetAfter->hours_done)->toBe(2);
+    expect($pastTimesheetAfter->date)->toBe($pastDate);
+});
