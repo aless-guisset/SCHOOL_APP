@@ -16,6 +16,7 @@ use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\SchoolOnboardingController;
 use App\Http\Controllers\SchoolPanelController;
 use App\Http\Controllers\SchoolsController;
+use App\Http\Controllers\SchoolYearSettingsController;
 use App\Http\Controllers\SectionCoursesController;
 use App\Http\Controllers\SectionsController;
 use App\Http\Controllers\SubjectsController;
@@ -108,6 +109,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::resource('subjects', SubjectsController::class)->only($writeOnly);
         Route::resource('lessons', LessonsController::class)->only($writeOnly);
         Route::resource('schedules', SchedulesController::class)->only($writeOnly);
+        Route::patch('/school-year', [SchoolYearSettingsController::class, 'update'])->name('school-year.update');
         Route::post('/planning/duplicate', DuplicatePlanningController::class)->name('planning.duplicate');
         Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
             ->name('timesheets.check-conflict');
