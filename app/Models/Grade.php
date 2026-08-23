@@ -13,13 +13,15 @@ class Grade extends Model
     use SoftDeletes, ScopesRouteBindingToActiveSchool;
 
     protected $fillable = [
-        'section_user_id', 'subject_id', 'period', 'grade',
+        'section_user_id', 'subject_id', 'period', 'grade', 'max_grade',
+        'attachment_path', 'attachment_original_name',
         'status', 'is_active', 'created_by', 'updated_by',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'grade' => 'float',
+        'max_grade' => 'float',
     ];
 
     public function sectionUser(): BelongsTo
