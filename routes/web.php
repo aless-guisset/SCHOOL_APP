@@ -128,7 +128,6 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     });
 
     Route::get('/cantine', [CantineController::class, 'index'])->name('cantine.index');
-    Route::get('/cantine/roster', [CantineController::class, 'roster'])->name('cantine.roster');
     Route::post('/cantine/orders', [CantineController::class, 'storeOrder'])->name('cantine.orders.store');
     Route::delete('/cantine/orders/{cantineOrder}', [CantineController::class, 'destroyOrder'])->name('cantine.orders.destroy');
 
