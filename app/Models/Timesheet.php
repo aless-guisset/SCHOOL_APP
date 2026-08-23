@@ -27,6 +27,7 @@ class Timesheet extends Model
         'description',
         'status',
         'is_active',
+        'is_customized',
         'created_by',
         'updated_by',
     ];
@@ -34,6 +35,7 @@ class Timesheet extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_deleted' => 'boolean',
+        'is_customized' => 'boolean',
     ];
 
     // ---- Relations ----

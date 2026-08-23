@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Concerns\ScopesRouteBindingToActiveSchool;
+use App\Models\Classroom;
+use App\Models\Subject;
+use App\Models\UserSchoolRole;
 use Database\Factories\ScheduleFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,6 +37,9 @@ class Schedule extends Model
 
     protected $fillable = [
         'section_course_id',
+        'user_school_role_id',
+        'subject_id',
+        'classroom_id',
         'name',
         'day_of_week',
         'start_time',
@@ -54,6 +60,21 @@ class Schedule extends Model
     public function sectionCourse(): BelongsTo
     {
         return $this->belongsTo(SectionCourse::class, 'section_course_id');
+    }
+
+    public function userSchoolRole(): BelongsTo
+    {
+        return $this->belongsTo(UserSchoolRole::class);
+    }
+
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
+    }
+
+    public function classroom(): BelongsTo
+    {
+        return $this->belongsTo(Classroom::class);
     }
 
     public function timesheets(): HasMany

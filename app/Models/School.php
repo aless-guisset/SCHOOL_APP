@@ -23,6 +23,7 @@ class School extends Model
         'status',
         'is_active',
         'cantine_enabled',
+        'year_end_date',
         'created_by',
         'updated_by',
     ];
@@ -31,5 +32,6 @@ class School extends Model
         'is_active' => 'boolean',
         'is_deleted' => 'boolean',
         'cantine_enabled' => 'boolean',
+        'year_end_date' => 'date',
     ];
 }
