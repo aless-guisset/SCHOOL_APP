@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,37 @@ const selectedSchedule = computed<Schedule | undefined>(() =>
     props.schedules.find(s => String(s.id) === form.schedule_id)
 );
 
+// ── Étape 2 : la date est contrainte au jour du créneau choisi ─────────────────
+// Prochaine occurrence (aujourd'hui ou après) d'un jour de semaine ISO donné,
+// en manipulant la date entièrement en UTC pour rester cohérent quel que soit
+// le fuseau du navigateur (même précaution que dateWarning ci-dessous).
+function nextOccurrence(dayOfWeek: number): string {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const cursor = new Date(`${y}-${m}-${d}T00:00:00Z`);
+    const currentDow = cursor.getUTCDay() === 0 ? 7 : cursor.getUTCDay();
+    cursor.setUTCDate(cursor.getUTCDate() + ((dayOfWeek - currentDow + 7) % 7));
+    return cursor.toISOString().slice(0, 10);
+}
+
+// Pré-remplit la date sur la prochaine occurrence dès qu'un créneau est choisi
+// (ou changé), pour que l'utilisateur n'ait jamais à deviner le bon jour.
+watch(selectedSchedule, (schedule) => {
+    if (schedule) {
+        form.date = nextOccurrence(schedule.day_of_week);
+    }
+});
+
+// `min` + `step="7"` sur l'input date (voir template) : le sélecteur natif du
+// navigateur ne propose alors que des dates tombant sur le même jour de
+// semaine que le créneau — impossible de se tromper de jour à la souris.
+const minDate = computed(() => selectedSchedule.value ? nextOccurrence(selectedSchedule.value.day_of_week) : undefined);
+
 // ── Étape 2 : validation date vs jour du schedule ─────────────────────────────
+// Filet de sécurité : reste utile si une date invalide passe malgré tout
+// (saisie manuelle du texte, navigateur qui ne respecte pas `step`).
 const dateWarning = computed(() => {
     if (!form.date || !selectedSchedule.value) return null;
     // form.date is a date-only 'YYYY-MM-DD' string, parsed by `new Date()` as UTC midnight —
@@ -207,9 +237,20 @@ const breadcrumbs = [
                     <!-- Étape 2 : Date -->
                     <div v-else-if="step === 2" class="space-y-4">
                         <h2 class="font-semibold">Choisir la date</h2>
+                        <div v-if="selectedSchedule" class="rounded-md bg-muted/40 p-3 text-sm">
+                            <span class="text-muted-foreground">Jour du créneau :</span>
+                            <span class="ml-1 font-medium">{{ DAY_LABELS[selectedSchedule.day_of_week] }}</span>
+                        </div>
                         <div class="space-y-1.5">
                             <Label for="date">Date *</Label>
-                            <Input id="date" v-model="form.date" type="date" :class="{ 'border-destructive': form.errors.date }" />
+                            <Input
+                                id="date" v-model="form.date" type="date"
+                                :min="minDate" step="7"
+                                :class="{ 'border-destructive': form.errors.date }"
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                Seules les dates tombant un {{ selectedSchedule ? DAY_LABELS[selectedSchedule.day_of_week] : '...' }} sont proposées.
+                            </p>
                             <p v-if="form.errors.date" class="text-xs text-destructive">{{ form.errors.date }}</p>
                         </div>
                         <div v-if="dateWarning" class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
