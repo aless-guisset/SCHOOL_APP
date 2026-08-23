@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { CalendarDays, Copy, List, Plus } from 'lucide-vue-next';
+import { CalendarDays, List, Plus, Save } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog, DialogContent, DialogDescription,
-    DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSchool } from '@/composables/useSchool';
@@ -29,7 +25,10 @@ type Schedule = {
     section_course: { name: string; course: { name: string } } | null;
 };
 
-const props = defineProps<{ schedules: Schedule[] }>();
+const props = defineProps<{
+    schedules: Schedule[];
+    school: { id: number; year_end_date: string | null } | null;
+}>();
 
 // ── Toggle vue ───────────────────────────────────────────────────────────────
 const viewMode = ref<'calendar' | 'list'>('calendar');
@@ -83,32 +82,24 @@ const SLOT_COLORS: Record<number, string> = {
     7: 'bg-gray-100 border-gray-300 text-gray-900 dark:bg-gray-800/40 dark:border-gray-600 dark:text-gray-200',
 };
 
-// ── Duplication ──────────────────────────────────────────────────────────────
-const dupOpen    = ref(false);
-const dupLoading = ref(false);
-const dupError   = ref('');
-const dupSuccess = ref('');
-const dupForm    = ref({ source_week_start: '', year_end: '' });
+// ── Réglage : fin d'année scolaire ────────────────────────────────────────────
+const yearEndForm = ref(props.school?.year_end_date ?? '');
+const yearEndSaving = ref(false);
+const yearEndMessage = ref('');
 
-function openDup() {
-    dupError.value = dupSuccess.value = '';
-    dupOpen.value  = true;
-}
-
-function submitDup() {
-    dupLoading.value = true;
-    dupError.value   = dupSuccess.value = '';
-
-    router.post('/planning/duplicate', dupForm.value, {
+function saveYearEnd() {
+    yearEndSaving.value = true;
+    yearEndMessage.value = '';
+    router.patch('/school-year', { year_end_date: yearEndForm.value }, {
         preserveScroll: true,
         onSuccess: (page) => {
             const flash = (page.props as { flash?: { message?: string } }).flash;
-            dupSuccess.value = flash?.message ?? 'Duplication effectuée.';
-            dupLoading.value = false;
+            yearEndMessage.value = flash?.message ?? 'Mis à jour.';
+            yearEndSaving.value = false;
         },
-        onError: (errors) => {
-            dupError.value   = Object.values(errors).flat().join(' ');
-            dupLoading.value = false;
+        onError: () => {
+            yearEndMessage.value = 'Date invalide.';
+            yearEndSaving.value = false;
         },
     });
 }
@@ -138,15 +129,27 @@ function submitDup() {
                         ><List class="size-4" /></button>
                     </div>
                     <template v-if="canManage">
-                        <Button variant="outline" size="sm" @click="openDup">
-                            <Copy class="size-4" />Dupliquer
-                        </Button>
                         <Button as-child size="sm">
                             <Link href="/schedules/create"><Plus class="size-4" />{{ t('action.create') }}</Link>
                         </Button>
                     </template>
                 </template>
             </PageHeader>
+
+            <div v-if="canManage" class="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/20 p-3">
+                <div class="space-y-1.5">
+                    <Label class="text-xs">Fin d'année scolaire</Label>
+                    <Input v-model="yearEndForm" type="date" class="h-8 w-40" />
+                </div>
+                <Button size="sm" variant="outline" :disabled="yearEndSaving || !yearEndForm" @click="saveYearEnd">
+                    <Save class="size-4" />{{ yearEndSaving ? 'Enregistrement…' : 'Enregistrer' }}
+                </Button>
+                <span v-if="yearEndMessage" class="text-xs text-muted-foreground">{{ yearEndMessage }}</span>
+                <span class="ml-auto text-xs text-muted-foreground">
+                    Les créneaux complets (prof + salle + matière) génèrent et resynchronisent
+                    automatiquement leurs séances jusqu'à cette date.
+                </span>
+            </div>
 
             <!-- ─── Calendrier hebdomadaire ─────────────────────────────── -->
             <div v-if="viewMode === 'calendar'" class="mt-4 overflow-x-auto rounded-md border border-border">
@@ -245,43 +248,5 @@ function submitDup() {
                 </table>
             </div>
         </div>
-
-        <!-- ─── Dialog duplication ─────────────────────────────────────── -->
-        <Dialog v-model:open="dupOpen">
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Dupliquer la semaine type</DialogTitle>
-                    <DialogDescription>
-                        Sélectionnez une semaine de référence (feuilles de temps déjà saisies).
-                        Chaque entrée sera copiée semaine par semaine jusqu'à la date de fin.
-                        Les doublons existants sont ignorés.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                        <Label>Lundi de la semaine source *</Label>
-                        <Input v-model="dupForm.source_week_start" type="date" />
-                    </div>
-                    <div class="space-y-1.5">
-                        <Label>Date de fin (fin d'année scolaire) *</Label>
-                        <Input v-model="dupForm.year_end" type="date" />
-                    </div>
-                    <p v-if="dupError"   class="text-xs text-destructive">{{ dupError }}</p>
-                    <p v-if="dupSuccess" class="text-xs text-green-600 dark:text-green-400">{{ dupSuccess }}</p>
-                </div>
-
-                <DialogFooter>
-                    <Button variant="outline" @click="dupOpen = false">Annuler</Button>
-                    <Button
-                        :disabled="dupLoading || !dupForm.source_week_start || !dupForm.year_end"
-                        @click="submitDup"
-                    >
-                        <Copy class="size-4" />
-                        {{ dupLoading ? 'Génération…' : 'Dupliquer pour l\'année' }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
     </AppLayout>
 </template>
