@@ -506,22 +506,42 @@ class DemoSchoolSeeder extends Seeder
         $labels = ['Plat A', 'Plat B', 'Végétarien'];
         $descriptions = ['Pâtes bolognaise', 'Poisson, riz', 'Curry de légumes'];
 
+        // Pré-chargées une seule fois hors des boucles date/élève : avec 15 dates
+        // (5 semaines x 3 jours) x ~20 élèves, une requête par (élève, date) pour
+        // résoudre le section_user_id ET une autre pour vérifier la commande
+        // existante faisaient ~600 allers-retours DB — assez pour dépasser la
+        // limite de temps qui coupe la connexion railway ssh sur une base distante
+        // (déjà rencontré une fois avec bcrypt, voir ROADMAP.md).
+        $sectionUserByUserId = SectionUserSchoolRole::whereHas(
+            'userschoolrole', fn ($q) => $q->where('school_id', $school->id)
+        )->with('userschoolrole')->get()->keyBy(fn ($su) => $su->userschoolrole->user_id);
+
+        $rangeStart = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks(2)->toDateString();
+        $rangeEnd = Carbon::now()->startOfWeek(Carbon::MONDAY)->addWeeks(2)->endOfWeek(Carbon::SUNDAY)->toDateString();
+
+        $existingOrderKeys = CantineOrder::whereIn('section_user_id', $sectionUserByUserId->pluck('id'))
+            ->whereBetween('date', [$rangeStart, $rangeEnd])
+            ->get(['section_user_id', 'date'])
+            ->map(fn ($o) => $o->section_user_id.'|'.$o->date->toDateString())
+            ->flip();
+
         // Menus sur les 2 dernières semaines (passé) + les 2 prochaines (futur),
         // même fenêtre que makeTimesheets()/makeAttendances() côté cours.
         for ($week = -2; $week <= 2; $week++) {
             foreach ($days as $day) {
                 $date = Carbon::now()->startOfWeek(Carbon::MONDAY)->addWeeks($week)->addDays($day - 1);
+                $dateStr = $date->toDateString();
 
-                $menus = collect($labels)->map(function ($label, $i) use ($school, $date, $descriptions) {
+                $menus = collect($labels)->map(function ($label, $i) use ($school, $date, $dateStr, $descriptions) {
                     $menu = CantineMenu::where('school_id', $school->id)
-                        ->whereDate('date', $date->toDateString())
+                        ->whereDate('date', $dateStr)
                         ->where('label', $label)
                         ->first();
 
                     if (! $menu) {
                         $menu = CantineMenu::create([
                             'school_id' => $school->id,
-                            'date' => $date->toDateString(),
+                            'date' => $dateStr,
                             'label' => $label,
                             'description' => $descriptions[$i],
                             'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
@@ -538,25 +558,19 @@ class DemoSchoolSeeder extends Seeder
                     // nouvel CantineOrder est créé pour lui à chaque exécution — ce qui
                     // casse l'idempotence du seeder (voir vérification de la tâche 8).
                     $participates = $user->email === self::DEMO_STUDENT_EMAIL
-                        || (crc32($user->id.'|'.$date->toDateString()) % 100) < 65;
+                        || (crc32($user->id.'|'.$dateStr) % 100) < 65;
 
                     if (! $participates) {
                         continue;
                     }
 
-                    $sectionUser = SectionUserSchoolRole::whereHas(
-                        'userschoolrole', fn ($q) => $q->where('user_id', $user->id)->where('school_id', $school->id)
-                    )->first();
+                    $sectionUser = $sectionUserByUserId->get($user->id);
 
                     if (! $sectionUser) {
                         continue;
                     }
 
-                    $order = CantineOrder::where('section_user_id', $sectionUser->id)
-                        ->whereDate('date', $date->toDateString())
-                        ->first();
-
-                    if ($order) {
+                    if ($existingOrderKeys->has($sectionUser->id.'|'.$dateStr)) {
                         continue;
                     }
 
@@ -567,7 +581,7 @@ class DemoSchoolSeeder extends Seeder
                     CantineOrder::create([
                         'section_user_id' => $sectionUser->id,
                         'cantine_menu_id' => $chosenMenu->id,
-                        'date' => $date->toDateString(),
+                        'date' => $dateStr,
                         'is_present' => $isPast ? $isPresent : true,
                         'note' => ($isPast && ! $isPresent) ? 'Absent, non signalé' : null,
                         'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
