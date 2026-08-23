@@ -99,11 +99,11 @@ class DemoSchoolSeeder extends Seeder
         $this->command?->info('20 élèves prêts.');
 
         $sectionCourses = $this->makeSectionCourses($section, $courses);
-        $schedules = $this->makeSchedules($sectionCourses);
-        $this->command?->info('Emploi du temps (8h-16h, 5 jours) prêt.');
+        $schedules = $this->makeSchedules($sectionCourses, $classrooms, $teachers);
+        $this->command?->info('Emploi du temps (8h-16h, 5 jours) prêt — séances futures générées automatiquement jusqu\'au '.$school->year_end_date->toDateString().'.');
 
-        $timesheets = $this->makeTimesheets($schedules, $classrooms, $teachers);
-        $this->command?->info('Feuilles de temps ('.$timesheets->count().') prêtes.');
+        $timesheets = $this->makeTimesheets($schedules);
+        $this->command?->info('Historique de feuilles de temps ('.$timesheets->count().') prêt.');
 
         $this->makeAttendances($timesheets, $section);
         $this->command?->info('Présences prêtes.');
@@ -132,7 +132,13 @@ class DemoSchoolSeeder extends Seeder
 
     private function makeSchool(): School
     {
-        return School::firstOrCreate(
+        $today = Carbon::now();
+        // Prochain 30 juin (année scolaire nord : si on est après juin, viser l'année suivante).
+        $yearEnd = $today->month > 6
+            ? Carbon::create($today->year + 1, 6, 30)
+            : Carbon::create($today->year, 6, 30);
+
+        return School::updateOrCreate(
             ['name' => self::SCHOOL_NAME],
             [
                 'reference' => 'DEMOFULL',
@@ -140,6 +146,7 @@ class DemoSchoolSeeder extends Seeder
                 'status' => 'A',
                 'is_active' => true,
                 'cantine_enabled' => true,
+                'year_end_date' => $yearEnd->toDateString(),
                 'created_by' => 1,
                 'updated_by' => 1,
             ]
@@ -303,7 +310,7 @@ class DemoSchoolSeeder extends Seeder
     }
 
     /** @return \Illuminate\Support\Collection<int, Schedule> */
-    private function makeSchedules(\Illuminate\Support\Collection $sectionCourses): \Illuminate\Support\Collection
+    private function makeSchedules(\Illuminate\Support\Collection $sectionCourses, array $classrooms, array $teachers): \Illuminate\Support\Collection
     {
         $this->cleanupStaleSchedules($sectionCourses);
 
@@ -311,19 +318,30 @@ class DemoSchoolSeeder extends Seeder
 
         foreach (self::TIMETABLE as $day => $slots) {
             foreach ($slots as [$start, $end, $courseName]) {
+                $sectionCourse = $sectionCourses[$courseName];
+                $teacher = $teachers[$courseName] ?? null;
+                $classroom = $classrooms[$courseName] ?? $classrooms['default'];
+                // ->first() (pas ->random()) : un choix stable évite de déclencher
+                // une resynchronisation à chaque relance du seeder pour une matière
+                // qui n'a en réalité pas changé.
+                $subject = $sectionCourse->course->subjects->first();
+
                 // Clé d'identité stable (section_course_id, day_of_week,
                 // start_time) plutôt que `name` : le libellé a changé entre
                 // deux versions de ce seeder, ce qui aurait recréé des
                 // créneaux en double à chaque évolution du format du nom.
                 $schedules->push(Schedule::updateOrCreate(
                     [
-                        'section_course_id' => $sectionCourses[$courseName]->id,
+                        'section_course_id' => $sectionCourse->id,
                         'day_of_week' => $day,
                         'start_time' => $start,
                     ],
                     [
                         'name' => self::DAY_NAMES[$day].' '.substr($start, 0, 5).'-'.substr($end, 0, 5),
                         'end_time' => $end,
+                        'user_school_role_id' => $teacher?->id,
+                        'subject_id' => $subject?->id,
+                        'classroom_id' => $classroom?->id,
                         'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
                     ]
                 ));
@@ -370,40 +388,29 @@ class DemoSchoolSeeder extends Seeder
         }
     }
 
-    /**
-     * @param  array<string, Classroom>  $classrooms
-     * @param  array<string, UserSchoolRole>  $teachers
-     * @return \Illuminate\Support\Collection<int, Timesheet>
-     */
-    private function makeTimesheets(\Illuminate\Support\Collection $schedules, array $classrooms, array $teachers): \Illuminate\Support\Collection
+    /** @return \Illuminate\Support\Collection<int, Timesheet> */
+    private function makeTimesheets(\Illuminate\Support\Collection $schedules): \Illuminate\Support\Collection
     {
         $timesheets = collect();
         $today = Carbon::now();
 
         foreach ($schedules as $schedule) {
-            $sectionCourse = $schedule->sectionCourse;
-            $courseName = $sectionCourse->course->name;
-            $subject = $sectionCourse->course->subjects->random();
-            $teacher = $teachers[$courseName] ?? null;
-            $classroom = $classrooms[$courseName] ?? $classrooms['default'];
-
-            if (! $subject || ! $teacher) {
+            if (! $schedule->user_school_role_id || ! $schedule->subject_id || ! $schedule->classroom_id) {
                 continue;
             }
 
-            for ($week = self::WEEKS_OF_HISTORY; $week >= 0; $week--) {
+            // Semaines passées uniquement : la semaine courante et les suivantes
+            // sont déjà couvertes par la génération automatique (ScheduleObserver),
+            // qui part d'aujourd'hui — ce backfill ne doit pas la dupliquer.
+            for ($week = self::WEEKS_OF_HISTORY; $week >= 1; $week--) {
                 $date = $today->copy()->startOfWeek(Carbon::MONDAY)->subWeeks($week)->addDays($schedule->day_of_week - 1);
-
-                if ($date->isFuture()) {
-                    continue;
-                }
 
                 $timesheets->push(Timesheet::firstOrCreate(
                     ['schedule_id' => $schedule->id, 'date' => $date->toDateString()],
                     [
-                        'user_school_role_id' => $teacher->id,
-                        'subject_id' => $subject->id,
-                        'classroom_id' => $classroom->id,
+                        'user_school_role_id' => $schedule->user_school_role_id,
+                        'subject_id' => $schedule->subject_id,
+                        'classroom_id' => $schedule->classroom_id,
                         'hours_done' => 2,
                         'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
                     ]

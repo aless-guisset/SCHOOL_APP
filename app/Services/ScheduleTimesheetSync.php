@@ -7,6 +7,7 @@ use App\Models\Schedule;
 use App\Models\Timesheet;
 use App\Rules\NoTimesheetConflict;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Génère/resynchronise les Timesheet futurs d'un Schedule (créneau récurrent)
@@ -17,22 +18,24 @@ class ScheduleTimesheetSync
 {
     public function sync(Schedule $schedule): array
     {
-        $this->deleteFutureStandard($schedule);
+        return DB::transaction(function () use ($schedule) {
+            $this->deleteFutureStandard($schedule);
 
-        $schedule->loadMissing('sectionCourse.course');
-        $schoolId = $schedule->sectionCourse?->course?->school_id;
-        $yearEndDate = $schoolId ? School::find($schoolId)?->year_end_date : null;
+            $schedule->loadMissing('sectionCourse.course');
+            $schoolId = $schedule->sectionCourse?->course?->school_id;
+            $yearEndDate = $schoolId ? School::find($schoolId)?->year_end_date : null;
 
-        if (! $schedule->is_active
-            || ! $schedule->user_school_role_id
-            || ! $schedule->subject_id
-            || ! $schedule->classroom_id
-            || ! $yearEndDate
-        ) {
-            return ['created' => 0, 'skipped_conflicts' => 0];
-        }
+            if (! $schedule->is_active
+                || ! $schedule->user_school_role_id
+                || ! $schedule->subject_id
+                || ! $schedule->classroom_id
+                || ! $yearEndDate
+            ) {
+                return ['created' => 0, 'skipped_conflicts' => 0];
+            }
 
-        return $this->generate($schedule, Carbon::today(), Carbon::parse($yearEndDate));
+            return $this->generate($schedule, Carbon::today(), Carbon::parse($yearEndDate));
+        });
     }
 
     public function deleteFutureStandard(Schedule $schedule): int
