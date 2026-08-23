@@ -301,3 +301,57 @@ test('index falls back to week for an invalid period value', function () {
         ->get('/timesheets?period=decade')
         ->assertInertia(fn (Assert $page) => $page->where('period', 'week'));
 });
+
+test('update leaves is_customized false when only hours_done changes, or a tracked field is resubmitted unchanged', function () {
+    $school = makeTimesheetSchool();
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    $timesheet = Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => '2026-09-07', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    expect($timesheet->fresh()->is_customized)->toBeFalse();
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->patch("/timesheets/{$timesheet->id}", ['hours_done' => 3]);
+
+    expect($timesheet->fresh()->is_customized)->toBeFalse();
+
+    // Même valeur soumise que l'existante : pas un vrai changement, pas de marquage.
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->patch("/timesheets/{$timesheet->id}", ['classroom_id' => $classroom->id]);
+
+    expect($timesheet->fresh()->is_customized)->toBeFalse();
+});
+
+test('update marks is_customized true when classroom_id genuinely changes', function () {
+    $school = makeTimesheetSchool();
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroomA = Classroom::create(['school_id' => $school->id, 'name' => 'Salle A', 'is_active' => true, 'created_by' => 1]);
+    $classroomB = Classroom::create(['school_id' => $school->id, 'name' => 'Salle B', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    $timesheet = Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroomA->id,
+        'date' => '2026-09-07', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    expect($timesheet->fresh()->is_customized)->toBeFalse();
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->patch("/timesheets/{$timesheet->id}", ['classroom_id' => $classroomB->id]);
+
+    expect($timesheet->fresh()->is_customized)->toBeTrue();
+});

@@ -212,6 +212,14 @@ class TimesheetsController extends Controller
             'is_active'  => 'sometimes|boolean',
         ]);
 
+        $manualFields = ['schedule_id', 'subject_id', 'classroom_id', 'user_school_role_id'];
+        $isCustomized = collect($manualFields)->contains(
+            fn ($field) => array_key_exists($field, $data) && (int) $data[$field] !== (int) $timesheet->{$field}
+        );
+        if ($isCustomized) {
+            $data['is_customized'] = true;
+        }
+
         $data['updated_by'] = $request->user()->id;
         $timesheet->update($data);
 
