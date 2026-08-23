@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CantinePresence;
-use App\Models\CantineRegistration;
+use App\Http\Middleware\EnsureCanManage;
+use App\Models\CantineMenu;
+use App\Models\CantineOrder;
 use App\Models\School;
 use App\Models\SectionUserSchoolRole;
+use App\Models\UserSchoolRole;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,18 +16,54 @@ use Inertia\Response;
 
 class CantineController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $schoolId = session('active_school_id');
         $this->abortUnlessCantineEnabled($schoolId);
 
-        return Inertia::render('power-user/web/Cantine/Index', [
-            'registrations' => CantineRegistration::where('school_id', $schoolId)
+        $date = $request->input('date') ? Carbon::parse($request->input('date'))->toDateString() : Carbon::today()->toDateString();
+
+        $menus = CantineMenu::where('school_id', $schoolId)
+            ->whereDate('date', $date)
+            ->where('is_active', true)
+            ->orderBy('label')
+            ->get(['id', 'label', 'description']);
+
+        $props = [
+            'date' => $date,
+            'is_past' => Carbon::parse($date)->lt(Carbon::today()),
+            'menus' => $menus,
+        ];
+
+        if ($this->userCanManage($schoolId)) {
+            $orders = CantineOrder::whereIn('cantine_menu_id', $menus->pluck('id'))
                 ->where('is_active', true)
-                ->with(['sectionUser.userschoolrole.user', 'sectionUser.section'])
-                ->orderBy('day_of_week')
-                ->get(),
-        ]);
+                ->with(['sectionUser.userschoolrole.user', 'sectionUser.section', 'menu'])
+                ->get();
+
+            $props['roster'] = $orders->map(fn (CantineOrder $o) => [
+                'id' => $o->id,
+                'name' => $o->sectionUser?->userschoolrole?->user
+                    ? "{$o->sectionUser->userschoolrole->user->lastname} {$o->sectionUser->userschoolrole->user->firstname}"
+                    : '—',
+                'section' => $o->sectionUser?->section?->name,
+                'menu_label' => $o->menu?->label,
+                'is_present' => $o->is_present,
+                'note' => $o->note,
+            ])->values();
+        } else {
+            $sectionUser = $this->currentSectionUser($schoolId);
+
+            $props['can_order'] = (bool) $sectionUser;
+            $props['my_order'] = $sectionUser
+                ? CantineOrder::where('section_user_id', $sectionUser->id)
+                    ->whereDate('date', $date)
+                    ->where('is_active', true)
+                    ->first(['id', 'cantine_menu_id'])
+                : null;
+        }
+
+        return Inertia::render('power-user/web/Cantine/Index', $props);
     }
 
     public function create(): Response
@@ -153,6 +191,35 @@ class CantineController extends Controller
         }
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Présences cantine enregistrées.']);
+    }
+
+    /**
+     * Résout le `SectionUserSchoolRole` (ligne "élève dans une section") de
+     * l'utilisateur authentifié pour l'école active — `null` s'il n'en a pas
+     * (pas un élève de cette école, ex: Directeur). Jamais dérivé d'un champ
+     * de la requête : c'est ce qui garantit qu'un élève ne peut agir que sur
+     * sa propre commande.
+     */
+    private function currentSectionUser(?int $schoolId): ?SectionUserSchoolRole
+    {
+        return SectionUserSchoolRole::whereHas(
+            'userschoolrole',
+            fn ($q) => $q->where('user_id', auth()->id())->where('school_id', $schoolId)
+        )->first();
+    }
+
+    /** Même liste de rôles que EnsureCanManage — décide quoi renvoyer dans index(), pas un contrôle d'accès en soi. */
+    private function userCanManage(?int $schoolId): bool
+    {
+        $role = UserSchoolRole::with('role')
+            ->where('user_id', auth()->id())
+            ->where('school_id', $schoolId)
+            ->where('is_active', true)
+            ->first()
+            ?->role
+            ?->name;
+
+        return in_array($role, EnsureCanManage::MANAGE_ROLES, true);
     }
 
     private function eligibleStudents(?int $schoolId)

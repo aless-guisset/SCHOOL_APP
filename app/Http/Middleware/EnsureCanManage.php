@@ -15,7 +15,7 @@ class EnsureCanManage
      * Directeur n'a pas ce droit non plus. Aligné sur
      * DashboardController::MANAGE_ROLES et useSchool.ts::canManage.
      */
-    private const MANAGE_ROLES = ['Power User', 'Secrétariat', 'Professeur'];
+    public const MANAGE_ROLES = ['Power User', 'Secrétariat', 'Professeur'];
 
     public function handle(Request $request, Closure $next): Response
     {
