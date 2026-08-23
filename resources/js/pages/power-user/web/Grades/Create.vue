@@ -20,7 +20,19 @@ defineProps<{
     subjects: Array<{ id: number; name: string }>;
 }>();
 
-const form = useForm({ section_user_id: '', subject_id: '', period: '', grade: '' });
+const form = useForm({
+    section_user_id: '',
+    subject_id: '',
+    period: '',
+    grade: '',
+    max_grade: '20',
+    attachment: null as File | null,
+});
+
+function onFileChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    form.attachment = target.files?.[0] ?? null;
+}
 
 const breadcrumbs = [
     { label: 'Notes', href: '/grades' },
@@ -65,17 +77,33 @@ const breadcrumbs = [
                             </Select>
                             <p v-if="form.errors.subject_id" class="text-xs text-destructive">{{ form.errors.subject_id }}</p>
                         </div>
+                        <div class="space-y-1.5">
+                            <Label for="period">Période *</Label>
+                            <Input id="period" v-model="form.period" placeholder="ex : Trimestre 1" :class="{ 'border-destructive': form.errors.period }" />
+                            <p v-if="form.errors.period" class="text-xs text-destructive">{{ form.errors.period }}</p>
+                        </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">
-                                <Label for="period">Période *</Label>
-                                <Input id="period" v-model="form.period" placeholder="ex : Trimestre 1" :class="{ 'border-destructive': form.errors.period }" />
-                                <p v-if="form.errors.period" class="text-xs text-destructive">{{ form.errors.period }}</p>
+                                <Label for="max_grade">Barème *</Label>
+                                <Input id="max_grade" v-model="form.max_grade" type="number" min="1" max="1000" step="0.5" :class="{ 'border-destructive': form.errors.max_grade }" />
+                                <p v-if="form.errors.max_grade" class="text-xs text-destructive">{{ form.errors.max_grade }}</p>
                             </div>
                             <div class="space-y-1.5">
-                                <Label for="grade">Note / 20 *</Label>
-                                <Input id="grade" v-model="form.grade" type="number" min="0" max="20" step="0.25" :class="{ 'border-destructive': form.errors.grade }" />
+                                <Label for="grade">Note / {{ form.max_grade || 20 }} *</Label>
+                                <Input id="grade" v-model="form.grade" type="number" min="0" :max="form.max_grade || 20" step="0.25" :class="{ 'border-destructive': form.errors.grade }" />
                                 <p v-if="form.errors.grade" class="text-xs text-destructive">{{ form.errors.grade }}</p>
                             </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label for="attachment">Pièce jointe (PDF, JPG ou PNG, 10 Mo max)</Label>
+                            <input
+                                id="attachment"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                class="block w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm"
+                                @change="onFileChange"
+                            />
+                            <p v-if="form.errors.attachment" class="text-xs text-destructive">{{ form.errors.attachment }}</p>
                         </div>
                         <div class="flex gap-3 pt-2">
                             <Button type="submit" :disabled="form.processing">Enregistrer</Button>
