@@ -108,6 +108,8 @@ class TimesheetsController extends Controller
     {
         $schoolId = session('active_school_id');
 
+        $this->resolveConflictReplacements($request, $schoolId);
+
         $data = $request->validate([
             'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
             'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
@@ -272,17 +274,67 @@ class TimesheetsController extends Controller
             'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
         ]);
 
-        $conflicts = [];
-
-        (new NoTimesheetConflict(
+        $found = (new NoTimesheetConflict(
             scheduleId: (int) $request->schedule_id,
             userSchoolRoleId: (int) $request->user_school_role_id,
             classroomId: (int) $request->classroom_id,
-        ))->validate('date', $request->date, function (string $message) use (&$conflicts) {
-            $conflicts[] = $message;
-        });
+        ))->find((string) $request->date);
+
+        $labels = [
+            'teacher'   => 'Ce professeur est déjà occupé sur ce créneau à cette date.',
+            'classroom' => 'Cette salle est déjà occupée sur ce créneau à cette date.',
+            'section'   => 'Cette section a déjà un cours planifié sur ce créneau à cette date.',
+        ];
+
+        $conflicts = [];
+        foreach ($found as $type => $id) {
+            if ($id) {
+                $conflicts[] = ['id' => $id, 'type' => $type, 'message' => $labels[$type]];
+            }
+        }
 
         return response()->json(['conflicts' => $conflicts]);
+    }
+
+    /**
+     * Si l'utilisateur a choisi de remplacer un timesheet en conflit
+     * (`replace_conflict_ids`, coché depuis le pré-check de `checkConflict()`),
+     * le supprime avant que la validation principale de `store()` (qui inclut
+     * `NoTimesheetConflict`) ne le voie et ne bloque la création. Sécurité :
+     * seuls les ids qui sont RÉELLEMENT en conflit avec cette soumission
+     * précise (recalculés ici, jamais fait confiance à la requête) et qui
+     * appartiennent à l'école active peuvent être supprimés — un id arbitraire
+     * envoyé par un client malveillant est ignoré.
+     */
+    private function resolveConflictReplacements(Request $request, ?int $schoolId): void
+    {
+        if (! $request->filled('replace_conflict_ids')
+            || ! $request->filled('schedule_id')
+            || ! $request->filled('user_school_role_id')
+            || ! $request->filled('classroom_id')
+            || ! $request->filled('date')
+        ) {
+            return;
+        }
+
+        $found = (new NoTimesheetConflict(
+            scheduleId: (int) $request->schedule_id,
+            userSchoolRoleId: (int) $request->user_school_role_id,
+            classroomId: (int) $request->classroom_id,
+        ))->find((string) $request->date);
+
+        $actualConflictIds = array_values(array_filter($found));
+        $requestedIds = array_map('intval', (array) $request->input('replace_conflict_ids'));
+        $idsToDelete = array_intersect($requestedIds, $actualConflictIds);
+
+        if (empty($idsToDelete)) {
+            return;
+        }
+
+        Timesheet::whereIn('id', $idsToDelete)
+            ->whereHas('userSchoolRole', fn ($q) => $q->where('school_id', $schoolId))
+            ->get()
+            ->each(fn (Timesheet $ts) => $ts->delete());
     }
 
     /**

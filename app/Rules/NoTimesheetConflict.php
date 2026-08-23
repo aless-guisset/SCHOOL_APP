@@ -35,15 +35,45 @@ class NoTimesheetConflict implements ValidationRule
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $schedule = Schedule::find($this->scheduleId);
+        $conflicts = $this->find((string) $value);
 
-        if (! $schedule) {
+        if ($conflicts['teacher']) {
+            $fail('Ce professeur est déjà occupé sur ce créneau à cette date.');
+
             return;
         }
 
-        $date       = $value;
-        $startTime  = $schedule->start_time;
-        $endTime    = $schedule->end_time;
+        if ($conflicts['classroom']) {
+            $fail('Cette salle est déjà occupée sur ce créneau à cette date.');
+
+            return;
+        }
+
+        if ($conflicts['section']) {
+            $fail('Cette section a déjà un cours planifié sur ce créneau à cette date.');
+        }
+    }
+
+    /**
+     * Recherche, pour une date donnée, l'id du premier Timesheet en conflit
+     * pour chacun des trois types (professeur/salle/section) — `null` si
+     * aucun. Même détection que `validate()`, exposée séparément pour que
+     * l'appelant (ex: pré-check `checkConflict()`) puisse identifier PAR ID
+     * quel Timesheet précis bloque, et proposer de le remplacer plutôt que
+     * de se contenter d'un message.
+     *
+     * @return array{teacher: ?int, classroom: ?int, section: ?int}
+     */
+    public function find(string $date): array
+    {
+        $schedule = Schedule::find($this->scheduleId);
+
+        if (! $schedule) {
+            return ['teacher' => null, 'classroom' => null, 'section' => null];
+        }
+
+        $startTime = $schedule->start_time;
+        $endTime = $schedule->end_time;
 
         // Section ID associée au schedule (via SectionCourse → SectionUserSchoolRole)
         $sectionId = DB::table('section_users as su')
@@ -64,29 +94,18 @@ class NoTimesheetConflict implements ValidationRule
             $base->where('t.id', '!=', $this->ignoreId);
         }
 
-        // Conflit professeur
-        if ((clone $base)->where('t.user_school_role_id', $this->userSchoolRoleId)->exists()) {
-            $fail('Ce professeur est déjà occupé sur ce créneau à cette date.');
-            return;
-        }
+        $teacherConflict = (clone $base)->where('t.user_school_role_id', $this->userSchoolRoleId)->value('t.id');
+        $classroomConflict = (clone $base)->where('t.classroom_id', $this->classroomId)->value('t.id');
 
-        // Conflit salle
-        if ((clone $base)->where('t.classroom_id', $this->classroomId)->exists()) {
-            $fail('Cette salle est déjà occupée sur ce créneau à cette date.');
-            return;
-        }
-
-        // Conflit section (si la section a pu être résolue)
+        $sectionConflict = null;
         if ($sectionId) {
             $sectionConflict = (clone $base)
                 ->join('sections_courses as sc2', 'sc2.id', '=', 's.section_course_id')
                 ->join('section_users as su2', 'su2.id', '=', 'sc2.section_user_id')
                 ->where('su2.section_id', $sectionId)
-                ->exists();
-
-            if ($sectionConflict) {
-                $fail('Cette section a déjà un cours planifié sur ce créneau à cette date.');
-            }
+                ->value('t.id');
         }
+
+        return ['teacher' => $teacherConflict, 'classroom' => $classroomConflict, 'section' => $sectionConflict];
     }
 }

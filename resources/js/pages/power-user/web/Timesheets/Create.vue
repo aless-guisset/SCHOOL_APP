@@ -6,6 +6,7 @@ import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -48,6 +49,7 @@ const form = useForm({
     classroom_id:         '',
     subject_id:           '',
     hours_done:           '',
+    replace_conflict_ids: [] as number[],
 });
 
 // ── Étape 1 : schedule sélectionné ──────────────────────────────────────────
@@ -114,14 +116,28 @@ const dateWarning = computed(() => {
 });
 
 // ── Étape 3 : check conflits avant confirmation ────────────────────────────────
-const conflicts = ref<string[]>([]);
+type Conflict = { id: number; type: 'teacher' | 'classroom' | 'section'; message: string };
+const conflicts = ref<Conflict[]>([]);
 const checkingConflicts = ref(false);
 const conflictCheckFailed = ref(false);
+
+// Ids des conflits que l'utilisateur a choisi de remplacer (coché "Remplacer").
+// Envoyés au serveur, qui ne les supprime que s'ils sont réellement en conflit
+// avec cette soumission précise — voir resolveConflictReplacements() côté back.
+const replaceIds = ref<Set<number>>(new Set());
+function toggleReplace(id: number) {
+    if (replaceIds.value.has(id)) {
+        replaceIds.value.delete(id);
+    } else {
+        replaceIds.value.add(id);
+    }
+}
 
 async function checkConflicts() {
     if (!form.schedule_id || !form.date || !form.user_school_role_id || !form.classroom_id) return;
     checkingConflicts.value = true;
     conflicts.value = [];
+    replaceIds.value = new Set();
     conflictCheckFailed.value = false;
     try {
         const params = new URLSearchParams({
@@ -176,6 +192,7 @@ const FIELD_STEP: Record<string, number> = {
 };
 
 function submit() {
+    form.replace_conflict_ids = Array.from(replaceIds.value);
     form.post('/timesheets', {
         onError: (errors) => {
             const firstField = Object.keys(errors)[0];
@@ -352,12 +369,25 @@ const breadcrumbs = [
                         </div>
 
                         <!-- Alertes conflits -->
-                        <div v-if="conflicts.length" class="rounded-md border border-destructive bg-destructive/10 p-3">
-                            <p class="mb-1 text-sm font-medium text-destructive">Conflit détecté :</p>
-                            <ul class="list-disc pl-4 text-sm text-destructive">
-                                <li v-for="c in conflicts" :key="c">{{ c }}</li>
-                            </ul>
-                            <p class="mt-2 text-xs text-muted-foreground">Vous pouvez quand même enregistrer ; le serveur revalidera.</p>
+                        <div v-if="conflicts.length" class="space-y-2 rounded-md border border-destructive bg-destructive/10 p-3">
+                            <p class="text-sm font-medium text-destructive">Un cours existe déjà sur ce créneau :</p>
+                            <label
+                                v-for="c in conflicts" :key="c.id"
+                                class="flex items-start gap-2 rounded border border-destructive/30 bg-background/60 p-2 text-sm"
+                            >
+                                <Checkbox
+                                    class="mt-0.5"
+                                    :model-value="replaceIds.has(c.id)"
+                                    @update:model-value="() => toggleReplace(c.id)"
+                                />
+                                <span>
+                                    <span class="text-destructive">{{ c.message }}</span>
+                                    <span class="block text-xs text-muted-foreground">
+                                        Cocher pour remplacer ce cours existant par le nouveau. Laisser décoché pour le conserver
+                                        (l'enregistrement sera alors refusé s'il reste en conflit).
+                                    </span>
+                                </span>
+                            </label>
                         </div>
 
                         <!-- Erreurs de validation serveur (ex: rejet au submit) -->

@@ -356,6 +356,122 @@ test('update marks is_customized true when classroom_id genuinely changes', func
     expect($timesheet->fresh()->is_customized)->toBeTrue();
 });
 
+test('checkConflict returns the conflicting timesheet id and type, not just a message', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    $existing = Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => '2026-09-07', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $response = $this->actingAs($powerUser)
+        ->getJson('/timesheets/check-conflict?'.http_build_query([
+            'schedule_id' => $schedule->id, 'date' => '2026-09-07',
+            'user_school_role_id' => $teacher->id, 'classroom_id' => $classroom->id,
+        ]));
+
+    $response->assertOk();
+    $conflicts = $response->json('conflicts');
+    // Même prof/salle/section réutilisés que l'existant ici : les 3 types de
+    // conflit se déclenchent simultanément — checkConflict() les reporte
+    // tous (contrairement à validate(), qui s'arrête au premier).
+    expect($conflicts)->toHaveCount(3);
+    $teacherConflict = collect($conflicts)->firstWhere('type', 'teacher');
+    expect($teacherConflict['id'])->toBe($existing->id);
+    expect($teacherConflict['message'])->toContain('professeur');
+});
+
+test('store with replace_conflict_ids deletes the genuinely conflicting timesheet and creates the new one', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    $existing = Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => '2026-09-07', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->post('/timesheets', [
+            'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+            'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+            'date' => '2026-09-07', 'hours_done' => 3,
+            'replace_conflict_ids' => [$existing->id],
+        ])
+        ->assertRedirect();
+
+    expect(Timesheet::find($existing->id))->toBeNull(); // soft-deleted
+    expect(Timesheet::where('schedule_id', $schedule->id)->where('date', '2026-09-07')->count())->toBe(1);
+    expect(Timesheet::where('schedule_id', $schedule->id)->where('date', '2026-09-07')->first()->hours_done)->toBe(3);
+});
+
+test('store ignores a replace_conflict_ids entry that is not actually conflicting', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    // Un timesheet totalement indépendant (autre créneau, autre date) — ne
+    // doit jamais pouvoir être supprimé via replace_conflict_ids, même si
+    // son id est envoyé, puisqu'il n'est en conflit avec rien ici.
+    $unrelatedSchedule = makeTimesheetScheduleFor($school, $teacher, 'Classe indépendante');
+    $unrelated = Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $unrelatedSchedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => '2026-09-14', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->post('/timesheets', [
+            'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+            'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+            'date' => '2026-09-07', 'hours_done' => 3,
+            'replace_conflict_ids' => [$unrelated->id],
+        ])
+        ->assertRedirect();
+
+    expect(Timesheet::find($unrelated->id))->not->toBeNull(); // jamais touché
+});
+
+test('store still rejects a real conflict when replace_conflict_ids is not provided', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => '2026-09-07', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->post('/timesheets', [
+            'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+            'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+            'date' => '2026-09-07', 'hours_done' => 3,
+        ])
+        ->assertSessionHasErrors('date');
+});
+
 test('index exposes the schools sections and filters timesheets by section_id', function () {
     $school = makeTimesheetSchool();
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
