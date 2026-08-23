@@ -150,6 +150,7 @@ const nav: NavMap = {
             items: [
                 { label: 'Accueil', icon: Home, route: '/dashboard', routeName: 'dashboard' },
                 { label: 'Mon horaire', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
+                { label: 'Feuilles de temps', icon: Clock, route: '/timesheets', routeName: 'timesheets.index' },
                 { label: 'Mes cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Mes notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
