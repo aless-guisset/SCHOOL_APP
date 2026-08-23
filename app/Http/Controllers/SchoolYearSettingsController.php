@@ -12,7 +12,7 @@ class SchoolYearSettingsController extends Controller
     public function update(Request $request, ScheduleTimesheetSync $sync): RedirectResponse
     {
         $data = $request->validate([
-            'year_end_date' => 'required|date|after:today',
+            'year_end_date' => 'required|date|after:today|before:+3 years',
         ]);
 
         $school = School::findOrFail(session('active_school_id'));

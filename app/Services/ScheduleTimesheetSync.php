@@ -42,14 +42,19 @@ class ScheduleTimesheetSync
     {
         $count = 0;
 
-        Timesheet::where('schedule_id', $schedule->id)
-            ->where('is_customized', false)
-            ->where('date', '>=', Carbon::today()->toDateString())
-            ->get()
-            ->each(function (Timesheet $ts) use (&$count) {
-                $ts->delete();
-                $count++;
-            });
+        Timesheet::withoutEvents(function () use ($schedule, &$count) {
+            Timesheet::where('schedule_id', $schedule->id)
+                ->where('is_generated', true)
+                ->where('is_customized', false)
+                ->where('date', '>=', Carbon::today()->toDateString())
+                ->where('hours_done', 0)
+                ->whereDoesntHave('attendances')
+                ->get()
+                ->each(function (Timesheet $ts) use (&$count) {
+                    $ts->delete();
+                    $count++;
+                });
+        });
 
         return $count;
     }
@@ -91,7 +96,7 @@ class ScheduleTimesheetSync
                 if ($hasConflict) {
                     $skippedConflicts++;
                 } else {
-                    Timesheet::create([
+                    Timesheet::withoutEvents(fn () => Timesheet::create([
                         'user_school_role_id' => $schedule->user_school_role_id,
                         'schedule_id'         => $schedule->id,
                         'subject_id'          => $schedule->subject_id,
@@ -100,8 +105,9 @@ class ScheduleTimesheetSync
                         'hours_done'          => 0,
                         'is_active'           => true,
                         'is_customized'       => false,
+                        'is_generated'        => true,
                         'created_by'          => $schedule->updated_by ?? $schedule->created_by,
-                    ]);
+                    ]));
                     $created++;
                 }
             }

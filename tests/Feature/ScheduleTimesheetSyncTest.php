@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Attendance;
 use App\Models\Classroom;
 use App\Models\Course;
 use App\Models\Role;
@@ -175,4 +176,101 @@ test('sync never touches past timesheets', function () {
     expect($pastTimesheetAfter->id)->toBe($pastTimesheetId);
     expect($pastTimesheetAfter->hours_done)->toBe(2);
     expect($pastTimesheetAfter->date)->toBe($pastDate);
+});
+
+test('a manually-created future timesheet without is_generated survives sync', function () {
+    $today = Carbon::today();
+    $dow = $today->dayOfWeekIso;
+    $yearEnd = $today->copy()->addWeeks(2)->toDateString();
+    ['schedule' => $schedule, 'usr' => $usr, 'classroom' => $classroom, 'subject' => $subject] = makeSyncSchedule($yearEnd, $dow);
+
+    // A human manually creates a future timesheet for this schedule's slot,
+    // never going through the generator: is_generated stays at its false
+    // default, even though it otherwise "looks" standard (is_customized
+    // false, hours_done 0).
+    $futureDate = $today->copy()->addWeek()->toDateString();
+    $manual = Timesheet::create([
+        'user_school_role_id' => $usr->id,
+        'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id,
+        'classroom_id' => $classroom->id,
+        'date' => $futureDate,
+        'hours_done' => 0,
+        'status' => 'A',
+        'is_active' => true,
+        'created_by' => 1,
+    ]);
+    $manualId = $manual->id;
+
+    // Not passed to create(), so it takes the column's DB default (false) —
+    // fetch fresh from the DB rather than reading the in-memory attribute.
+    expect($manual->fresh()->is_generated)->toBeFalse();
+
+    (new ScheduleTimesheetSync())->sync($schedule->fresh());
+
+    $manualAfter = Timesheet::find($manualId);
+    expect($manualAfter)->not->toBeNull();
+    expect($manualAfter->id)->toBe($manualId);
+    expect($manualAfter->date)->toBe($futureDate);
+});
+
+test('a generated timesheet with hours_done > 0 survives a later sync', function () {
+    $today = Carbon::today();
+    $dow = $today->dayOfWeekIso;
+    $yearEnd = $today->copy()->addWeeks(2)->toDateString();
+    ['schedule' => $schedule] = makeSyncSchedule($yearEnd, $dow);
+
+    $sync = new ScheduleTimesheetSync();
+    $sync->sync($schedule->fresh());
+
+    $futureDate = $today->copy()->addWeek()->toDateString();
+    $generated = Timesheet::where('schedule_id', $schedule->id)->where('date', $futureDate)->firstOrFail();
+    expect($generated->is_generated)->toBeTrue();
+
+    // A teacher pre-logs some hours on the future session directly (not via the controller).
+    $generated->update(['hours_done' => 2]);
+    $generatedId = $generated->id;
+
+    $sync->sync($schedule->fresh());
+
+    $after = Timesheet::find($generatedId);
+    expect($after)->not->toBeNull();
+    expect($after->id)->toBe($generatedId);
+    expect($after->hours_done)->toBe(2);
+});
+
+test('a generated timesheet with a recorded attendance survives sync', function () {
+    $today = Carbon::today();
+    $dow = $today->dayOfWeekIso;
+    $yearEnd = $today->copy()->addWeeks(2)->toDateString();
+    ['school' => $school, 'schedule' => $schedule] = makeSyncSchedule($yearEnd, $dow);
+
+    $sync = new ScheduleTimesheetSync();
+    $sync->sync($schedule->fresh());
+
+    $futureDate = $today->copy()->addWeek()->toDateString();
+    $generated = Timesheet::where('schedule_id', $schedule->id)->where('date', $futureDate)->firstOrFail();
+    $generatedId = $generated->id;
+
+    $eleveRole = Role::firstOrCreate(['reference' => 'ELEVE'], ['name' => 'Élève', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $studentUser = User::factory()->create();
+    $studentUsr = UserSchoolRole::create(['user_id' => $studentUser->id, 'school_id' => $school->id, 'role_id' => $eleveRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $studentSection = Section::create(['school_id' => $school->id, 'name' => 'Classe Attendance', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $studentSectionUser = SectionUserSchoolRole::create(['section_id' => $studentSection->id, 'user_school_role_id' => $studentUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $attendance = Attendance::create([
+        'timesheet_id' => $generatedId,
+        'section_user_id' => $studentSectionUser->id,
+        'is_present' => true,
+        'status' => 'A',
+        'is_active' => true,
+        'created_by' => 1,
+    ]);
+
+    $sync->sync($schedule->fresh());
+
+    $after = Timesheet::find($generatedId);
+    expect($after)->not->toBeNull();
+    expect($after->id)->toBe($generatedId);
+    expect($attendance->fresh()->timesheet_id)->toBe($generatedId);
 });

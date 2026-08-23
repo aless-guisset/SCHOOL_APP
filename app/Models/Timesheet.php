@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[UseFactory(TimesheetFactory::class)]
@@ -28,6 +29,7 @@ class Timesheet extends Model
         'status',
         'is_active',
         'is_customized',
+        'is_generated',
         'created_by',
         'updated_by',
     ];
@@ -36,6 +38,7 @@ class Timesheet extends Model
         'is_active' => 'boolean',
         'is_deleted' => 'boolean',
         'is_customized' => 'boolean',
+        'is_generated' => 'boolean',
     ];
 
     // ---- Relations ----
@@ -68,5 +71,10 @@ class Timesheet extends Model
     public function getSectionCourseAttribute()
     {
         return $this->schedule?->sectionCourse;
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
     }
 }
