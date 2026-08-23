@@ -64,6 +64,7 @@ test('a power user can enter a grade for a student', function () {
             'section_user_id' => $student->id,
             'subject_id' => $subject->id,
             'period' => 'Trimestre 1',
+            'max_grade' => 20,
             'grade' => 15.5,
         ])
         ->assertRedirect('/grades');
@@ -82,6 +83,7 @@ test('a teacher can enter a grade', function () {
             'section_user_id' => $student->id,
             'subject_id' => $subject->id,
             'period' => 'Trimestre 1',
+            'max_grade' => 20,
             'grade' => 20,
         ])
         ->assertRedirect('/grades');
@@ -116,6 +118,7 @@ test('a grade above 20 is rejected', function () {
             'section_user_id' => $student->id,
             'subject_id' => $subject->id,
             'period' => 'Trimestre 1',
+            'max_grade' => 20,
             'grade' => 25,
         ])
         ->assertSessionHasErrors('grade');
@@ -134,6 +137,7 @@ test('entering a grade for a subject in another school is rejected', function ()
             'section_user_id' => $studentA->id,
             'subject_id' => $subjectB->id,
             'period' => 'Trimestre 1',
+            'max_grade' => 20,
             'grade' => 12,
         ])
         ->assertSessionHasErrors('subject_id');

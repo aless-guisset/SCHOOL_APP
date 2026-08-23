@@ -133,6 +133,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
 
     Route::get('/grades', [GradesController::class, 'index'])->name('grades.index');
     Route::get('/grades/bulletin/{sectionUser}', [GradesController::class, 'bulletin'])->name('grades.bulletin');
+    Route::get('/grades/{grade}/attachment', [GradesController::class, 'downloadAttachment'])->name('grades.attachment');
 
     Route::resource('courses', CoursesController::class)->only(['index', 'show']);
     Route::resource('sections', SectionsController::class)->only(['index', 'show']);
