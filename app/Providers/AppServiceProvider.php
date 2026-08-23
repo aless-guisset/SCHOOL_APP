@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\UserSchoolRole;
 use App\Listeners\LogSuccessfulLogin;
 use App\Observers\ActivityObserver;
+use App\Observers\ScheduleObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
@@ -42,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->registerActivityObservers();
+        Schedule::observe(ScheduleObserver::class);
     }
 
     /**
