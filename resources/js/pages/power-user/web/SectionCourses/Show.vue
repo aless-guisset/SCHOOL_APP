@@ -6,10 +6,12 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
+const { canManage } = useSchool();
 
 const DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
@@ -47,7 +49,7 @@ function destroy() {
         <div class="p-4 md:p-6 max-w-2xl">
             <FlashMessage />
             <PageHeader :title="sectionCourse.name" :breadcrumbs="breadcrumbs">
-                <template #actions>
+                <template v-if="canManage" #actions>
                     <Button variant="outline" size="sm" as-child>
                         <Link :href="`/section-courses/${sectionCourse.id}/edit`"><Edit class="size-4" />{{ t('action.edit') }}</Link>
                     </Button>

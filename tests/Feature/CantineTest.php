@@ -70,12 +70,25 @@ test('a power user can register a student for cantine on a given day', function 
     expect(CantineRegistration::where('section_user_id', $student->id)->where('day_of_week', 1)->exists())->toBeTrue();
 });
 
-test('a teacher cannot register a student for cantine', function () {
+test('a teacher can register a student for cantine', function () {
     $school = makeCantineSchool();
     $teacher = makeCantineUsr($school, makeCantineRole('PROF', 'Professeur'))->user;
     $student = makeCantineStudent($school);
 
     $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine', ['section_user_id' => $student->id, 'day_of_week' => 1])
+        ->assertRedirect('/cantine');
+
+    expect(CantineRegistration::where('section_user_id', $student->id)->where('day_of_week', 1)->exists())->toBeTrue();
+});
+
+test('an administrateur cannot register a student for cantine', function () {
+    $school = makeCantineSchool();
+    $admin = makeCantineUsr($school, makeCantineRole('ADMIN', 'Administrateur'))->user;
+    $student = makeCantineStudent($school);
+
+    $this->actingAs($admin)
         ->withSession(['active_school_id' => $school->id])
         ->post('/cantine', ['section_user_id' => $student->id, 'day_of_week' => 1])
         ->assertForbidden();

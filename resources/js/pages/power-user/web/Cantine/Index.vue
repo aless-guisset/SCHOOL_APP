@@ -5,7 +5,10 @@ import DataTable from '@/components/DataTable.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { useSchool } from '@/composables/useSchool';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { canManage } = useSchool();
 
 const DAYS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -46,13 +49,13 @@ function unregister(id: number) {
                     <Button variant="outline" size="sm" as-child>
                         <Link href="/cantine/roster"><CalendarCheck class="size-4" />Présences du jour</Link>
                     </Button>
-                    <Button size="sm" as-child>
+                    <Button v-if="canManage" size="sm" as-child>
                         <Link href="/cantine/create"><Plus class="size-4" />Inscrire un élève</Link>
                     </Button>
                 </template>
             </PageHeader>
             <DataTable :data="registrations" :columns="columns" empty-message="Aucune inscription cantine.">
-                <template #actions="{ row }">
+                <template v-if="canManage" #actions="{ row }">
                     <Button variant="ghost" size="icon" class="size-8" @click="unregister(row.id)">
                         <Trash2 class="size-4 text-destructive" />
                     </Button>

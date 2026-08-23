@@ -7,10 +7,12 @@ import PageHeader from '@/components/PageHeader.vue';
 import WeeklyCalendar, { type CalendarSlot } from '@/components/WeeklyCalendar.vue';
 import DataTable from '@/components/DataTable.vue';
 import { Button } from '@/components/ui/button';
+import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
+const { canManage } = useSchool();
 
 type Timesheet = {
     id: number;
@@ -150,7 +152,7 @@ const columns = [
                         ><List class="size-4" /></button>
                     </div>
 
-                    <Button as-child size="sm">
+                    <Button v-if="canManage" as-child size="sm">
                         <Link href="/timesheets/create"><Plus class="size-4" />{{ t('action.create') }}</Link>
                     </Button>
                 </template>

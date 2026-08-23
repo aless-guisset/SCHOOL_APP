@@ -5,7 +5,10 @@ import DataTable from '@/components/DataTable.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { useSchool } from '@/composables/useSchool';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { canManage } = useSchool();
 
 type GradeRow = {
     id: number;
@@ -43,7 +46,7 @@ function destroy(id: number) {
         <div class="p-4 md:p-6">
             <FlashMessage />
             <PageHeader title="Notes" :description="`${grades.length} note(s)`">
-                <template #actions>
+                <template v-if="canManage" #actions>
                     <Button size="sm" as-child>
                         <Link href="/grades/create"><Plus class="size-4" />Saisir une note</Link>
                     </Button>
@@ -57,7 +60,7 @@ function destroy(id: number) {
                                 <Download class="size-4" />
                             </a>
                         </Button>
-                        <Button variant="ghost" size="icon" class="size-8" @click="destroy(row.id)">
+                        <Button v-if="canManage" variant="ghost" size="icon" class="size-8" @click="destroy(row.id)">
                             <Trash2 class="size-4 text-destructive" />
                         </Button>
                     </div>

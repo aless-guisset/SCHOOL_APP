@@ -8,9 +8,12 @@
 ## Architecture clé
 
 ### Rôles utilisateurs
-- `Administrateur` : gestion plateforme (écoles, users, rôles, traductions, logs)
-- `Power User` : secrétariat (horaires, sections, cours, timesheets)
-- `Professeur` / `Étudiant` : lecture
+- `Administrateur` : gestion plateforme (écoles, users, rôles, traductions, logs) — **pas**
+  d'autorité sur le contenu académique d'une école en particulier
+- `Power User` / `Secrétariat` / `Professeur` : écriture sur le contenu académique de l'école
+  active (horaires, sections, cours, matières, feuilles de temps, notes, cantine) — gate
+  `EnsureCanManage` (alias `can-manage`), même liste de rôles que `useSchool.ts::canManage`
+- `Directeur` / `Étudiant` : lecture seule sur le contenu académique de l'école active
 
 ### Modèles principaux
 | Modèle | Table | Notes |

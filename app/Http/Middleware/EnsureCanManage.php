@@ -9,8 +9,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCanManage
 {
-    /** Aligné sur DashboardController::MANAGE_ROLES et useSchool.ts::canManage. */
-    private const MANAGE_ROLES = ['Administrateur', 'Power User', 'Directeur'];
+    /**
+     * Administrateur = gestion plateforme (écoles, users, rôles, traductions),
+     * pas d'autorité sur le contenu académique d'une école en particulier ;
+     * Directeur n'a pas ce droit non plus. Aligné sur
+     * DashboardController::MANAGE_ROLES et useSchool.ts::canManage.
+     */
+    private const MANAGE_ROLES = ['Power User', 'Secrétariat', 'Professeur'];
 
     public function handle(Request $request, Closure $next): Response
     {

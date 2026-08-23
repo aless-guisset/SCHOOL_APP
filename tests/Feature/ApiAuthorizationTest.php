@@ -59,19 +59,31 @@ test('an admin can list users via the api', function () {
         ->assertOk();
 });
 
-test('a teacher cannot create a classroom via the api but can read it', function () {
+test('a teacher can read classrooms via the api and create one', function () {
     $school = makeApiAuthSchool();
     $teacher = makeApiAuthUsr($school, makeApiAuthRole('PROF', 'Professeur'))->user;
 
     $this->actingAs($teacher)
         ->withSession(['active_school_id' => $school->id])
-        ->postJson('/api/classrooms', ['name' => 'Salle piratée'])
-        ->assertForbidden();
+        ->getJson('/api/classrooms')
+        ->assertOk();
 
     $this->actingAs($teacher)
         ->withSession(['active_school_id' => $school->id])
-        ->getJson('/api/classrooms')
-        ->assertOk();
+        ->post('/api/classrooms', ['name' => 'Salle prof'])
+        ->assertRedirect();
+
+    expect(\App\Models\Classroom::where('name', 'Salle prof')->exists())->toBeTrue();
+});
+
+test('an administrateur cannot create a classroom via the api', function () {
+    $school = makeApiAuthSchool();
+    $admin = makeApiAuthUsr($school, makeApiAuthRole('ADMIN', 'Administrateur'))->user;
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => $school->id])
+        ->postJson('/api/classrooms', ['name' => 'Salle piratée'])
+        ->assertForbidden();
 });
 
 test('a power user is not blocked by authorization when creating a classroom via the api', function () {

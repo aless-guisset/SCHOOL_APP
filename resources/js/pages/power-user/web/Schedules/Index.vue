@@ -12,10 +12,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
+const { canManage } = useSchool();
 
 type Schedule = {
     id: number;
@@ -135,12 +137,14 @@ function submitDup() {
                             title="Vue liste"
                         ><List class="size-4" /></button>
                     </div>
-                    <Button variant="outline" size="sm" @click="openDup">
-                        <Copy class="size-4" />Dupliquer
-                    </Button>
-                    <Button as-child size="sm">
-                        <Link href="/schedules/create"><Plus class="size-4" />{{ t('action.create') }}</Link>
-                    </Button>
+                    <template v-if="canManage">
+                        <Button variant="outline" size="sm" @click="openDup">
+                            <Copy class="size-4" />Dupliquer
+                        </Button>
+                        <Button as-child size="sm">
+                            <Link href="/schedules/create"><Plus class="size-4" />{{ t('action.create') }}</Link>
+                        </Button>
+                    </template>
                 </template>
             </PageHeader>
 

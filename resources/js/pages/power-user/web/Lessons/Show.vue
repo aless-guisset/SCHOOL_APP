@@ -6,10 +6,12 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
+const { canManage } = useSchool();
 
 const props = defineProps<{
     lesson: { id: number; name: string; description: string | null; is_active: boolean; subject: { id: number; name: string } | null };
@@ -33,7 +35,7 @@ function destroy() {
         <div class="p-4 md:p-6 max-w-xl">
             <FlashMessage />
             <PageHeader :title="lesson.name" :breadcrumbs="breadcrumbs">
-                <template #actions>
+                <template v-if="canManage" #actions>
                     <Button variant="outline" size="sm" as-child>
                         <Link :href="`/lessons/${lesson.id}/edit`"><Edit class="size-4" />{{ t('action.edit') }}</Link>
                     </Button>

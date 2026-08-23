@@ -60,9 +60,14 @@ export function useSchool() {
     const isAdmin = computed(() => hasRole('Administrateur'));
 
     /**
-     * Vérifie si l'utilisateur est power user ou admin.
+     * Vérifie si l'utilisateur peut gérer le contenu académique de l'école
+     * active (cours, horaires, sections...). Administrateur est un rôle de
+     * gestion plateforme (écoles, users, rôles, traductions) sans autorité
+     * sur le contenu d'une école en particulier ; Directeur n'a pas ce
+     * droit non plus. Aligné sur EnsureCanManage/GradesController côté
+     * backend, DashboardController::MANAGE_ROLES côté dashboard.
      */
-    const canManage = computed(() => hasRole('Administrateur', 'Power User', 'Directeur'));
+    const canManage = computed(() => hasRole('Power User', 'Secrétariat', 'Professeur'));
 
     return {
         activeSchool,

@@ -2,10 +2,14 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useSchool } from '@/composables/useSchool';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { canManage } = useSchool();
 
 type RosterEntry = {
     cantine_registration_id: number;
@@ -78,20 +82,25 @@ function changeDate(event: Event) {
                                 <span class="text-xs text-muted-foreground">{{ roster[i].section }}</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <Input
-                                    v-if="!entry.is_present"
-                                    v-model="entry.note"
-                                    placeholder="Note (optionnel)"
-                                    class="h-8 w-40 text-xs"
-                                />
-                                <Button
-                                    :variant="entry.is_present ? 'outline' : 'destructive'"
-                                    size="sm"
-                                    @click="entry.is_present = !entry.is_present"
-                                >{{ entry.is_present ? 'Présent' : 'Absent' }}</Button>
+                                <template v-if="canManage">
+                                    <Input
+                                        v-if="!entry.is_present"
+                                        v-model="entry.note"
+                                        placeholder="Note (optionnel)"
+                                        class="h-8 w-40 text-xs"
+                                    />
+                                    <Button
+                                        :variant="entry.is_present ? 'outline' : 'destructive'"
+                                        size="sm"
+                                        @click="entry.is_present = !entry.is_present"
+                                    >{{ entry.is_present ? 'Présent' : 'Absent' }}</Button>
+                                </template>
+                                <Badge v-else :variant="entry.is_present ? 'default' : 'destructive'">
+                                    {{ entry.is_present ? 'Présent' : 'Absent' }}
+                                </Badge>
                             </div>
                         </div>
-                        <Button class="mt-2" :disabled="presenceForm.processing" @click="savePresences">
+                        <Button v-if="canManage" class="mt-2" :disabled="presenceForm.processing" @click="savePresences">
                             Enregistrer les présences
                         </Button>
                     </div>

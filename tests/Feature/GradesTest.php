@@ -71,12 +71,30 @@ test('a power user can enter a grade for a student', function () {
     expect(Grade::where('section_user_id', $student->id)->where('subject_id', $subject->id)->first()?->grade)->toBe(15.5);
 });
 
-test('a teacher cannot enter a grade', function () {
+test('a teacher can enter a grade', function () {
     $school = makeGradesSchool();
     $teacher = makeGradesUsr($school, makeGradesRole('PROF', 'Professeur'))->user;
     [$student, $subject] = makeGradesStudentAndSubject($school);
 
     $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/grades', [
+            'section_user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'period' => 'Trimestre 1',
+            'grade' => 20,
+        ])
+        ->assertRedirect('/grades');
+
+    expect(Grade::where('section_user_id', $student->id)->where('subject_id', $subject->id)->first()?->grade)->toBe(20.0);
+});
+
+test('an administrateur cannot enter a grade', function () {
+    $school = makeGradesSchool();
+    $admin = makeGradesUsr($school, makeGradesRole('ADMIN', 'Administrateur'))->user;
+    [$student, $subject] = makeGradesStudentAndSubject($school);
+
+    $this->actingAs($admin)
         ->withSession(['active_school_id' => $school->id])
         ->post('/grades', [
             'section_user_id' => $student->id,
@@ -160,6 +178,27 @@ test('a power user sees every students grades in the index', function () {
     ]);
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/grades')
+        ->assertInertia(fn ($page) => $page->has('grades', 2));
+});
+
+test('a teacher sees every students grades in the index', function () {
+    $school = makeGradesSchool();
+    $teacher = makeGradesUsr($school, makeGradesRole('PROF', 'Professeur'))->user;
+    [$studentA, $subjectA] = makeGradesStudentAndSubject($school);
+    [$studentB, $subjectB] = makeGradesStudentAndSubject($school);
+
+    Grade::create([
+        'section_user_id' => $studentA->id, 'subject_id' => $subjectA->id,
+        'period' => 'Trimestre 1', 'grade' => 14, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    Grade::create([
+        'section_user_id' => $studentB->id, 'subject_id' => $subjectB->id,
+        'period' => 'Trimestre 1', 'grade' => 8, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($teacher)
         ->withSession(['active_school_id' => $school->id])
         ->get('/grades')
         ->assertInertia(fn ($page) => $page->has('grades', 2));

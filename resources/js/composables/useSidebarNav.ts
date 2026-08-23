@@ -62,7 +62,6 @@ const nav: NavMap = {
             section: 'École',
             items: [
                 { label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', routeName: 'dashboard' },
-                { label: 'Utilisateurs', icon: Users, route: '/users', routeName: 'users.index' },
                 { label: 'Sections', icon: GraduationCap, route: '/sections', routeName: 'sections.index' },
                 { label: 'Cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Matières', icon: Library, route: '/subjects', routeName: 'subjects.index' },
@@ -88,7 +87,6 @@ const nav: NavMap = {
             section: 'Gestion école',
             items: [
                 { label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', routeName: 'dashboard' },
-                { label: 'Utilisateurs', icon: Users, route: '/users', routeName: 'users.index' },
                 { label: 'Sections', icon: GraduationCap, route: '/sections', routeName: 'sections.index' },
                 { label: 'Cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Horaires', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
@@ -100,14 +98,27 @@ const nav: NavMap = {
     ],
 
     // ── Secrétariat ────────────────────────────────────────────────────────
+    // Mêmes droits d'écriture que Power User (EnsureCanManage), même nav.
     Secrétariat: [
         {
-            section: 'Administration',
+            section: 'École',
             items: [
                 { label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', routeName: 'dashboard' },
-                { label: 'Utilisateurs', icon: Users, route: '/users', routeName: 'users.index' },
+                { label: 'Sections', icon: GraduationCap, route: '/sections', routeName: 'sections.index' },
+                { label: 'Cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
+                { label: 'Matières', icon: Library, route: '/subjects', routeName: 'subjects.index' },
+                { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+            ],
+        },
+        {
+            section: 'Planification',
+            items: [
                 { label: 'Horaires', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
                 { label: 'Feuilles de temps', icon: Clock, route: '/timesheets', routeName: 'timesheets.index' },
+                { label: 'Salles', icon: DoorOpen, route: '/classrooms', routeName: 'classrooms.index' },
+                { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
+                // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
+                { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
             ],
         },
     ],
@@ -126,6 +137,7 @@ const nav: NavMap = {
             section: 'Mes élèves',
             items: [
                 { label: 'Mes sections', icon: GraduationCap, route: '/sections', routeName: 'sections.index' },
+                { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
             ],
         },

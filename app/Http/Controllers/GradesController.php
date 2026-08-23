@@ -15,8 +15,8 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class GradesController extends Controller
 {
-    /** Aligné sur DashboardController::MANAGE_ROLES et useSchool.ts::canManage. */
-    private const MANAGE_ROLES = ['Administrateur', 'Power User', 'Directeur'];
+    /** Aligné sur EnsureCanManage/useSchool.ts::canManage (droit d'écriture sur le contenu académique). */
+    private const MANAGE_ROLES = ['Power User', 'Secrétariat', 'Professeur'];
 
     public function index(Request $request): Response
     {

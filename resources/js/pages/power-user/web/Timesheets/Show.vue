@@ -3,13 +3,16 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { Edit, Trash2 } from 'lucide-vue-next';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
+const { canManage } = useSchool();
 
 type RosterEntry = {
     section_user_id: number;
@@ -63,7 +66,7 @@ function saveAttendance() {
         <div class="p-4 md:p-6 max-w-xl">
             <FlashMessage />
             <PageHeader :title="title" :breadcrumbs="breadcrumbs">
-                <template #actions>
+                <template v-if="canManage" #actions>
                     <Button variant="outline" size="sm" as-child>
                         <Link :href="`/timesheets/${timesheet.id}/edit`"><Edit class="size-4" />{{ t('action.edit') }}</Link>
                     </Button>
@@ -117,20 +120,25 @@ function saveAttendance() {
                         >
                             <span class="text-sm font-medium">{{ roster[i].name }}</span>
                             <div class="flex items-center gap-2">
-                                <Input
-                                    v-if="!entry.is_present"
-                                    v-model="entry.note"
-                                    placeholder="Note (optionnel)"
-                                    class="h-8 w-48 text-xs"
-                                />
-                                <Button
-                                    :variant="entry.is_present ? 'outline' : 'destructive'"
-                                    size="sm"
-                                    @click="entry.is_present = !entry.is_present"
-                                >{{ entry.is_present ? 'Présent' : 'Absent' }}</Button>
+                                <template v-if="canManage">
+                                    <Input
+                                        v-if="!entry.is_present"
+                                        v-model="entry.note"
+                                        placeholder="Note (optionnel)"
+                                        class="h-8 w-48 text-xs"
+                                    />
+                                    <Button
+                                        :variant="entry.is_present ? 'outline' : 'destructive'"
+                                        size="sm"
+                                        @click="entry.is_present = !entry.is_present"
+                                    >{{ entry.is_present ? 'Présent' : 'Absent' }}</Button>
+                                </template>
+                                <Badge v-else :variant="entry.is_present ? 'default' : 'destructive'">
+                                    {{ entry.is_present ? 'Présent' : 'Absent' }}
+                                </Badge>
                             </div>
                         </div>
-                        <Button class="mt-2" :disabled="attendanceForm.processing" @click="saveAttendance">
+                        <Button v-if="canManage" class="mt-2" :disabled="attendanceForm.processing" @click="saveAttendance">
                             Enregistrer les présences
                         </Button>
                     </div>

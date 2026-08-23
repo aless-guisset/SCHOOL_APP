@@ -5,10 +5,12 @@ import DataTable from '@/components/DataTable.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
+const { canManage } = useSchool();
 
 defineProps<{
     courses: {
@@ -38,7 +40,7 @@ const columns = [
         <div class="p-4 md:p-6">
             <FlashMessage />
             <PageHeader :title="t('nav.courses')" :description="`${courses.total} cours`">
-                <template #actions>
+                <template v-if="canManage" #actions>
                     <Button as-child size="sm">
                         <Link href="/courses/create"><Plus class="size-4" />{{ t('action.create') }}</Link>
                     </Button>

@@ -93,13 +93,20 @@
   `barryvdh/laravel-dompdf`, saisie réservée aux rôles de gestion, consultation scopée par rôle
   (un élève ne voit et ne télécharge que ses propres notes/bulletin)
 
-## 🟡 Dette connue (non bloquante)
-- [ ] Un professeur ne peut pas encore consulter les notes de ses élèves (module bulletins v1) —
-  scope volontairement limité à "l'élève voit les siennes" pour rester sûr sans complexifier
-  l'éligibilité par section/matière enseignée. Lien nav "Notes" retiré du rôle Professeur en
-  attendant.
+## ✅ Correction du modèle de permissions (analyse fonctionnelle)
+- Les rôles de gestion du contenu académique (cours, horaires, sections, matières, notes,
+  cantine) sont **Power User / Secrétariat / Professeur**, pas Administrateur/Directeur —
+  corrigé dans `EnsureCanManage`, `GradesController`, `useSchool.ts::canManage`. Résout au
+  passage la dette "un professeur ne peut pas consulter les notes de ses élèves" (Professeur
+  est maintenant un rôle de gestion pour les notes).
+- Boutons Créer/Modifier/Supprimer masqués côté frontend pour les rôles qui n'ont pas le droit
+  (`canManage`), sur toutes les pages Index/Show concernées — évite qu'un utilisateur sans le
+  droit tombe sur une page 403 en cliquant un bouton qui ne devrait pas s'afficher pour lui
+- Bug préexistant trouvé au passage : le lien nav "Utilisateurs" (`/users`, réservé
+  Administrateur) était présent dans le menu de Power User/Directeur/Secrétariat — 403 garanti
+  au clic. Retiré des 3 menus.
 
 ---
-*Dernière mise à jour : backlog "priorité normale" entièrement traité (licence GPL v3, fix
-mobile SSR, tests disponibilité, export CSV RGPD, notifications étendues, cantine, bulletins
-PDF) — tout est testé et déployé*
+*Dernière mise à jour : modèle de permissions corrigé (Power User/Secrétariat/Professeur
+gèrent le contenu académique, pas Administrateur/Directeur), boutons masqués côté frontend
+selon le droit réel, bug de nav "Utilisateurs" 403 corrigé*
