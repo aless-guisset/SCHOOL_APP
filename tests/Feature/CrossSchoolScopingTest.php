@@ -366,7 +366,7 @@ test('duplicating a weeks planning does not duplicate another schools timesheets
             'year_end'          => '2026-08-31',
         ]);
 
-    $response->assertOk();
+    $response->assertRedirect();
 
     // Seul le timesheet de l'école A doit avoir été dupliqué (1 nouvelle semaine ajoutée)
     $countAfter = \App\Models\Timesheet::count();

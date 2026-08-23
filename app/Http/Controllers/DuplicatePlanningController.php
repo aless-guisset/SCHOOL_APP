@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Timesheet;
+use App\Rules\NoTimesheetConflict;
 use Carbon\Carbon;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -15,7 +16,7 @@ use Illuminate\Http\Request;
  */
 class DuplicatePlanningController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'source_week_start' => 'required|date',
@@ -37,10 +38,11 @@ class DuplicatePlanningController extends Controller
             ->get();
 
         if ($sourceTimesheets->isEmpty()) {
-            return response()->json(['message' => 'Aucun timesheet trouvé dans la semaine source.', 'created' => 0], 422);
+            return back()->withErrors(['source_week_start' => 'Aucun timesheet trouvé dans la semaine source.']);
         }
 
         $created = 0;
+        $skippedConflicts = 0;
         $week = 1;
 
         while (true) {
@@ -60,6 +62,27 @@ class DuplicatePlanningController extends Controller
 
                 if ($alreadyExists) continue;
 
+                // La duplication doit respecter les mêmes règles de conflit
+                // (prof/salle/section) qu'une création manuelle — sans ce
+                // contrôle, générer un an de planning pourrait silencieusement
+                // double-booker un professeur ou une salle sur une date où un
+                // autre cours a été ajouté depuis, indépendamment de la
+                // semaine source.
+                $hasConflict = false;
+                (new NoTimesheetConflict(
+                    scheduleId: $ts->schedule_id,
+                    userSchoolRoleId: $ts->user_school_role_id,
+                    classroomId: $ts->classroom_id,
+                ))->validate('date', $targetDate->toDateString(), function () use (&$hasConflict) {
+                    $hasConflict = true;
+                });
+
+                if ($hasConflict) {
+                    $skippedConflicts++;
+
+                    continue;
+                }
+
                 Timesheet::create([
                     'user_school_role_id' => $ts->user_school_role_id,
                     'schedule_id'         => $ts->schedule_id,
@@ -77,9 +100,14 @@ class DuplicatePlanningController extends Controller
             $week++;
         }
 
-        return response()->json([
-            'message' => "$created créneau(x) générés.",
-            'created' => $created,
+        $message = "$created créneau(x) générés.";
+        if ($skippedConflicts > 0) {
+            $message .= " $skippedConflicts ignoré(s) pour cause de conflit (professeur/salle/section déjà occupé).";
+        }
+
+        return back()->with('flash', [
+            'type' => 'success',
+            'message' => $message,
         ]);
     }
 }
