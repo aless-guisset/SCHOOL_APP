@@ -6,7 +6,6 @@ use App\Http\Controllers\CantineController;
 use App\Http\Controllers\ClassroomsController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DuplicatePlanningController;
 use App\Http\Controllers\GradesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\NotificationsController;
@@ -110,7 +109,6 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::resource('lessons', LessonsController::class)->only($writeOnly);
         Route::resource('schedules', SchedulesController::class)->only($writeOnly);
         Route::patch('/school-year', [SchoolYearSettingsController::class, 'update'])->name('school-year.update');
-        Route::post('/planning/duplicate', DuplicatePlanningController::class)->name('planning.duplicate');
         Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
             ->name('timesheets.check-conflict');
         Route::resource('timesheets', TimesheetsController::class)->only($writeOnly);
