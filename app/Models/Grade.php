@@ -18,11 +18,20 @@ class Grade extends Model
         'status', 'is_active', 'created_by', 'updated_by',
     ];
 
+    protected $hidden = ['attachment_path'];
+
+    protected $appends = ['has_attachment'];
+
     protected $casts = [
         'is_active' => 'boolean',
         'grade' => 'float',
         'max_grade' => 'float',
     ];
+
+    public function getHasAttachmentAttribute(): bool
+    {
+        return (bool) $this->attachment_path;
+    }
 
     public function sectionUser(): BelongsTo
     {

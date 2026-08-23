@@ -31,6 +31,9 @@ return new class extends Migration
             $table->dropColumn(['max_grade', 'attachment_path', 'attachment_original_name']);
         });
 
+        // Attention : ce rollback réduit `grade` à DECIMAL(4,2) (max 99.99) sans
+        // avertissement — toute note déjà saisie au-delà sera tronquée ou fera
+        // échouer le ALTER. Tradeoff assumé, non corrigé ici.
         if (DB::getDriverName() === 'mysql') {
             DB::statement('ALTER TABLE grades MODIFY grade DECIMAL(4,2) NOT NULL');
         }

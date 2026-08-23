@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Download, Plus, Trash2 } from 'lucide-vue-next';
+import { Download, Paperclip, Plus, Trash2 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
@@ -19,7 +19,7 @@ type GradeRow = {
     max_grade: number;
     subject_id: number;
     section_user_id: number;
-    attachment_path: string | null;
+    has_attachment: boolean;
     subject: { name: string } | null;
     section_user: {
         userschoolrole: { user: { firstname: string; lastname: string } | null } | null;
@@ -45,11 +45,19 @@ const columns = [
     } },
     { key: 'subject', label: 'Matière', format: (_v: unknown, row: GradeRow) => row.subject?.name ?? '—' },
     { key: 'period', label: 'Période' },
-    { key: 'grade', label: 'Note', format: (v: unknown, row: GradeRow) => `${Number(v).toFixed(2)} / ${Number(row.max_grade).toFixed(2)}` },
+    { key: 'grade', label: 'Note', format: (v: unknown, row: GradeRow) => {
+        const max = Number.isInteger(row.max_grade) ? row.max_grade : Number(row.max_grade).toFixed(2);
+        return `${Number(v).toFixed(2)} / ${max}`;
+    } },
 ];
 
 function destroy(id: number) {
-    if (confirm('Supprimer cette note ?')) router.delete(`/grades/${id}`);
+    if (!confirm('Supprimer cette note ?')) return;
+    router.delete(`/grades/${id}`, {
+        onSuccess: () => {
+            if (subjectFilter.value !== 'all') router.get('/grades', { subject_id: subjectFilter.value }, { preserveScroll: true });
+        },
+    });
 }
 </script>
 
@@ -61,7 +69,7 @@ function destroy(id: number) {
             <PageHeader title="Notes" :description="`${grades.length} note(s)`">
                 <template #actions>
                     <div class="flex items-center gap-2">
-                        <Select v-model="subjectFilter" @update:model-value="applySubjectFilter">
+                        <Select v-if="subjects.length" v-model="subjectFilter" @update:model-value="applySubjectFilter">
                             <SelectTrigger class="w-44">
                                 <SelectValue placeholder="Toutes les matières" />
                             </SelectTrigger>
@@ -79,9 +87,9 @@ function destroy(id: number) {
             <DataTable :data="grades" :columns="columns" empty-message="Aucune note enregistrée.">
                 <template #actions="{ row }">
                     <div class="flex items-center justify-end gap-1">
-                        <Button v-if="row.attachment_path" variant="ghost" size="icon" class="size-8" as-child title="Télécharger la pièce jointe">
+                        <Button v-if="row.has_attachment" variant="ghost" size="icon" class="size-8" as-child title="Télécharger la pièce jointe">
                             <a :href="`/grades/${row.id}/attachment`">
-                                <Download class="size-4" />
+                                <Paperclip class="size-4" />
                             </a>
                         </Button>
                         <Button variant="ghost" size="icon" class="size-8" as-child title="Télécharger le bulletin">

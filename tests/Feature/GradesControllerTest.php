@@ -193,6 +193,23 @@ test('downloadAttachment returns 404 when the grade has no attachment', function
         ->assertNotFound();
 });
 
+test('downloadAttachment returns 404 (not 500) when attachment_path is set but the file is missing from disk', function () {
+    $school = makeGradesScaleSchool();
+    $power = makeGradesScaleUsr($school, makeGradesScaleRole('POWER', 'Power User'))->user;
+    $subject = makeGradesSubject($school);
+    $student = makeGradesStudent($school);
+    $grade = Grade::create([
+        'section_user_id' => $student->id, 'subject_id' => $subject->id, 'period' => 'T1',
+        'grade' => 12, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+        'attachment_path' => 'grades/ghost.pdf', 'attachment_original_name' => 'ghost.pdf',
+    ]);
+
+    $this->actingAs($power)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/{$grade->id}/attachment")
+        ->assertNotFound();
+});
+
 test('downloadAttachment: staff can download any grade attachment in the school', function () {
     $school = makeGradesScaleSchool();
     $power = makeGradesScaleUsr($school, makeGradesScaleRole('POWER', 'Power User'))->user;

@@ -9,6 +9,7 @@ use App\Models\UserSchoolRole;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,7 +32,7 @@ class GradesController extends Controller
             ->orderByDesc('created_at');
 
         if (! $this->canManage($request, $schoolId)) {
-            // Rôle sans portée de gestion (Élève, Professeur…) : uniquement ses
+            // Rôle sans portée de gestion (Élève, Directeur…) : uniquement ses
             // propres notes, jamais celles de toute l'école.
             $query->whereHas('sectionUser.userschoolrole', fn ($q) => $q->where('user_id', $request->user()->id));
         }
@@ -76,11 +77,6 @@ class GradesController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
-        $existing = Grade::where('section_user_id', $data['section_user_id'])
-            ->where('subject_id', $data['subject_id'])
-            ->where('period', $data['period'])
-            ->first();
-
         $payload = [
             'grade' => $data['grade'],
             'max_grade' => $data['max_grade'],
@@ -90,18 +86,28 @@ class GradesController extends Controller
             'created_by' => $request->user()->id,
         ];
 
-        if ($request->hasFile('attachment')) {
-            if ($existing?->attachment_path) {
-                Storage::disk('local')->delete($existing->attachment_path);
-            }
-            $payload['attachment_path'] = $request->file('attachment')->store('grades', 'local');
-            $payload['attachment_original_name'] = $request->file('attachment')->getClientOriginalName();
-        }
+        // Best-effort atomicity: la suppression/écriture sur disque n'est jamais
+        // transactionnelle, mais englober la séquence garantit au moins que
+        // l'écriture en base est atomique vis-à-vis des requêtes concurrentes.
+        DB::transaction(function () use ($request, $data, $payload) {
+            if ($request->hasFile('attachment')) {
+                $existing = Grade::where('section_user_id', $data['section_user_id'])
+                    ->where('subject_id', $data['subject_id'])
+                    ->where('period', $data['period'])
+                    ->first();
 
-        Grade::updateOrCreate(
-            ['section_user_id' => $data['section_user_id'], 'subject_id' => $data['subject_id'], 'period' => $data['period']],
-            $payload
-        );
+                if ($existing?->attachment_path) {
+                    Storage::disk('local')->delete($existing->attachment_path);
+                }
+                $payload['attachment_path'] = $request->file('attachment')->store('grades', 'local');
+                $payload['attachment_original_name'] = $request->file('attachment')->getClientOriginalName();
+            }
+
+            Grade::updateOrCreate(
+                ['section_user_id' => $data['section_user_id'], 'subject_id' => $data['subject_id'], 'period' => $data['period']],
+                $payload
+            );
+        });
 
         return redirect()->route('grades.index')
             ->with('flash', ['type' => 'success', 'message' => 'Note enregistrée.']);
@@ -119,7 +125,7 @@ class GradesController extends Controller
     public function downloadAttachment(Request $request, Grade $grade): StreamedResponse
     {
         $schoolId = session('active_school_id');
-        abort_unless($grade->attachment_path, 404);
+        abort_unless($grade->attachment_path && Storage::disk('local')->exists($grade->attachment_path), 404);
 
         if (! $this->canManage($request, $schoolId)) {
             $grade->loadMissing('sectionUser.userschoolrole');

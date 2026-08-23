@@ -28,10 +28,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends libzip-dev libp
     && docker-php-ext-install pdo_mysql zip mbstring \
     && rm -rf /var/lib/apt/lists/*
 
+RUN printf 'upload_max_filesize=12M\npost_max_size=16M\n' > /usr/local/etc/php/conf.d/uploads.ini
+
 WORKDIR /app
 COPY --from=build /app /app
 
 RUN php artisan storage:link || true
+
+VOLUME /app/storage/app/private
 
 EXPOSE 8080
 CMD php artisan migrate --force \
