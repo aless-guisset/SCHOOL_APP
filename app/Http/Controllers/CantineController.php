@@ -11,6 +11,7 @@ use App\Models\UserSchoolRole;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -95,6 +96,60 @@ class CantineController extends Controller
         $cantineMenu->delete();
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Option de menu supprimée.']);
+    }
+
+    public function storeOrder(Request $request): RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+        $this->abortUnlessCantineEnabled($schoolId);
+
+        $sectionUser = $this->currentSectionUser($schoolId);
+        abort_unless($sectionUser, 403);
+
+        $data = $request->validate([
+            'cantine_menu_id' => ['required', 'integer', Rule::exists('cantine_menus', 'id')->where('school_id', $schoolId)],
+            'date' => 'required|date|after_or_equal:today',
+        ]);
+
+        $date = Carbon::parse($data['date'])->toDateString();
+        $menu = CantineMenu::findOrFail($data['cantine_menu_id']);
+        abort_unless($menu->date->toDateString() === $date, 422);
+
+        $existingOrder = CantineOrder::where('section_user_id', $sectionUser->id)
+            ->whereDate('date', $date)
+            ->first();
+
+        if ($existingOrder) {
+            $existingOrder->update([
+                'cantine_menu_id' => $menu->id,
+                'is_active' => true,
+                'updated_by' => $request->user()->id,
+            ]);
+        } else {
+            CantineOrder::create([
+                'section_user_id' => $sectionUser->id,
+                'cantine_menu_id' => $menu->id,
+                'date' => $date,
+                'is_active' => true,
+                'created_by' => $request->user()->id,
+                'updated_by' => $request->user()->id,
+            ]);
+        }
+
+        return back()->with('flash', ['type' => 'success', 'message' => 'Commande enregistrée.']);
+    }
+
+    public function destroyOrder(CantineOrder $cantineOrder): RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+        $sectionUser = $this->currentSectionUser($schoolId);
+
+        abort_unless($sectionUser && $cantineOrder->section_user_id === $sectionUser->id, 403);
+        abort_if(Carbon::parse($cantineOrder->date)->lt(Carbon::today()), 422);
+
+        $cantineOrder->delete();
+
+        return back()->with('flash', ['type' => 'success', 'message' => 'Commande annulée.']);
     }
 
     public function create(): Response

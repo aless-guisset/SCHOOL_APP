@@ -210,3 +210,108 @@ test('destroyMenu rejects a menu belonging to another school', function () {
 
     expect(CantineMenu::find($menuB->id))->not->toBeNull();
 });
+
+test('a student can order a menu option for themselves', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertRedirect();
+
+    expect(CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->where('cantine_menu_id', $menu->id)->exists())->toBeTrue();
+});
+
+test('ordering again the same day replaces the previous choice instead of failing', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::today()->toDateString();
+    $menuA = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $menuB = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat B', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menuA->id, 'date' => $date]);
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menuB->id, 'date' => $date])
+        ->assertRedirect();
+
+    expect(CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->count())->toBe(1);
+    expect(CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->first()->cantine_menu_id)->toBe($menuB->id);
+});
+
+test('a student cannot order for a past date', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $pastDate = Carbon::yesterday()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $pastDate, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $pastDate])
+        ->assertSessionHasErrors('date');
+});
+
+test('a student cannot order a menu option that belongs to a different date', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $today = Carbon::today()->toDateString();
+    $tomorrow = Carbon::tomorrow()->toDateString();
+    $menuTomorrow = CantineMenu::create(['school_id' => $school->id, 'date' => $tomorrow, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menuTomorrow->id, 'date' => $today])
+        ->assertStatus(422);
+});
+
+test('a power user cannot place an order for themselves (not a student)', function () {
+    $school = makeCantineSchool();
+    $powerUser = makeCantineUsr($school, makeCantineRole('POWER', 'Power User'))->user;
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertForbidden();
+});
+
+test('a student can cancel their own future order', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::tomorrow()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $order = CantineOrder::create(['section_user_id' => $student->id, 'cantine_menu_id' => $menu->id, 'date' => $date, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/cantine/orders/{$order->id}")
+        ->assertRedirect();
+
+    expect(CantineOrder::find($order->id))->toBeNull();
+});
+
+test('a student cannot cancel another students order', function () {
+    $school = makeCantineSchool();
+    $studentA = makeCantineStudent($school);
+    $studentB = makeCantineStudent($school);
+    $studentBUser = User::find($studentB->userschoolrole->user_id);
+    $date = Carbon::tomorrow()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $orderA = CantineOrder::create(['section_user_id' => $studentA->id, 'cantine_menu_id' => $menu->id, 'date' => $date, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentBUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/cantine/orders/{$orderA->id}")
+        ->assertForbidden();
+
+    expect(CantineOrder::find($orderA->id))->not->toBeNull();
+});
