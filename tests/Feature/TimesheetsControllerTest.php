@@ -9,6 +9,7 @@ use App\Models\Section;
 use App\Models\SectionCourse;
 use App\Models\SectionUserSchoolRole;
 use App\Models\Subject;
+use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -213,4 +214,90 @@ test('store rejects a schedule, user_school_role, or classroom belonging to anot
         ->postJson('/timesheets', [...$basePayload, 'classroom_id' => $classroomB->id]) // école B
         ->assertStatus(422)
         ->assertJsonValidationErrors(['classroom_id']);
+});
+
+test('index defaults to the current week when no period/date is given', function () {
+    $school = makeTimesheetSchool();
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $response = $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets');
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('power-user/web/Timesheets/Index')
+        ->where('period', 'week')
+        ->where('range_start', now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString())
+        ->where('range_end', now()->startOfWeek(\Carbon\Carbon::MONDAY)->endOfWeek(\Carbon\Carbon::SUNDAY)->toDateString())
+    );
+});
+
+test('index with period=month returns the full calendar month and only its timesheets', function () {
+    $school = makeTimesheetSchool();
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    $makeTs = fn (string $date) => Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $inAugust = $makeTs('2026-08-17');
+    $alsoInAugust = $makeTs('2026-08-31');
+    $inSeptember = $makeTs('2026-09-07');
+
+    $response = $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets?period=month&date=2026-08-15');
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('period', 'month')
+        ->where('range_start', '2026-08-01')
+        ->where('range_end', '2026-08-31')
+        ->has('timesheets', 2)
+    );
+});
+
+test('index with period=trimester spans a 3-month rolling window from the anchor month', function () {
+    $school = makeTimesheetSchool();
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    $makeTs = fn (string $date) => Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $makeTs('2026-08-17'); // dans le trimestre (mois de l'ancre)
+    $makeTs('2026-10-15'); // dans le trimestre (3e mois : août+2)
+    $makeTs('2026-11-01'); // hors trimestre (4e mois)
+
+    $response = $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets?period=trimester&date=2026-08-15');
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('period', 'trimester')
+        ->where('range_start', '2026-08-01')
+        ->where('range_end', '2026-10-31')
+        ->has('timesheets', 2)
+    );
+});
+
+test('index falls back to week for an invalid period value', function () {
+    $school = makeTimesheetSchool();
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets?period=decade')
+        ->assertInertia(fn (Assert $page) => $page->where('period', 'week'));
 });

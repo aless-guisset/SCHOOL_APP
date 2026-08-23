@@ -24,24 +24,41 @@ class TimesheetsController extends Controller
 {
     use ResolvesAttendanceRoster;
 
+    private const PERIODS = ['week', 'month', 'trimester'];
+
     public function index(Request $request): Response
     {
-        $schoolId  = session('active_school_id');
-        $weekStart = $request->input('week')
-            ? Carbon::parse($request->input('week'))->startOfWeek(Carbon::MONDAY)->toDateString()
-            : now()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $weekEnd = Carbon::parse($weekStart)->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $schoolId = session('active_school_id');
+        $period = in_array($request->input('period'), self::PERIODS, true) ? $request->input('period') : 'week';
+        $anchor = $request->input('date')
+            ? Carbon::parse($request->input('date'))
+            : now();
+
+        [$rangeStart, $rangeEnd] = match ($period) {
+            'week' => [$anchor->copy()->startOfWeek(Carbon::MONDAY), $anchor->copy()->endOfWeek(Carbon::SUNDAY)],
+            'month' => [$anchor->copy()->startOfMonth(), $anchor->copy()->endOfMonth()],
+            // Trimestre = fenêtre glissante de 3 mois calendaires à partir du
+            // mois de l'ancre (pas encore aligné sur un calendrier scolaire
+            // précis — dépendra de la localité de l'école, à venir).
+            'trimester' => [$anchor->copy()->startOfMonth(), $anchor->copy()->startOfMonth()->addMonths(2)->endOfMonth()],
+        };
 
         $timesheets = Timesheet::whereHas(
             'userSchoolRole', fn ($q) => $q->where('school_id', $schoolId)
         )
             ->with(['userSchoolRole.user', 'schedule', 'subject', 'classroom'])
-            ->whereBetween('date', [$weekStart, $weekEnd])
+            ->whereBetween('date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->orderBy('date')
             ->get();
 
         return Inertia::render('power-user/web/Timesheets/Index', [
             'timesheets' => $timesheets,
-            'week_start' => $weekStart,
+            'period' => $period,
+            'anchor_date' => $anchor->toDateString(),
+            'range_start' => $rangeStart->toDateString(),
+            'range_end' => $rangeEnd->toDateString(),
+            // Gardé pour WeeklyCalendar (grille visuelle, valable seulement en vue semaine).
+            'week_start' => $anchor->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
         ]);
     }
 

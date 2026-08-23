@@ -25,39 +25,72 @@ type Timesheet = {
     classroom: { name: string } | null;
 };
 
+type Period = 'week' | 'month' | 'trimester';
+
 const props = defineProps<{
     timesheets: Timesheet[];
-    week_start: string; // YYYY-MM-DD (lundi)
+    period: Period;
+    anchor_date: string; // YYYY-MM-DD
+    range_start: string; // YYYY-MM-DD
+    range_end: string;   // YYYY-MM-DD
+    week_start: string;  // YYYY-MM-DD (lundi) — pour WeeklyCalendar, vue semaine uniquement
 }>();
 
-const viewMode = ref<'calendar' | 'list'>('calendar');
+const viewMode = ref<'calendar' | 'list'>(props.period === 'week' ? 'calendar' : 'list');
 
-// ── Navigation semaine ────────────────────────────────────────────────────────
+// ── Navigation (semaine / mois / trimestre) ──────────────────────────────────
 function addDays(dateStr: string, days: number): string {
     // dateStr is a date-only 'YYYY-MM-DD' string — parse and mutate entirely in UTC
     // so the result doesn't shift across DST boundaries depending on the browser's
-    // local timezone (see displayWeek()/dayOfWeekISO() for the same pattern).
+    // local timezone (see displayRange()/dayOfWeekISO() for the same pattern).
     const d = new Date(`${dateStr}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() + days);
     return d.toISOString().slice(0, 10);
 }
 
-const prevWeek = computed(() => addDays(props.week_start, -7));
-const nextWeek = computed(() => addDays(props.week_start, 7));
+function addMonths(dateStr: string, months: number): string {
+    const d = new Date(`${dateStr}T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() + months);
+    return d.toISOString().slice(0, 10);
+}
 
-function displayWeek(weekStart: string): string {
-    // weekStart is a date-only 'YYYY-MM-DD' string with no timezone meaning.
-    // Parse and format entirely in UTC so the displayed range matches the
-    // actual week_start/week_end regardless of the browser's local timezone.
-    const start = new Date(`${weekStart}T00:00:00Z`);
-    const end   = new Date(`${weekStart}T00:00:00Z`);
-    end.setUTCDate(end.getUTCDate() + 6);
-    const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', timeZone: 'UTC' };
+const STEP: Record<Period, number> = { week: 7, month: 1, trimester: 3 };
+
+function shift(direction: 1 | -1): string {
+    return props.period === 'week'
+        ? addDays(props.anchor_date, direction * STEP.week)
+        : addMonths(props.anchor_date, direction * STEP[props.period]);
+}
+
+const prevAnchor = computed(() => shift(-1));
+const nextAnchor = computed(() => shift(1));
+
+function displayRange(): string {
+    // range_start/range_end sont des chaînes 'YYYY-MM-DD' sans fuseau horaire —
+    // parsées et formatées entièrement en UTC pour rester cohérentes quel que
+    // soit le fuseau du navigateur.
+    const start = new Date(`${props.range_start}T00:00:00Z`);
+    const end = new Date(`${props.range_end}T00:00:00Z`);
+
+    if (props.period === 'month') {
+        return start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    const opts: Intl.DateTimeFormatOptions = props.period === 'trimester'
+        ? { month: 'short', year: 'numeric', timeZone: 'UTC' }
+        : { day: 'numeric', month: 'short', timeZone: 'UTC' };
+
     return `${start.toLocaleDateString('fr-FR', opts)} – ${end.toLocaleDateString('fr-FR', opts)}`;
 }
 
-function navigate(week: string) {
-    router.get('/timesheets', { week }, { preserveScroll: true, preserveState: true });
+function navigate(date: string, period: Period = props.period) {
+    router.get('/timesheets', { date, period }, { preserveScroll: true, preserveState: true });
+}
+
+function setPeriod(period: Period) {
+    if (period === props.period) return;
+    if (period !== 'week') viewMode.value = 'list';
+    navigate(props.anchor_date, period);
 }
 
 // Browser's local calendar day as 'YYYY-MM-DD' (NOT toISOString(), which is UTC-based).
@@ -119,26 +152,37 @@ const columns = [
 
             <PageHeader
                 title="Feuilles de temps"
-                :description="`${timesheets.length} entrée(s) · ${displayWeek(week_start)}`"
+                :description="`${timesheets.length} entrée(s) · ${displayRange()}`"
             >
                 <template #actions>
-                    <!-- Navigation semaine -->
+                    <!-- Toggle période -->
+                    <div class="flex items-center overflow-hidden rounded-md border border-border">
+                        <button
+                            v-for="p in (['week', 'month', 'trimester'] as const)" :key="p"
+                            class="px-2.5 py-1.5 text-xs font-medium transition-colors"
+                            :class="period === p ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+                            @click="setPeriod(p)"
+                        >{{ p === 'week' ? 'Semaine' : p === 'month' ? 'Mois' : 'Trimestre' }}</button>
+                    </div>
+
+                    <!-- Navigation -->
                     <div class="flex items-center gap-1">
-                        <Button variant="outline" size="icon" @click="navigate(prevWeek)">
+                        <Button variant="outline" size="icon" @click="navigate(prevAnchor)">
                             <ChevronLeft class="size-4" />
                         </Button>
                         <Button variant="outline" size="sm" @click="navigate(todayLocal())">
                             <span class="sr-only sm:not-sr-only">Aujourd'hui</span>
                             <CalendarCheck class="size-4 sm:hidden" />
                         </Button>
-                        <Button variant="outline" size="icon" @click="navigate(nextWeek)">
+                        <Button variant="outline" size="icon" @click="navigate(nextAnchor)">
                             <ChevronRight class="size-4" />
                         </Button>
                     </div>
 
-                    <!-- Toggle vue -->
+                    <!-- Toggle vue (calendrier disponible seulement en vue semaine) -->
                     <div class="flex items-center overflow-hidden rounded-md border border-border">
                         <button
+                            v-if="period === 'week'"
                             class="px-2.5 py-1.5 transition-colors"
                             :class="viewMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
                             title="Vue calendrier"
@@ -158,8 +202,8 @@ const columns = [
                 </template>
             </PageHeader>
 
-            <!-- Calendrier -->
-            <div v-if="viewMode === 'calendar'" class="mt-4">
+            <!-- Calendrier (vue semaine uniquement) -->
+            <div v-if="period === 'week' && viewMode === 'calendar'" class="mt-4">
                 <div v-if="calendarSlots.length === 0" class="rounded-md border border-border py-12 text-center text-sm text-muted-foreground">
                     Aucune feuille de temps cette semaine.
                 </div>

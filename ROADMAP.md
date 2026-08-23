@@ -106,7 +106,34 @@
   Administrateur) était présent dans le menu de Power User/Directeur/Secrétariat — 403 garanti
   au clic. Retiré des 3 menus.
 
+## ✅ Corrections découvertes en testant la démo
+- Présences impossibles à prendre à l'avance : `AttendancesController::store()` rejette
+  désormais un timesheet dont la date est dans le futur (backend + UI cachée côté
+  `Timesheets/Show.vue`)
+- Chevauchement de créneaux dans `DemoSchoolSeeder` : anciens créneaux de versions précédentes
+  jamais nettoyés (clé d'identité basée sur `name`, qui a changé de format) — identité stable
+  (section_course_id + day_of_week + start_time) + nettoyage automatique des créneaux obsolètes
+- Perf `DemoSchoolSeeder` : 12.6s → 4.9s (bcrypt recalculé inutilement 20 fois pour le même mot
+  de passe partagé) — nécessaire car l'exécution via `railway ssh` semble avoir une limite de
+  temps qui coupe la connexion sur les commandes trop longues
+- "Dupliquer pour l'année" (`DuplicatePlanningController`) renvoyait du JSON brut à un appel
+  `router.post()` d'Inertia côté frontend → navigation plein écran vers le JSON au lieu du
+  message inline. Corrigé en redirect + flash (comme partout ailleurs). Ne passait pas non plus
+  par `NoTimesheetConflict` : un an de planning dupliqué pouvait double-booker silencieusement
+  un prof/salle/section déjà engagés ailleurs à cette date — chaque date cible est maintenant
+  validée avant création, les conflits sont ignorés (comptés dans le message) plutôt que de
+  bloquer toute la génération
+- `Timesheets/Index.vue` : vue par période (Semaine / Mois / Trimestre) en plus de la semaine
+  seule — `TimesheetsController::index()` accepte `period` + `date` (ancre), calcule la plage
+  correspondante ; le calendrier grille (`WeeklyCalendar`) reste réservé à la vue semaine, mois/
+  trimestre utilisent la vue liste
+
+## 🟡 Note pour plus tard (pas encore de plan)
+- [ ] Jours fériés/congés automatiques : quand la localité de l'école sera ajoutée (fonctionnalité
+  pas encore construite), en déduire les jours fériés du pays (fête nationale, Noël, etc.) pour
+  les exclure automatiquement de la planification (génération de feuilles de temps, duplication
+  de planning sur l'année). Nécessite d'abord le champ localité/pays sur `School`.
+
 ---
-*Dernière mise à jour : modèle de permissions corrigé (Power User/Secrétariat/Professeur
-gèrent le contenu académique, pas Administrateur/Directeur), boutons masqués côté frontend
-selon le droit réel, bug de nav "Utilisateurs" 403 corrigé*
+*Dernière mise à jour : vue Semaine/Mois/Trimestre sur les feuilles de temps, fix duplication
+planning (réponse Inertia + respect des conflits), note ajoutée pour les jours fériés futurs*
