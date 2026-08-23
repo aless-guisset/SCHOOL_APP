@@ -107,6 +107,13 @@
   au clic. Retiré des 3 menus.
 
 ## ✅ Corrections découvertes en testant la démo
+- Module cantine v2 (remplacement du modèle d'inscription) : l'ancien système d'inscription
+  récurrente (`CantineRegistration` + `CantinePresence`) remplacé par un modèle de menu +
+  commande (`CantineMenu` : options multiples par date, gérées par Power User/Secrétariat/
+  Professeur ; `CantineOrder` : commande élève self-service, vaut inscription, jamais pour le
+  compte d'un autre élève, impossible pour une date passée). La prise de présence conserve son
+  principe général, adaptée aux commandes (`cantine_order_id` au lieu de `cantine_presence_id`)
+  (`2026-08-23-cantine-menu-orders.md`)
 - Présences impossibles à prendre à l'avance : `AttendancesController::store()` rejette
   désormais un timesheet dont la date est dans le futur (backend + UI cachée côté
   `Timesheets/Show.vue`)
@@ -146,6 +153,5 @@
   Nécessite d'abord le champ localité/pays sur `School`.
 
 ---
-*Dernière mise à jour : génération automatique du planning annuel (Schedule → Timesheet via
-ScheduleObserver + ScheduleTimesheetSync), année scolaire configurable par école, retrait de
-DuplicatePlanningController redondant*
+*Dernière mise à jour : module cantine v2 (remplacement du modèle d'inscription par menu + commande
+élève self-service, basé sur CantineMenu/CantineOrder avec présence adaptée aux commandes)*
