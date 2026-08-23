@@ -18,16 +18,21 @@ use App\Models\Subject;
 use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use App\Notifications\TimesheetAssignedNotification;
+use App\Notifications\TimesheetCancelledNotification;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Construit UNE école de démo complète et cohérente (pas les données
  * éparpillées/aléatoires du DatabaseSeeder de base) : une classe de 20
- * élèves, plusieurs matières avec horaires réels, plusieurs semaines
- * d'historique (feuilles de temps + présences), cantine, notes sur 2
- * périodes. Un élève nommé et connu sert de compte de démo.
+ * élèves, une semaine type entièrement remplie de 8h à 16h (pause déjeuner
+ * 12h-13h), 3 professeurs sur 6 matières, plusieurs semaines d'historique
+ * (feuilles de temps + présences), cantine, notes sur 2 périodes, et des
+ * notifications réelles pour l'élève de démo. Un élève nommé et connu sert
+ * de compte de démo.
  *
  * Idempotent : School/Course/Section/Subject/Classroom/Schedule via
  * firstOrCreate sur (school_id, name) ou équivalent, Users via email
@@ -43,34 +48,48 @@ class DemoSchoolSeeder extends Seeder
     private const DEMO_STUDENT_PASSWORD = 'EleveDemo2026!';
     private const WEEKS_OF_HISTORY = 3;
 
+    /** Journée type 8h-16h, pause déjeuner 12h-13h. */
+    private const TIMETABLE = [
+        // day => [[start, end, course], ...]
+        1 => [['08:00:00', '10:00:00', 'Mathématiques'], ['10:00:00', '12:00:00', 'Français'], ['13:00:00', '15:00:00', 'Histoire-Géographie'], ['15:00:00', '16:00:00', 'Anglais']],
+        2 => [['08:00:00', '10:00:00', 'Sciences'], ['10:00:00', '12:00:00', 'Mathématiques'], ['13:00:00', '15:00:00', 'EPS'], ['15:00:00', '16:00:00', 'Français']],
+        3 => [['08:00:00', '10:00:00', 'Français'], ['10:00:00', '12:00:00', 'Histoire-Géographie'], ['13:00:00', '15:00:00', 'Anglais'], ['15:00:00', '16:00:00', 'Sciences']],
+        4 => [['08:00:00', '10:00:00', 'Mathématiques'], ['10:00:00', '12:00:00', 'Sciences'], ['13:00:00', '15:00:00', 'Français'], ['15:00:00', '16:00:00', 'EPS']],
+        5 => [['08:00:00', '10:00:00', 'Histoire-Géographie'], ['10:00:00', '12:00:00', 'Anglais'], ['13:00:00', '15:00:00', 'Mathématiques'], ['15:00:00', '16:00:00', 'Sciences']],
+    ];
+
+    private const DAY_NAMES = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Vendredi'];
+
     public function run(): void
     {
         $school = $this->makeSchool();
-        [$profMaths, $profFrancais] = $this->makeTeachers($school);
+        $teachers = $this->makeTeachers($school);
         $section = $this->makeSection($school);
-        $classroom = $this->makeClassroom($school);
+        $classrooms = $this->makeClassrooms($school);
 
         $courses = $this->makeCoursesAndSubjects($school);
         $students = $this->makeStudents($school, $section);
-        $demoStudent = $students->firstWhere('email', self::DEMO_STUDENT_EMAIL);
+        $demoUser = $students->firstWhere('email', self::DEMO_STUDENT_EMAIL);
 
         $sectionCourses = $this->makeSectionCourses($section, $courses);
-        $schedules = $this->makeSchedules($sectionCourses, $profMaths, $profFrancais);
-        $timesheets = $this->makeTimesheets($schedules, $classroom);
+        $schedules = $this->makeSchedules($sectionCourses);
+        $timesheets = $this->makeTimesheets($schedules, $classrooms, $teachers);
 
         $this->makeAttendances($timesheets, $section);
         $this->makeCantine($school, $students);
         $this->makeGrades($students, $courses);
+        $this->makeNotifications($demoUser, $timesheets, $teachers);
 
         $this->command?->info('');
         $this->command?->info('=== École de démo prête ===');
         $this->command?->info('École        : '.self::SCHOOL_NAME);
         $this->command?->info('Classe       : '.self::SECTION_NAME.' ('.self::STUDENT_COUNT.' élèves)');
+        $this->command?->info('Semaine type : 8h-16h, pause 12h-13h, 6 matières, 3 profs');
         $this->command?->info('Connexion élève démo :');
         $this->command?->info('  email    : '.self::DEMO_STUDENT_EMAIL);
         $this->command?->info('  password : '.self::DEMO_STUDENT_PASSWORD);
-        if ($demoStudent) {
-            $this->command?->info('  user_id  : '.$demoStudent->id);
+        if ($demoUser) {
+            $this->command?->info('  user_id  : '.$demoUser->id);
         }
     }
 
@@ -90,7 +109,7 @@ class DemoSchoolSeeder extends Seeder
         );
     }
 
-    /** @return array{0: UserSchoolRole, 1: UserSchoolRole} */
+    /** @return array<string, UserSchoolRole> matière => enseignant */
     private function makeTeachers(School $school): array
     {
         $profRole = Role::where('reference', 'PROF')->firstOrFail();
@@ -111,9 +130,17 @@ class DemoSchoolSeeder extends Seeder
             );
         };
 
+        $sophie = $makeTeacher('prof.maths.demo@school.com', 'Sophie', 'Mathis');
+        $marc = $makeTeacher('prof.francais.demo@school.com', 'Marc', 'Lefèvre');
+        $julie = $makeTeacher('prof.histoire.demo@school.com', 'Julie', 'Bernard');
+
         return [
-            $makeTeacher('prof.maths.demo@school.com', 'Sophie', 'Mathis'),
-            $makeTeacher('prof.francais.demo@school.com', 'Marc', 'Lefèvre'),
+            'Mathématiques' => $sophie,
+            'Sciences' => $sophie,
+            'Français' => $marc,
+            'Anglais' => $marc,
+            'Histoire-Géographie' => $julie,
+            'EPS' => $julie,
         ];
     }
 
@@ -125,12 +152,19 @@ class DemoSchoolSeeder extends Seeder
         );
     }
 
-    private function makeClassroom(School $school): Classroom
+    /** @return array<string, Classroom> */
+    private function makeClassrooms(School $school): array
     {
-        return Classroom::firstOrCreate(
+        $default = Classroom::firstOrCreate(
             ['school_id' => $school->id, 'name' => 'Salle 101 — Démo'],
             ['location' => 'Bâtiment A, 1er étage', 'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1]
         );
+        $gym = Classroom::firstOrCreate(
+            ['school_id' => $school->id, 'name' => 'Gymnase — Démo'],
+            ['location' => 'Bâtiment B', 'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1]
+        );
+
+        return ['default' => $default, 'EPS' => $gym];
     }
 
     /** @return array<string, array{course: Course, subjects: \Illuminate\Support\Collection<int, Subject>}> */
@@ -140,6 +174,9 @@ class DemoSchoolSeeder extends Seeder
             'Mathématiques' => ['Algèbre', 'Géométrie'],
             'Français' => ['Grammaire', 'Littérature'],
             'Histoire-Géographie' => ['Histoire', 'Géographie'],
+            'Sciences' => ['Physique', 'Chimie'],
+            'Anglais' => ['Anglais'],
+            'EPS' => ['Éducation physique'],
         ];
 
         $result = [];
@@ -166,7 +203,6 @@ class DemoSchoolSeeder extends Seeder
         $eleveRole = Role::where('reference', 'ELEVE')->firstOrFail();
         $students = collect();
 
-        // L'élève démo nommé, en premier, avec un mot de passe connu.
         $demoUser = User::updateOrCreate(
             ['email' => self::DEMO_STUDENT_EMAIL],
             [
@@ -177,8 +213,18 @@ class DemoSchoolSeeder extends Seeder
         );
         $students->push($demoUser);
 
-        for ($i = 1; $i < self::STUDENT_COUNT; $i++) {
-            $students->push(User::factory()->create());
+        // Emails déterministes : firstOrCreate empêche toute création en
+        // double si le seeder est relancé (contrairement à un email aléatoire
+        // via factory(), qui créerait 19 nouveaux élèves à chaque exécution).
+        for ($i = 2; $i <= self::STUDENT_COUNT; $i++) {
+            $students->push(User::firstOrCreate(
+                ['email' => sprintf('eleve.demo.%02d@school.com', $i)],
+                [
+                    'firstname' => fake()->firstName(), 'lastname' => fake()->lastName(),
+                    'password' => Hash::make('password'), 'email_verified_at' => now(),
+                    'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
+                ]
+            ));
         }
 
         foreach ($students as $user) {
@@ -193,8 +239,6 @@ class DemoSchoolSeeder extends Seeder
             );
         }
 
-        // Le compte élève démo a aussi default_school_id fixé pour arriver
-        // directement sur la bonne école après connexion (pas de multi-école).
         $demoUser->update(['default_school_id' => $school->id]);
 
         return $students;
@@ -206,9 +250,6 @@ class DemoSchoolSeeder extends Seeder
         $sectionUser = SectionUserSchoolRole::whereHas(
             'userschoolrole', fn ($q) => $q->whereHas('role', fn ($q2) => $q2->where('reference', 'ELEVE'))
         )->where('section_id', $section->id)->first();
-        // section_user_id sur SectionCourse pointe vers l'inscription qui "porte"
-        // le cours dans cette section — n'importe quel élève de la section convient
-        // (cf. pattern déjà utilisé par les autres seeders/tests de cette session).
 
         $result = collect();
         foreach ($courses as $courseName => ['course' => $course]) {
@@ -225,35 +266,44 @@ class DemoSchoolSeeder extends Seeder
     }
 
     /** @return \Illuminate\Support\Collection<int, Schedule> */
-    private function makeSchedules(\Illuminate\Support\Collection $sectionCourses, UserSchoolRole $profMaths, UserSchoolRole $profFrancais): \Illuminate\Support\Collection
+    private function makeSchedules(\Illuminate\Support\Collection $sectionCourses): \Illuminate\Support\Collection
     {
-        $spec = [
-            ['course' => 'Mathématiques', 'day' => 1, 'start' => '08:00:00', 'end' => '10:00:00', 'name' => 'Maths — Lundi matin'],
-            ['course' => 'Français', 'day' => 2, 'start' => '10:00:00', 'end' => '12:00:00', 'name' => 'Français — Mardi matin'],
-            ['course' => 'Histoire-Géographie', 'day' => 3, 'start' => '14:00:00', 'end' => '16:00:00', 'name' => 'Histoire-Géo — Mercredi après-midi'],
-            ['course' => 'Mathématiques', 'day' => 4, 'start' => '09:00:00', 'end' => '11:00:00', 'name' => 'Maths — Jeudi matin'],
-            ['course' => 'Français', 'day' => 5, 'start' => '13:00:00', 'end' => '15:00:00', 'name' => 'Français — Vendredi après-midi'],
-        ];
+        $schedules = collect();
 
-        return collect($spec)->map(fn ($s) => Schedule::firstOrCreate(
-            ['section_course_id' => $sectionCourses[$s['course']]->id, 'name' => $s['name']],
-            [
-                'day_of_week' => $s['day'], 'start_time' => $s['start'], 'end_time' => $s['end'],
-                'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
-            ]
-        ));
+        foreach (self::TIMETABLE as $day => $slots) {
+            foreach ($slots as [$start, $end, $courseName]) {
+                $schedules->push(Schedule::firstOrCreate(
+                    [
+                        'section_course_id' => $sectionCourses[$courseName]->id,
+                        'name' => self::DAY_NAMES[$day].' '.substr($start, 0, 5).'-'.substr($end, 0, 5),
+                    ],
+                    [
+                        'day_of_week' => $day, 'start_time' => $start, 'end_time' => $end,
+                        'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
+                    ]
+                ));
+            }
+        }
+
+        return $schedules;
     }
 
-    /** @return \Illuminate\Support\Collection<int, Timesheet> */
-    private function makeTimesheets(\Illuminate\Support\Collection $schedules, Classroom $classroom): \Illuminate\Support\Collection
+    /**
+     * @param  array<string, Classroom>  $classrooms
+     * @param  array<string, UserSchoolRole>  $teachers
+     * @return \Illuminate\Support\Collection<int, Timesheet>
+     */
+    private function makeTimesheets(\Illuminate\Support\Collection $schedules, array $classrooms, array $teachers): \Illuminate\Support\Collection
     {
         $timesheets = collect();
         $today = Carbon::now();
 
         foreach ($schedules as $schedule) {
             $sectionCourse = $schedule->sectionCourse;
-            $subject = $sectionCourse->course->subjects->first() ?? Subject::where('course_id', $sectionCourse->course_id)->first();
-            $teacher = $this->teacherForCourse($sectionCourse->course->name);
+            $courseName = $sectionCourse->course->name;
+            $subject = $sectionCourse->course->subjects->random();
+            $teacher = $teachers[$courseName] ?? null;
+            $classroom = $classrooms[$courseName] ?? $classrooms['default'];
 
             if (! $subject || ! $teacher) {
                 continue;
@@ -280,19 +330,6 @@ class DemoSchoolSeeder extends Seeder
         }
 
         return $timesheets;
-    }
-
-    private function teacherForCourse(string $courseName): ?UserSchoolRole
-    {
-        static $cache = [];
-        if (isset($cache[$courseName])) {
-            return $cache[$courseName];
-        }
-
-        $email = $courseName === 'Français' ? 'prof.francais.demo@school.com' : 'prof.maths.demo@school.com';
-        $user = User::where('email', $email)->first();
-
-        return $cache[$courseName] = $user ? UserSchoolRole::where('user_id', $user->id)->first() : null;
     }
 
     private function makeAttendances(\Illuminate\Support\Collection $timesheets, Section $section): void
@@ -322,9 +359,9 @@ class DemoSchoolSeeder extends Seeder
     {
         $days = [1, 3, 5];
 
-        foreach ($students as $index => $user) {
+        foreach ($students as $user) {
             if ($user->email !== self::DEMO_STUDENT_EMAIL && ! fake()->boolean(65)) {
-                continue; // l'élève démo est toujours inscrit, les autres partiellement
+                continue;
             }
 
             $sectionUser = SectionUserSchoolRole::whereHas(
@@ -390,6 +427,56 @@ class DemoSchoolSeeder extends Seeder
                     );
                 }
             }
+        }
+    }
+
+    /**
+     * Crée directement les lignes de la table `notifications` (canal database
+     * de TimesheetAssignedNotification/TimesheetCancelledNotification) sans
+     * passer par ->notify()/Notification::send() — évite toute tentative
+     * d'envoi mail réel pendant un seeding (les deux notifications
+     * implémentent aussi le canal 'mail').
+     *
+     * @param  array<string, UserSchoolRole>  $teachers
+     */
+    private function makeNotifications(?User $demoUser, \Illuminate\Support\Collection $timesheets, array $teachers): void
+    {
+        if (! $demoUser || $timesheets->isEmpty()) {
+            return;
+        }
+
+        $demoUsr = UserSchoolRole::where('user_id', $demoUser->id)->first();
+        $ownTimesheets = $timesheets->filter(fn ($ts) => $ts->user_school_role_id === $demoUsr?->id);
+        // L'élève démo n'est jamais le professeur d'un timesheet (rôle ELEVE) : ces
+        // notifications sont donc générées indépendamment de $ownTimesheets, sur un
+        // échantillon des derniers timesheets de la classe, comme si l'élève démo
+        // suivait l'activité de son emploi du temps.
+        $recent = $timesheets->sortByDesc('date')->take(5)->values();
+        $sender = collect($teachers)->first();
+        $senderUser = $sender ? User::find($sender->user_id) : null;
+
+        if (! $senderUser || $recent->isEmpty()) {
+            return;
+        }
+
+        if ($demoUser->notifications()->count() > 0) {
+            return; // déjà seedé
+        }
+
+        foreach ($recent as $i => $timesheet) {
+            $isCancelled = $i === 0; // la plus récente simule une annulation
+            $notification = $isCancelled
+                ? new TimesheetCancelledNotification($timesheet->date, $senderUser)
+                : new TimesheetAssignedNotification($timesheet, $senderUser);
+
+            $demoUser->notifications()->create([
+                'id' => (string) Str::uuid(),
+                'type' => get_class($notification),
+                'data' => $notification->toArray($demoUser),
+                'read_at' => $i >= 3 ? null : now()->subHours($i + 1), // les 2 plus récentes non lues
+                'created_at' => now()->subHours($i + 1),
+                'updated_at' => now()->subHours($i + 1),
+            ]);
         }
     }
 }
