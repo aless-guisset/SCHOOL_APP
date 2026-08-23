@@ -66,6 +66,37 @@ class CantineController extends Controller
         return Inertia::render('power-user/web/Cantine/Index', $props);
     }
 
+    public function storeMenu(Request $request): RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+        $this->abortUnlessCantineEnabled($schoolId);
+
+        $data = $request->validate([
+            'date' => 'required|date',
+            'label' => 'required|max:100',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        $data['date'] = Carbon::parse($data['date'])->toDateString();
+        $data['school_id'] = $schoolId;
+        $data['is_active'] = true;
+        $data['created_by'] = $request->user()->id;
+
+        CantineMenu::create($data);
+
+        return back()->with('flash', ['type' => 'success', 'message' => 'Option de menu ajoutée.']);
+    }
+
+    public function destroyMenu(CantineMenu $cantineMenu): RedirectResponse
+    {
+        abort_unless($cantineMenu->school_id === session('active_school_id'), 404);
+
+        $cantineMenu->update(['is_active' => false, 'updated_by' => request()->user()->id]);
+        $cantineMenu->delete();
+
+        return back()->with('flash', ['type' => 'success', 'message' => 'Option de menu supprimée.']);
+    }
+
     public function create(): Response
     {
         $schoolId = session('active_school_id');

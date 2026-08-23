@@ -137,3 +137,76 @@ test('index scopes menus and roster to the active school', function () {
             ->where('menus.0.label', 'Plat A')
         );
 });
+
+test('a power user can add a menu option for a date', function () {
+    $school = makeCantineSchool();
+    $powerUser = makeCantineUsr($school, makeCantineRole('POWER', 'Power User'))->user;
+    $date = Carbon::today()->toDateString();
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat A', 'description' => 'Pâtes bolognaise'])
+        ->assertRedirect();
+
+    expect(CantineMenu::where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat A')->exists())->toBeTrue();
+});
+
+test('a teacher can add a menu option', function () {
+    $school = makeCantineSchool();
+    $teacher = makeCantineUsr($school, makeCantineRole('PROF', 'Professeur'))->user;
+    $date = Carbon::today()->toDateString();
+
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat A'])
+        ->assertRedirect();
+
+    expect(CantineMenu::where('school_id', $school->id)->exists())->toBeTrue();
+});
+
+test('an administrateur cannot add a menu option', function () {
+    $school = makeCantineSchool();
+    $admin = makeCantineUsr($school, makeCantineRole('ADMIN', 'Administrateur'))->user;
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => Carbon::today()->toDateString(), 'label' => 'Plat A'])
+        ->assertForbidden();
+});
+
+test('a directeur cannot add a menu option', function () {
+    $school = makeCantineSchool();
+    $directeur = makeCantineUsr($school, makeCantineRole('DIR', 'Directeur'))->user;
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => Carbon::today()->toDateString(), 'label' => 'Plat A'])
+        ->assertForbidden();
+});
+
+test('a power user can remove a menu option', function () {
+    $school = makeCantineSchool();
+    $powerUser = makeCantineUsr($school, makeCantineRole('POWER', 'Power User'))->user;
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => Carbon::today()->toDateString(), 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/cantine/menus/{$menu->id}")
+        ->assertRedirect();
+
+    expect(CantineMenu::find($menu->id))->toBeNull();
+});
+
+test('destroyMenu rejects a menu belonging to another school', function () {
+    $schoolA = makeCantineSchool();
+    $schoolB = makeCantineSchool();
+    $powerUserA = makeCantineUsr($schoolA, makeCantineRole('POWER', 'Power User'))->user;
+    $menuB = CantineMenu::create(['school_id' => $schoolB->id, 'date' => Carbon::today()->toDateString(), 'label' => 'Plat B', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->delete("/cantine/menus/{$menuB->id}")
+        ->assertNotFound();
+
+    expect(CantineMenu::find($menuB->id))->not->toBeNull();
+});
