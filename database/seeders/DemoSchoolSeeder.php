@@ -60,6 +60,20 @@ class DemoSchoolSeeder extends Seeder
 
     private const DAY_NAMES = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Vendredi'];
 
+    private static ?string $sharedPasswordHash = null;
+
+    /**
+     * bcrypt (~300-500ms/appel) domine largement le temps d'exécution de ce
+     * seeder dès qu'on hashe le même mot de passe pour chaque compte de
+     * remplissage (constaté : 9.4s sur 20 appels lors du profilage) — un
+     * seul hash est calculé et réutilisé pour tous les comptes qui partagent
+     * le mot de passe générique 'password' (élèves de remplissage, profs).
+     */
+    private static function sharedPasswordHash(): string
+    {
+        return self::$sharedPasswordHash ??= Hash::make('password');
+    }
+
     public function run(): void
     {
         // Étapes loguées au fil de l'eau : la commande ssh d'un hébergeur
@@ -142,7 +156,7 @@ class DemoSchoolSeeder extends Seeder
                 ['email' => $email],
                 [
                     'firstname' => $first, 'lastname' => $last,
-                    'password' => Hash::make('password'), 'email_verified_at' => now(),
+                    'password' => self::sharedPasswordHash(), 'email_verified_at' => now(),
                     'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
                 ]
             );
@@ -244,7 +258,7 @@ class DemoSchoolSeeder extends Seeder
                 ['email' => sprintf('eleve.demo.%02d@school.com', $i)],
                 [
                     'firstname' => fake()->firstName(), 'lastname' => fake()->lastName(),
-                    'password' => Hash::make('password'), 'email_verified_at' => now(),
+                    'password' => self::sharedPasswordHash(), 'email_verified_at' => now(),
                     'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
                 ]
             ));
