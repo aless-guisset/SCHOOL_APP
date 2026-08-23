@@ -30,7 +30,7 @@
                 <tr>
                     <th>Période</th>
                     <th>Matière</th>
-                    <th style="text-align: right;">Note / 20</th>
+                    <th style="text-align: right;">Note</th>
                 </tr>
             </thead>
             <tbody>
@@ -38,7 +38,7 @@
                     <tr>
                         <td>{{ $g->period }}</td>
                         <td>{{ $g->subject?->name ?? '—' }}</td>
-                        <td class="grade">{{ number_format($g->grade, 2) }}</td>
+                        <td class="grade">{{ number_format($g->grade, 2) }} / {{ number_format($g->max_grade, 2) }}</td>
                     </tr>
                 @endforeach
             </tbody>

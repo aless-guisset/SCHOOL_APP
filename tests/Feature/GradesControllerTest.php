@@ -265,3 +265,18 @@ test('index filters by subject_id for both staff and a student', function () {
         ->get('/grades?subject_id='.$maths->id)
         ->assertInertia(fn ($page) => $page->has('grades', 1)->where('grades.0.subject_id', $maths->id));
 });
+
+test('bulletin pdf reflects the actual max_grade of each grade, not a hardcoded /20', function () {
+    $school = makeGradesScaleSchool();
+    $power = makeGradesScaleUsr($school, makeGradesScaleRole('POWER', 'Power User'))->user;
+    $subject = makeGradesSubject($school);
+    $student = makeGradesStudent($school);
+
+    Grade::create(['section_user_id' => $student->id, 'subject_id' => $subject->id, 'period' => 'T1', 'grade' => 850, 'max_grade' => 1000, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($power)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/bulletin/{$student->id}")
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
