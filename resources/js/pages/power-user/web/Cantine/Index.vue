@@ -42,6 +42,9 @@ const formattedDate = computed(() => {
     const d = new Date(`${props.date}T00:00:00Z`);
     return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 });
+// Même règle que le backend (storePresences) : les présences ne peuvent être
+// prises que pour aujourd'hui ou une date passée, jamais pour le futur.
+const isFutureDate = computed(() => props.date > new Date().toISOString().slice(0, 10));
 
 // ── Staff : ajout d'une option de menu ──────────────────────────────────────
 const menuForm = useForm({ date: props.date, label: '', description: '' });
@@ -58,12 +61,14 @@ function removeMenu(id: number) {
 
 // ── Staff : présences ────────────────────────────────────────────────────────
 const presenceForm = useForm({
+    date: props.date,
     presences: (props.roster ?? []).map(r => ({ cantine_order_id: r.id, is_present: r.is_present, note: r.note ?? '' })),
 });
 watch(() => props.roster, (newRoster) => {
     presenceForm.presences = (newRoster ?? []).map(r => ({ cantine_order_id: r.id, is_present: r.is_present, note: r.note ?? '' }));
 });
 function savePresences() {
+    presenceForm.date = props.date;
     presenceForm.post('/cantine/presence', { preserveScroll: true });
 }
 
@@ -168,6 +173,9 @@ function cancelOrder() {
                 <CardContent>
                     <div v-if="!roster || roster.length === 0" class="py-6 text-center text-sm text-muted-foreground">
                         Aucune commande pour ce jour.
+                    </div>
+                    <div v-else-if="isFutureDate" class="py-6 text-center text-sm text-muted-foreground">
+                        Les présences ne peuvent être prises qu'après le jour concerné.
                     </div>
                     <div v-else class="space-y-3">
                         <div

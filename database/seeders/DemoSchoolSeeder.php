@@ -36,8 +36,10 @@ use Illuminate\Support\Str;
  *
  * Idempotent : School/Course/Section/Subject/Classroom/Schedule via
  * firstOrCreate sur (school_id, name) ou équivalent, Users via email
- * unique, Timesheet/Attendance/CantineRegistration/CantinePresence/Grade
- * via leurs contraintes uniques respectives. Sûr à relancer.
+ * unique, Timesheet/Attendance/Grade via leurs contraintes uniques
+ * respectives, CantineMenu/CantineOrder via une recherche `whereDate()`
+ * explicite (school_id/date/label pour l'un, section_user_id/date pour
+ * l'autre) avant toute création. Sûr à relancer.
  */
 class DemoSchoolSeeder extends Seeder
 {

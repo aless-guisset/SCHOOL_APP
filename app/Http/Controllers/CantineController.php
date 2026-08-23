@@ -51,7 +51,7 @@ class CantineController extends Controller
                 'menu_label' => $o->menu?->label,
                 'is_present' => $o->is_present,
                 'note' => $o->note,
-            ])->values();
+            ])->sortBy('name')->values();
         } else {
             $sectionUser = $this->currentSectionUser($schoolId);
 
@@ -79,18 +79,37 @@ class CantineController extends Controller
         ]);
 
         $data['date'] = Carbon::parse($data['date'])->toDateString();
-        $data['school_id'] = $schoolId;
-        $data['is_active'] = true;
-        $data['created_by'] = $request->user()->id;
 
-        CantineMenu::create($data);
+        $existing = CantineMenu::withTrashed()
+            ->where('school_id', $schoolId)
+            ->whereDate('date', $data['date'])
+            ->where('label', $data['label'])
+            ->first();
+
+        if ($existing && ! $existing->trashed()) {
+            return back()->withErrors(['label' => 'Cette option de menu existe déjà pour cette date.']);
+        }
+
+        if ($existing && $existing->trashed()) {
+            $existing->restore();
+            $existing->update([
+                'description' => $data['description'] ?? null,
+                'is_active' => true,
+                'updated_by' => $request->user()->id,
+            ]);
+        } else {
+            $data['school_id'] = $schoolId;
+            $data['is_active'] = true;
+            $data['created_by'] = $request->user()->id;
+            CantineMenu::create($data);
+        }
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Option de menu ajoutée.']);
     }
 
     public function destroyMenu(CantineMenu $cantineMenu): RedirectResponse
     {
-        abort_unless($cantineMenu->school_id === session('active_school_id'), 404);
+        abort_unless($cantineMenu->school_id == session('active_school_id'), 404);
 
         $cantineMenu->update(['is_active' => false, 'updated_by' => request()->user()->id]);
         $cantineMenu->delete();
@@ -115,11 +134,15 @@ class CantineController extends Controller
         $menu = CantineMenu::findOrFail($data['cantine_menu_id']);
         abort_unless($menu->date->toDateString() === $date, 422);
 
-        $existingOrder = CantineOrder::where('section_user_id', $sectionUser->id)
+        $existingOrder = CantineOrder::withTrashed()
+            ->where('section_user_id', $sectionUser->id)
             ->whereDate('date', $date)
             ->first();
 
         if ($existingOrder) {
+            if ($existingOrder->trashed()) {
+                $existingOrder->restore();
+            }
             $existingOrder->update([
                 'cantine_menu_id' => $menu->id,
                 'is_active' => true,
@@ -157,7 +180,15 @@ class CantineController extends Controller
         $schoolId = session('active_school_id');
         $this->abortUnlessCantineEnabled($schoolId);
 
+        $dateData = $request->validate([
+            'date' => 'required|date',
+        ]);
+
+        $date = Carbon::parse($dateData['date'])->toDateString();
+        abort_if(Carbon::parse($date)->gt(Carbon::today()), 422);
+
         $validOrderIds = CantineOrder::whereHas('menu', fn ($q) => $q->where('school_id', $schoolId))
+            ->whereDate('date', $date)
             ->pluck('id')->all();
 
         $data = $request->validate([

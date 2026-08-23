@@ -139,6 +139,8 @@ const nav: NavMap = {
                 { label: 'Mes sections', icon: GraduationCap, route: '/sections', routeName: 'sections.index' },
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
+                // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
+                { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
             ],
         },
     ],
@@ -153,6 +155,8 @@ const nav: NavMap = {
                 { label: 'Feuilles de temps', icon: Clock, route: '/timesheets', routeName: 'timesheets.index' },
                 { label: 'Mes cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Mes notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+                // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
+                { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
             ],
         },

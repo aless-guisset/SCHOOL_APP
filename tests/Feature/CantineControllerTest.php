@@ -327,6 +327,7 @@ test('a power user can mark presence for orders of a given day', function () {
     $this->actingAs($powerUser)
         ->withSession(['active_school_id' => $school->id])
         ->post('/cantine/presence', [
+            'date' => $date,
             'presences' => [
                 ['cantine_order_id' => $order->id, 'is_present' => false, 'note' => 'Absent, non signalé'],
             ],
@@ -350,7 +351,73 @@ test('storePresences rejects a cantine_order_id from another school', function (
     $this->actingAs($powerUserA)
         ->withSession(['active_school_id' => $schoolA->id])
         ->post('/cantine/presence', [
+            'date' => $date,
             'presences' => [['cantine_order_id' => $orderB->id, 'is_present' => false]],
         ])
         ->assertSessionHasErrors('presences.0.cantine_order_id');
+});
+
+test('cancelling an order then re-ordering the same day succeeds instead of hitting the unique constraint', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::today()->toDateString();
+    $menuA = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $menuB = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat B', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // Commande initiale.
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menuA->id, 'date' => $date])
+        ->assertRedirect();
+    $firstOrder = CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->first();
+
+    // Annulation (soft delete) le même jour.
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->delete("/cantine/orders/{$firstOrder->id}")
+        ->assertRedirect();
+
+    // Re-commande le même jour, pour une autre option : ne doit PAS 500 sur la contrainte unique.
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menuB->id, 'date' => $date])
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors();
+
+    $activeOrders = CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->where('is_active', true)->get();
+    expect($activeOrders)->toHaveCount(1);
+    expect($activeOrders->first()->cantine_menu_id)->toBe($menuB->id);
+});
+
+test('re-adding a previously deleted menu label restores it, and a genuine live duplicate is rejected', function () {
+    $school = makeCantineSchool();
+    $powerUser = makeCantineUsr($school, makeCantineRole('POWER', 'Power User'))->user;
+    $date = Carbon::today()->toDateString();
+
+    // (a) ajout, suppression, puis ré-ajout du même libellé le même jour : doit restaurer, pas dupliquer.
+    $this->actingAs($powerUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat A'])
+        ->assertRedirect();
+    $menu = CantineMenu::where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat A')->first();
+
+    $this->actingAs($powerUser)->withSession(['active_school_id' => $school->id])
+        ->delete("/cantine/menus/{$menu->id}")
+        ->assertRedirect();
+
+    $this->actingAs($powerUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat A'])
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors();
+
+    expect(CantineMenu::withTrashed()->where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat A')->count())->toBe(1);
+    expect(CantineMenu::where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat A')->where('is_active', true)->exists())->toBeTrue();
+
+    // (b) ajout d'un libellé déjà actif le même jour, sans suppression : doit être rejeté proprement.
+    $this->actingAs($powerUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat C'])
+        ->assertRedirect();
+
+    $this->actingAs($powerUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat C'])
+        ->assertSessionHasErrors('label');
+
+    expect(CantineMenu::withTrashed()->where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat C')->count())->toBe(1);
 });

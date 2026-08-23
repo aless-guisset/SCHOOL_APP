@@ -113,7 +113,9 @@
   Professeur ; `CantineOrder` : commande élève self-service, vaut inscription, jamais pour le
   compte d'un autre élève, impossible pour une date passée). La prise de présence conserve son
   principe général, adaptée aux commandes (`cantine_order_id` au lieu de `cantine_presence_id`)
-  (`2026-08-23-cantine-menu-orders.md`)
+  (`2026-08-23-cantine-menu-orders.md`). La migration qui accompagne ce changement supprime les
+  tables `cantine_registrations`/`cantine_presences` — les inscriptions et présences cantine
+  existantes sont supprimées par cette migration, décision assumée, pas un oubli
 - Présences impossibles à prendre à l'avance : `AttendancesController::store()` rejette
   désormais un timesheet dont la date est dans le futur (backend + UI cachée côté
   `Timesheets/Show.vue`)
