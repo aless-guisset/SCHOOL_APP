@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Attendance;
-use App\Models\CantinePresence;
-use App\Models\CantineRegistration;
+use App\Models\CantineMenu;
+use App\Models\CantineOrder;
 use App\Models\Classroom;
 use App\Models\Course;
 use App\Models\Grade;
@@ -500,39 +500,76 @@ class DemoSchoolSeeder extends Seeder
 
     private function makeCantine(School $school, \Illuminate\Support\Collection $students): void
     {
-        $days = [1, 3, 5];
+        $days = [1, 3, 5]; // lundi, mercredi, vendredi
+        $labels = ['Plat A', 'Plat B', 'Végétarien'];
+        $descriptions = ['Pâtes bolognaise', 'Poisson, riz', 'Curry de légumes'];
 
-        foreach ($students as $user) {
-            if ($user->email !== self::DEMO_STUDENT_EMAIL && ! fake()->boolean(65)) {
-                continue;
-            }
-
-            $sectionUser = SectionUserSchoolRole::whereHas(
-                'userschoolrole', fn ($q) => $q->where('user_id', $user->id)->where('school_id', $school->id)
-            )->first();
-
-            if (! $sectionUser) {
-                continue;
-            }
-
+        // Menus sur les 2 dernières semaines (passé) + les 2 prochaines (futur),
+        // même fenêtre que makeTimesheets()/makeAttendances() côté cours.
+        for ($week = -2; $week <= 2; $week++) {
             foreach ($days as $day) {
-                $registration = CantineRegistration::firstOrCreate(
-                    ['section_user_id' => $sectionUser->id, 'day_of_week' => $day],
-                    ['school_id' => $school->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1]
-                );
+                $date = Carbon::now()->startOfWeek(Carbon::MONDAY)->addWeeks($week)->addDays($day - 1);
 
-                foreach ([1, 2] as $occurrence) {
-                    $date = Carbon::now()->subWeeks($occurrence)->startOfWeek(Carbon::MONDAY)->addDays($day - 1);
+                $menus = collect($labels)->map(function ($label, $i) use ($school, $date, $descriptions) {
+                    $menu = CantineMenu::where('school_id', $school->id)
+                        ->whereDate('date', $date->toDateString())
+                        ->where('label', $label)
+                        ->first();
+
+                    if (! $menu) {
+                        $menu = CantineMenu::create([
+                            'school_id' => $school->id,
+                            'date' => $date->toDateString(),
+                            'label' => $label,
+                            'description' => $descriptions[$i],
+                            'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
+                        ]);
+                    }
+
+                    return $menu;
+                });
+
+                foreach ($students as $user) {
+                    // Participation déterministe (hash user+date) plutôt qu'un tirage
+                    // fake() ré-évalué à chaque run : sinon un élève exclu lors d'un
+                    // run finit, par pur hasard, par être inclus au run suivant, et un
+                    // nouvel CantineOrder est créé pour lui à chaque exécution — ce qui
+                    // casse l'idempotence du seeder (voir vérification de la tâche 8).
+                    $participates = $user->email === self::DEMO_STUDENT_EMAIL
+                        || (crc32($user->id.'|'.$date->toDateString()) % 100) < 65;
+
+                    if (! $participates) {
+                        continue;
+                    }
+
+                    $sectionUser = SectionUserSchoolRole::whereHas(
+                        'userschoolrole', fn ($q) => $q->where('user_id', $user->id)->where('school_id', $school->id)
+                    )->first();
+
+                    if (! $sectionUser) {
+                        continue;
+                    }
+
+                    $order = CantineOrder::where('section_user_id', $sectionUser->id)
+                        ->whereDate('date', $date->toDateString())
+                        ->first();
+
+                    if ($order) {
+                        continue;
+                    }
+
+                    $chosenMenu = $menus->random();
+                    $isPast = $date->isPast();
                     $isPresent = fake()->boolean(90);
 
-                    CantinePresence::firstOrCreate(
-                        ['cantine_registration_id' => $registration->id, 'date' => $date->toDateString()],
-                        [
-                            'is_present' => $isPresent,
-                            'note' => $isPresent ? null : 'Absent, non signalé',
-                            'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
-                        ]
-                    );
+                    CantineOrder::create([
+                        'section_user_id' => $sectionUser->id,
+                        'cantine_menu_id' => $chosenMenu->id,
+                        'date' => $date->toDateString(),
+                        'is_present' => $isPast ? $isPresent : true,
+                        'note' => ($isPast && ! $isPresent) ? 'Absent, non signalé' : null,
+                        'status' => 'A', 'is_active' => true, 'created_by' => 1, 'updated_by' => 1,
+                    ]);
                 }
             }
         }
