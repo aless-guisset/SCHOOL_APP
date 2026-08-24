@@ -510,9 +510,16 @@ const breadcrumbs = [
                                     <p>{{ summary.date }} · {{ summary.hours }}h</p>
                                 </div>
                             </div>
-                            <p class="text-xs text-muted-foreground">
-                                {{ replaceIds.has(c.id) ? 'Ce cours sera remplacé par le nouveau.' : 'Les deux cours coexisteront (case non cochée).' }}
-                            </p>
+                            <label class="flex items-start gap-2 text-xs">
+                                <Checkbox
+                                    class="mt-0.5"
+                                    :model-value="replaceIds.has(c.id)"
+                                    @update:model-value="() => toggleReplace(c.id)"
+                                />
+                                <span class="text-muted-foreground">
+                                    {{ replaceIds.has(c.id) ? 'Ce cours sera remplacé par le nouveau.' : 'Cocher pour retirer l\'ancien cours — sinon les deux coexisteront.' }}
+                                </span>
+                            </label>
                         </div>
                     </div>
                     <DialogFooter>
