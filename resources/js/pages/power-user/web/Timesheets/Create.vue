@@ -6,7 +6,6 @@ import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -141,24 +140,11 @@ function dedupeConflicts(raw: RawConflict[]): Conflict[] {
 const checkingConflicts = ref(false);
 const conflictCheckFailed = ref(false);
 
-// Ids des conflits que l'utilisateur a choisi de remplacer (coché "Remplacer").
-// Envoyés au serveur, qui ne les supprime que s'ils sont réellement en conflit
-// avec cette soumission précise — voir resolveConflictReplacements() côté back.
-const replaceIds = ref<Set<number>>(new Set());
-function toggleReplace(id: number) {
-    if (replaceIds.value.has(id)) {
-        replaceIds.value.delete(id);
-    } else {
-        replaceIds.value.add(id);
-    }
-}
-
 async function checkConflicts() {
     if (!form.schedule_id || !form.date || !form.user_school_role_id || !form.classroom_id) return;
     checkingConflicts.value = true;
     conflicts.value = [];
     conflictDetails.value = {};
-    replaceIds.value = new Set();
     conflictCheckFailed.value = false;
     try {
         const params = new URLSearchParams({
@@ -214,7 +200,6 @@ const FIELD_STEP: Record<string, number> = {
 };
 
 function submit() {
-    form.replace_conflict_ids = Array.from(replaceIds.value);
     form.post('/timesheets', {
         onError: (errors) => {
             const firstField = Object.keys(errors)[0];
@@ -225,8 +210,9 @@ function submit() {
 }
 
 // Clic sur "Enregistrer" : si un conflit existe, on ne soumet pas tout de
-// suite — une modale récapitule l'ancien cours et le nouveau côte à côte
-// pour une dernière confirmation explicite avant l'écriture en base.
+// suite — une modale récapitule l'ancien cours et le nouveau côte à côte et
+// demande de choisir explicitement lequel garder (plus de case à cocher :
+// un choix binaire, sans ambiguïté possible).
 const showConfirmDialog = ref(false);
 function attemptSubmit() {
     if (conflicts.value.length > 0) {
@@ -235,7 +221,15 @@ function attemptSubmit() {
         submit();
     }
 }
-function confirmAndSubmit() {
+// "Garder l'ancien" : on referme simplement la modale, rien n'est envoyé —
+// le nouveau cours n'est jamais créé, l'ancien reste inchangé.
+function keepOld() {
+    showConfirmDialog.value = false;
+}
+// "Garder le nouveau" : tous les cours en conflit détectés sont marqués à
+// remplacer, puis on soumet — le serveur les supprime et crée le nouveau.
+function keepNew() {
+    form.replace_conflict_ids = conflicts.value.map(c => c.id);
     showConfirmDialog.value = false;
     submit();
 }
@@ -406,26 +400,12 @@ const breadcrumbs = [
                             ⚠ La vérification des conflits n'a pas pu être effectuée (erreur réseau). Vous pouvez quand même enregistrer ; le serveur revalidera.
                         </div>
 
-                        <!-- Alertes conflits -->
-                        <div v-if="conflicts.length" class="space-y-2 rounded-md border border-destructive bg-destructive/10 p-3">
-                            <p class="text-sm font-medium text-destructive">Un cours existe déjà sur ce créneau :</p>
-                            <label
-                                v-for="c in conflicts" :key="c.id"
-                                class="flex items-start gap-2 rounded border border-destructive/30 bg-background/60 p-2 text-sm"
-                            >
-                                <Checkbox
-                                    class="mt-0.5"
-                                    :model-value="replaceIds.has(c.id)"
-                                    @update:model-value="() => toggleReplace(c.id)"
-                                />
-                                <span>
-                                    <span v-for="msg in c.messages" :key="msg" class="block text-destructive">{{ msg }}</span>
-                                    <span class="block text-xs text-muted-foreground">
-                                        Cocher pour remplacer ce cours existant par le nouveau. Laisser décoché pour conserver
-                                        les deux (l'ancien et le nouveau coexisteront sur ce créneau).
-                                    </span>
-                                </span>
-                            </label>
+                        <!-- Alerte conflit : juste informative, le choix se fait à la validation -->
+                        <div v-if="conflicts.length" class="space-y-1 rounded-md border border-destructive bg-destructive/10 p-3 text-sm">
+                            <p class="font-medium text-destructive">Un cours existe déjà sur ce créneau.</p>
+                            <p class="text-xs text-muted-foreground">
+                                Vous choisirez lequel garder au moment de valider.
+                            </p>
                         </div>
 
                         <!-- Erreurs de validation serveur (ex: rejet au submit) -->
@@ -486,45 +466,32 @@ const breadcrumbs = [
             <Dialog v-model:open="showConfirmDialog">
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Confirmer malgré le conflit ?</DialogTitle>
+                        <DialogTitle>Un cours existe déjà sur ce créneau</DialogTitle>
                         <DialogDescription>
-                            Un cours existe déjà sur ce créneau. Vérifiez la comparaison avant de confirmer.
+                            Choisissez lequel garder — l'autre sera retiré.
                         </DialogDescription>
                     </DialogHeader>
                     <div class="space-y-4">
-                        <div v-for="c in conflicts" :key="c.id" class="space-y-2 rounded-md border border-border p-3 text-sm">
-                            <p class="font-medium text-destructive">{{ c.messages[0] }}</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="space-y-1 rounded bg-muted/40 p-2">
-                                    <p class="text-xs font-semibold text-muted-foreground">Ancien cours</p>
-                                    <template v-if="conflictDetails[c.id]">
-                                        <p>{{ conflictDetails[c.id].teacher }}</p>
-                                        <p>{{ conflictDetails[c.id].classroom }} — {{ conflictDetails[c.id].subject }}</p>
-                                        <p>{{ conflictDetails[c.id].date }} · {{ conflictDetails[c.id].hours_done }}h</p>
-                                    </template>
-                                </div>
-                                <div class="space-y-1 rounded bg-primary/10 p-2">
-                                    <p class="text-xs font-semibold text-muted-foreground">Nouveau cours</p>
-                                    <p>{{ summary.teacher }}</p>
-                                    <p>{{ summary.classroom }} — {{ summary.subject }}</p>
-                                    <p>{{ summary.date }} · {{ summary.hours }}h</p>
-                                </div>
+                        <div v-for="c in conflicts" :key="c.id" class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="space-y-1 rounded bg-muted/40 p-2">
+                                <p class="text-xs font-semibold text-muted-foreground">Ancien cours</p>
+                                <template v-if="conflictDetails[c.id]">
+                                    <p>{{ conflictDetails[c.id].teacher }}</p>
+                                    <p>{{ conflictDetails[c.id].classroom }} — {{ conflictDetails[c.id].subject }}</p>
+                                    <p>{{ conflictDetails[c.id].date }} · {{ conflictDetails[c.id].hours_done }}h</p>
+                                </template>
                             </div>
-                            <label class="flex items-start gap-2 text-xs">
-                                <Checkbox
-                                    class="mt-0.5"
-                                    :model-value="replaceIds.has(c.id)"
-                                    @update:model-value="() => toggleReplace(c.id)"
-                                />
-                                <span class="text-muted-foreground">
-                                    {{ replaceIds.has(c.id) ? 'Ce cours sera remplacé par le nouveau.' : 'Cocher pour retirer l\'ancien cours — sinon les deux coexisteront.' }}
-                                </span>
-                            </label>
+                            <div class="space-y-1 rounded bg-primary/10 p-2">
+                                <p class="text-xs font-semibold text-muted-foreground">Nouveau cours</p>
+                                <p>{{ summary.teacher }}</p>
+                                <p>{{ summary.classroom }} — {{ summary.subject }}</p>
+                                <p>{{ summary.date }} · {{ summary.hours }}h</p>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" @click="showConfirmDialog = false">Annuler</Button>
-                        <Button :disabled="form.processing" @click="confirmAndSubmit">Confirmer et enregistrer</Button>
+                        <Button variant="outline" :disabled="form.processing" @click="keepOld">Garder l'ancien cours</Button>
+                        <Button :disabled="form.processing" @click="keepNew">Garder le nouveau cours</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
