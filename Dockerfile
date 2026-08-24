@@ -35,8 +35,6 @@ COPY --from=build /app /app
 
 RUN php artisan storage:link || true
 
-VOLUME /app/storage/app/private
-
 EXPOSE 8080
 CMD php artisan migrate --force \
     && php artisan config:cache \
