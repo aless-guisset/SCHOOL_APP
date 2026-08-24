@@ -79,6 +79,7 @@ class TimesheetsController extends Controller
             'userSchoolRoles' => UserSchoolRole::with(['user', 'role'])
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
+                ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
             'schedules'  => Schedule::whereHas(
@@ -118,7 +119,7 @@ class TimesheetsController extends Controller
         // l'ancienne et la nouvelle coexistent, c'est un choix assumé de
         // l'utilisateur, pas une erreur à bloquer.
         $data = $request->validate([
-            'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
+            'user_school_role_id' => ['required', 'integer', $this->userSchoolRoleIsProf($schoolId)],
             'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
             'subject_id'          => ['required', 'integer', $this->subjectBelongsToSchool($schoolId)],
             'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
@@ -190,6 +191,7 @@ class TimesheetsController extends Controller
             'userSchoolRoles' => UserSchoolRole::with(['user', 'role'])
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
+                ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
             'schedules'  => Schedule::whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId))
@@ -213,7 +215,7 @@ class TimesheetsController extends Controller
         $classroomId      = $request->input('classroom_id', $timesheet->classroom_id);
 
         $data = $request->validate([
-            'user_school_role_id' => ['sometimes', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
+            'user_school_role_id' => ['sometimes', 'integer', $this->userSchoolRoleIsProf($schoolId)],
             'schedule_id'         => ['sometimes', 'integer', $this->scheduleBelongsToSchool($schoolId)],
             'subject_id'          => ['sometimes', 'integer', $this->subjectBelongsToSchool($schoolId)],
             'classroom_id'        => ['sometimes', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
@@ -292,7 +294,29 @@ class TimesheetsController extends Controller
             }
         }
 
-        return response()->json(['conflicts' => $conflicts]);
+        // Détails de la/des séance(s) déjà existante(s), pour que le frontend
+        // puisse afficher "ancien cours" vs "nouveau cours" avant confirmation
+        // — un même id peut apparaître plusieurs fois dans $conflicts (conflit
+        // prof + salle sur la même séance), d'où le keyBy pour dédupliquer.
+        $conflictDetails = [];
+        $ids = collect($conflicts)->pluck('id')->unique();
+        if ($ids->isNotEmpty()) {
+            $conflictDetails = Timesheet::whereIn('id', $ids)
+                ->with(['userSchoolRole.user', 'classroom', 'subject'])
+                ->get()
+                ->keyBy('id')
+                ->map(fn (Timesheet $t) => [
+                    'date' => $t->date,
+                    'teacher' => $t->userSchoolRole?->user
+                        ? "{$t->userSchoolRole->user->lastname} {$t->userSchoolRole->user->firstname}"
+                        : '—',
+                    'classroom' => $t->classroom?->name ?? '—',
+                    'subject' => $t->subject?->name ?? '—',
+                    'hours_done' => $t->hours_done,
+                ]);
+        }
+
+        return response()->json(['conflicts' => $conflicts, 'conflict_details' => $conflictDetails]);
     }
 
     /**
@@ -360,6 +384,26 @@ class TimesheetsController extends Controller
         return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
             if (! Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))->whereKey($value)->exists()) {
                 $fail('Cette matière n\'appartient pas à votre établissement.');
+            }
+        };
+    }
+
+    /**
+     * Une feuille de temps ne peut être assignée qu'à un `UserSchoolRole` de
+     * rôle Professeur — un élève (ou tout autre rôle) ne doit jamais
+     * apparaître comme choix possible, ni pouvoir être soumis directement.
+     * `Rule::exists` ne peut pas exprimer la jointure vers `role.reference`,
+     * donc closure rule comme les autres vérifications multi-tables ci-dessus.
+     */
+    private function userSchoolRoleIsProf(?int $schoolId): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
+            $isProf = UserSchoolRole::where('school_id', $schoolId)
+                ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
+                ->whereKey($value)
+                ->exists();
+            if (! $isProf) {
+                $fail('Seul un professeur peut être assigné à une feuille de temps.');
             }
         };
     }

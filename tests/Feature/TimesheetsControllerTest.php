@@ -388,6 +388,72 @@ test('checkConflict returns the conflicting timesheet id and type, not just a me
     expect($teacherConflict['message'])->toContain('professeur');
 });
 
+test('checkConflict includes details of the existing timesheet so the frontend can show old vs new', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle 12', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+
+    $existing = Timesheet::create([
+        'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => '2026-09-07', 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $response = $this->actingAs($powerUser)
+        ->getJson('/timesheets/check-conflict?'.http_build_query([
+            'schedule_id' => $schedule->id, 'date' => '2026-09-07',
+            'user_school_role_id' => $teacher->id, 'classroom_id' => $classroom->id,
+        ]));
+
+    $response->assertOk();
+    $details = $response->json('conflict_details');
+    expect($details)->toHaveKey((string) $existing->id);
+    $detail = $details[(string) $existing->id];
+    expect($detail['date'])->toBe('2026-09-07')
+        ->and($detail['classroom'])->toBe('Salle 12')
+        ->and($detail['subject'])->toBe('Algèbre')
+        ->and($detail['hours_done'])->toBe(2)
+        ->and($detail['teacher'])->toContain($teacher->user->lastname);
+});
+
+test('store rejects a user_school_role_id belonging to a student, not a teacher', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $schedule = makeTimesheetScheduleFor($school, $teacher);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course_id, 'name' => 'Algèbre', 'is_active' => true, 'created_by' => 1]);
+    $student = makeTimesheetUsr($school, makeTimesheetRole('ELEVE', 'Élève'));
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->post('/timesheets', [
+            'user_school_role_id' => $student->id, 'schedule_id' => $schedule->id,
+            'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+            'date' => '2026-09-07', 'hours_done' => 2,
+        ])
+        ->assertSessionHasErrors('user_school_role_id');
+
+    expect(Timesheet::count())->toBe(0);
+});
+
+test('create excludes students from the teacher (userSchoolRoles) dropdown', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    makeTimesheetUsr($school, makeTimesheetRole('ELEVE', 'Élève'));
+    $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->get('/timesheets/create')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('userSchoolRoles', 1)
+            ->where('userSchoolRoles.0.id', $teacher->id)
+        );
+});
+
 test('store with replace_conflict_ids deletes the genuinely conflicting timesheet and creates the new one', function () {
     $school = makeTimesheetSchool();
     $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));

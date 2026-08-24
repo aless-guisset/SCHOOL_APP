@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -120,6 +121,11 @@ type RawConflict = { id: number; type: 'teacher' | 'classroom' | 'section'; mess
 type Conflict = { id: number; messages: string[] };
 const conflicts = ref<Conflict[]>([]);
 
+// Détails de la séance déjà existante pour chaque conflit — permet d'afficher
+// "ancien cours" vs "nouveau cours" dans la modale de confirmation finale.
+type ConflictDetail = { date: string; teacher: string; classroom: string; subject: string; hours_done: number };
+const conflictDetails = ref<Record<number, ConflictDetail>>({});
+
 // Un même Timesheet peut déclencher plusieurs types de conflit à la fois
 // (ex: le prof ET la section sont déjà occupés par la même séance) — le
 // serveur renvoie alors plusieurs entrées avec le même id. On les regroupe
@@ -151,6 +157,7 @@ async function checkConflicts() {
     if (!form.schedule_id || !form.date || !form.user_school_role_id || !form.classroom_id) return;
     checkingConflicts.value = true;
     conflicts.value = [];
+    conflictDetails.value = {};
     replaceIds.value = new Set();
     conflictCheckFailed.value = false;
     try {
@@ -166,6 +173,7 @@ async function checkConflicts() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         conflicts.value = dedupeConflicts(json.conflicts ?? []);
+        conflictDetails.value = json.conflict_details ?? {};
     } catch {
         // Pre-check couldn't run (network error, unparseable response, etc.) — this is not
         // the same as an actual conflict being found. Don't block the wizard: the server
@@ -214,6 +222,22 @@ function submit() {
             if (targetStep) step.value = targetStep;
         },
     });
+}
+
+// Clic sur "Enregistrer" : si un conflit existe, on ne soumet pas tout de
+// suite — une modale récapitule l'ancien cours et le nouveau côte à côte
+// pour une dernière confirmation explicite avant l'écriture en base.
+const showConfirmDialog = ref(false);
+function attemptSubmit() {
+    if (conflicts.value.length > 0) {
+        showConfirmDialog.value = true;
+    } else {
+        submit();
+    }
+}
+function confirmAndSubmit() {
+    showConfirmDialog.value = false;
+    submit();
 }
 
 // ── Résumé étape 4 ───────────────────────────────────────────────────────────
@@ -446,7 +470,7 @@ const breadcrumbs = [
                         <Button
                             v-else
                             :disabled="form.processing"
-                            @click="submit"
+                            @click="attemptSubmit"
                         >
                             {{ t('action.save') }}
                         </Button>
@@ -457,6 +481,46 @@ const breadcrumbs = [
 
                 </CardContent>
             </Card>
+
+            <!-- Confirmation finale en cas de conflit : ancien cours vs nouveau -->
+            <Dialog v-model:open="showConfirmDialog">
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirmer malgré le conflit ?</DialogTitle>
+                        <DialogDescription>
+                            Un cours existe déjà sur ce créneau. Vérifiez la comparaison avant de confirmer.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div class="space-y-4">
+                        <div v-for="c in conflicts" :key="c.id" class="space-y-2 rounded-md border border-border p-3 text-sm">
+                            <p class="font-medium text-destructive">{{ c.messages[0] }}</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1 rounded bg-muted/40 p-2">
+                                    <p class="text-xs font-semibold text-muted-foreground">Ancien cours</p>
+                                    <template v-if="conflictDetails[c.id]">
+                                        <p>{{ conflictDetails[c.id].teacher }}</p>
+                                        <p>{{ conflictDetails[c.id].classroom }} — {{ conflictDetails[c.id].subject }}</p>
+                                        <p>{{ conflictDetails[c.id].date }} · {{ conflictDetails[c.id].hours_done }}h</p>
+                                    </template>
+                                </div>
+                                <div class="space-y-1 rounded bg-primary/10 p-2">
+                                    <p class="text-xs font-semibold text-muted-foreground">Nouveau cours</p>
+                                    <p>{{ summary.teacher }}</p>
+                                    <p>{{ summary.classroom }} — {{ summary.subject }}</p>
+                                    <p>{{ summary.date }} · {{ summary.hours }}h</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-muted-foreground">
+                                {{ replaceIds.has(c.id) ? 'Ce cours sera remplacé par le nouveau.' : 'Les deux cours coexisteront (case non cochée).' }}
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" @click="showConfirmDialog = false">Annuler</Button>
+                        <Button :disabled="form.processing" @click="confirmAndSubmit">Confirmer et enregistrer</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     </AppLayout>
 </template>
