@@ -12,6 +12,7 @@ use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ResourcesController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SchedulesController;
+use App\Http\Controllers\SchoolAccessController;
 use App\Http\Controllers\SchoolOnboardingController;
 use App\Http\Controllers\SchoolPanelController;
 use App\Http\Controllers\SchoolsController;
@@ -59,6 +60,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])
         ->name('notifications.read-all');
+
+    // Rejoindre une école (nouveau système d'accès)
+    Route::post('/join/with-code', [SchoolAccessController::class, 'joinWithCode'])
+        ->name('join.with-code');
+    Route::get('/schools/search', [SchoolAccessController::class, 'search'])
+        ->name('schools.search');
 });
 
 // ─── Application principale (auth + contexte école requis) ────────────────
