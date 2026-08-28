@@ -79,12 +79,7 @@ class SchoolAccessController extends Controller
             );
         }
 
-        // NOTE: la route dédiée `join.pending` (file d'attente visuelle pour un
-        // utilisateur avec une demande status=P) est créée en Task 9. En
-        // attendant, on redirige vers la page d'attente existante
-        // (`school.waiting`) qui sert déjà ce rôle pour les étudiants sans
-        // école — à remplacer par `route('join.pending')` quand Task 9 l'ajoute.
-        return redirect()->route('school.waiting')
+        return redirect()->route('join.pending')
             ->with('flash', ['type' => 'success', 'message' => 'Votre demande a été envoyée.']);
     }
 

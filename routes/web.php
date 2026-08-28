@@ -60,10 +60,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/school/set-default', [SchoolOnboardingController::class, 'setDefault'])
         ->name('school.set-default');
 
-    // Page d'attente pour les étudiants sans école
-    Route::get('/school/waiting', fn () => Inertia::render('school/Waiting'))
-        ->name('school.waiting');
-
     // Notifications (aucun contexte école requis pour marquer comme lu)
     Route::patch('/notifications/{notification}', [NotificationsController::class, 'markRead'])
         ->name('notifications.read');
@@ -77,6 +73,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('join.request');
     Route::get('/schools/search', [SchoolAccessController::class, 'search'])
         ->name('schools.search');
+
+    Route::get('/join/role', fn () => Inertia::render('auth/JoinRole'))->name('join.role');
+    Route::get('/join/with-code', fn () => Inertia::render('auth/JoinWithCode', [
+        'role_reference' => request()->query('role'),
+    ]))->name('join.with-code.show');
+    Route::get('/join/request', fn () => Inertia::render('auth/JoinRequest', [
+        'role_reference' => request()->query('role'),
+        'is_student' => request()->query('role') === 'ELEVE',
+    ]))->name('join.request.show');
+    Route::get('/join/pending', fn () => Inertia::render('school/Pending'))->name('join.pending');
 });
 
 // ─── Application principale (auth + contexte école requis) ────────────────
