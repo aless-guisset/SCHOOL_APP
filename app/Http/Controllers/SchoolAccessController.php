@@ -42,6 +42,52 @@ class SchoolAccessController extends Controller
             ->with('flash', ['type' => 'success', 'message' => "Vous avez rejoint {$school->name}."]);
     }
 
+    public function joinRequest(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'school_id' => 'required|integer|exists:schools,id',
+            // ELEVE est accepté ici (contrairement à joinWithCode(), qui ne l'autorise
+            // jamais) car le parcours étudiant sans code envoie légitimement 'ELEVE' —
+            // la valeur n'est de toute façon jamais utilisée telle quelle quand
+            // is_student=true (voir $roleReference plus bas), mais elle doit d'abord
+            // passer la validation pour atteindre ce point.
+            'role_reference' => ['required', 'string', Rule::in([...self::JOINABLE_ROLES, 'ELEVE'])],
+            'is_student' => 'required|boolean',
+        ]);
+
+        $school = School::where('id', $data['school_id'])->where('status', 'A')->firstOrFail();
+        $user = $request->user();
+
+        // `role_reference` du client n'est JAMAIS pris tel quel pour un étudiant —
+        // toujours forcé à ELEVE côté serveur, quoi que le formulaire ait envoyé.
+        $roleReference = $data['is_student'] ? 'ELEVE' : $data['role_reference'];
+        $role = Role::where('reference', $roleReference)->firstOrFail();
+
+        UserSchoolRole::firstOrCreate(
+            ['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $role->id],
+            ['status' => 'P', 'is_active' => true, 'created_by' => $user->id]
+        );
+
+        $directeurRole = Role::where('reference', 'DIR')->first();
+        if ($directeurRole) {
+            $directeurs = \App\Models\User::whereHas('schoolRoles', fn ($q) => $q
+                ->where('school_id', $school->id)->where('status', 'A')->where('role_id', $directeurRole->id))
+                ->get();
+            \Illuminate\Support\Facades\Notification::send(
+                $directeurs,
+                new \App\Notifications\AccessRequestSubmittedNotification($school, $user)
+            );
+        }
+
+        // NOTE: la route dédiée `join.pending` (file d'attente visuelle pour un
+        // utilisateur avec une demande status=P) est créée en Task 9. En
+        // attendant, on redirige vers la page d'attente existante
+        // (`school.waiting`) qui sert déjà ce rôle pour les étudiants sans
+        // école — à remplacer par `route('join.pending')` quand Task 9 l'ajoute.
+        return redirect()->route('school.waiting')
+            ->with('flash', ['type' => 'success', 'message' => 'Votre demande a été envoyée.']);
+    }
+
     public function search(Request $request): JsonResponse
     {
         $request->validate(['q' => 'required|string|min:2|max:100']);

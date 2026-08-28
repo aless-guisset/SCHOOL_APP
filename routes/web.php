@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccessRequestsController;
 use App\Http\Controllers\ActivityLogsController;
 use App\Http\Controllers\AttendancesController;
 use App\Http\Controllers\CantineController;
@@ -64,6 +65,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Rejoindre une école (nouveau système d'accès)
     Route::post('/join/with-code', [SchoolAccessController::class, 'joinWithCode'])
         ->name('join.with-code');
+    Route::post('/join/request', [SchoolAccessController::class, 'joinRequest'])
+        ->name('join.request');
     Route::get('/schools/search', [SchoolAccessController::class, 'search'])
         ->name('schools.search');
 });
@@ -94,6 +97,13 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         // ── Admin : assignations rôles ─────────────────────────────────────
         Route::resource('user-school-roles', UserSchoolRolesController::class)
             ->only(['index', 'create', 'store', 'destroy']);
+    });
+
+    // ── Directeur : gestion des accès école ─────────────────────────────────
+    Route::middleware('director-only')->group(function () {
+        Route::get('/access-requests', [AccessRequestsController::class, 'index'])->name('access-requests.index');
+        Route::post('/access-requests/{userSchoolRole}/approve', [AccessRequestsController::class, 'approve'])->name('access-requests.approve');
+        Route::post('/access-requests/{userSchoolRole}/reject', [AccessRequestsController::class, 'reject'])->name('access-requests.reject');
     });
 
     // ── Power User / Secrétariat ────────────────────────────────────────────
