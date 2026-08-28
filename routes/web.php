@@ -14,6 +14,7 @@ use App\Http\Controllers\ResourcesController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\SchoolAccessController;
+use App\Http\Controllers\SchoolInvitationsController;
 use App\Http\Controllers\SchoolOnboardingController;
 use App\Http\Controllers\SchoolPanelController;
 use App\Http\Controllers\SchoolsController;
@@ -33,6 +34,13 @@ use Laravel\Fortify\Features;
 Route::inertia('/', 'Welcome', [
     'canRegister' => Features::enabled(Features::registration()),
 ])->name('home');
+
+// ─── Invitations par email (publiques : le destinataire n'a pas forcément
+// de compte au moment de cliquer le lien, donc hors de tout groupe `auth`) ─
+Route::get('/invitations/{token}/accept', [SchoolInvitationsController::class, 'show'])
+    ->name('invitations.accept.show');
+Route::post('/invitations/{token}/accept', [SchoolInvitationsController::class, 'accept'])
+    ->name('invitations.accept.store');
 
 // ─── Onboarding école (auth requis, sans school.context) ──────────────────
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -104,6 +112,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::get('/access-requests', [AccessRequestsController::class, 'index'])->name('access-requests.index');
         Route::post('/access-requests/{userSchoolRole}/approve', [AccessRequestsController::class, 'approve'])->name('access-requests.approve');
         Route::post('/access-requests/{userSchoolRole}/reject', [AccessRequestsController::class, 'reject'])->name('access-requests.reject');
+        Route::post('/invitations', [SchoolInvitationsController::class, 'store'])->name('invitations.store');
     });
 
     // ── Power User / Secrétariat ────────────────────────────────────────────
