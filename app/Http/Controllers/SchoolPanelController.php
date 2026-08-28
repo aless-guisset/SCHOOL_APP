@@ -21,6 +21,7 @@ class SchoolPanelController extends Controller
             $request->user()->schoolRoles()
                 ->where('school_id', $school->id)
                 ->where('is_active', true)
+                ->where('status', 'A')
                 ->exists(),
             404
         );
@@ -57,7 +58,14 @@ class SchoolPanelController extends Controller
             ]);
 
         return Inertia::render('school/Panel', [
-            'school'            => $school,
+            'school'            => [
+                'id'           => $school->id,
+                'name'         => $school->name,
+                'email'        => $school->email,
+                'phone_number' => $school->phone_number,
+                'address'      => $school->address,
+                'is_active'    => $school->is_active,
+            ],
             'stats'             => $stats,
             'upcomingSchedules' => $upcomingSchedules,
         ]);

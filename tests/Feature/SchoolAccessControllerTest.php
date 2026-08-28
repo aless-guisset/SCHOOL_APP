@@ -115,3 +115,147 @@ test('a non-Directeur cannot regenerate the access code, even Power User', funct
 
     expect($school->fresh()->access_code)->toBe('KEEPCODE');
 });
+
+test('an anonymous visitor can join with a code and ends up authenticated with an active role', function () {
+    $school = makeAccessSchool('ANONCODE');
+    makeAccessRole('PROF', 'Professeur');
+
+    $this->post('/join/with-code', [
+        'access_code' => 'ANONCODE', 'role_reference' => 'PROF',
+        'firstname' => 'Nouveau', 'lastname' => 'Prof', 'email' => 'anon-code@example.com',
+        'password' => 'password', 'password_confirmation' => 'password',
+    ])->assertRedirect();
+
+    $user = User::where('email', 'anon-code@example.com')->first();
+    expect($user)->not->toBeNull();
+    $this->assertAuthenticatedAs($user);
+
+    $usr = UserSchoolRole::where('user_id', $user->id)->where('school_id', $school->id)->first();
+    expect($usr)->not->toBeNull()
+        ->and($usr->status)->toBe('A')
+        ->and($usr->role->reference)->toBe('PROF');
+});
+
+test('an anonymous visitor can submit a join request and ends up authenticated with a pending role', function () {
+    $school = makeAccessSchool();
+    makeAccessRole('PROF', 'Professeur');
+
+    $this->post('/join/request', [
+        'school_id' => $school->id, 'role_reference' => 'PROF', 'is_student' => false,
+        'firstname' => 'Nouvelle', 'lastname' => 'Demande', 'email' => 'anon-request@example.com',
+        'password' => 'password', 'password_confirmation' => 'password',
+    ])->assertRedirect(route('join.pending'));
+
+    $user = User::where('email', 'anon-request@example.com')->first();
+    expect($user)->not->toBeNull();
+    $this->assertAuthenticatedAs($user);
+
+    $usr = UserSchoolRole::where('user_id', $user->id)->where('school_id', $school->id)->first();
+    expect($usr)->not->toBeNull()->and($usr->status)->toBe('P');
+});
+
+test('joining with code using an email that already has an account fails with a login-first error, no account takeover', function () {
+    $school = makeAccessSchool('TAKEOVER');
+    makeAccessRole('PROF', 'Professeur');
+    $existing = User::factory()->create(['email' => 'already@example.com']);
+
+    $this->post('/join/with-code', [
+        'access_code' => 'TAKEOVER', 'role_reference' => 'PROF',
+        'firstname' => 'Imposteur', 'lastname' => 'X', 'email' => 'already@example.com',
+        'password' => 'password', 'password_confirmation' => 'password',
+    ])->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+    expect(UserSchoolRole::where('user_id', $existing->id)->count())->toBe(0);
+    expect(User::where('email', 'already@example.com')->count())->toBe(1);
+});
+
+test('join request using an email that already has an account fails with a login-first error, no account takeover', function () {
+    $school = makeAccessSchool();
+    makeAccessRole('PROF', 'Professeur');
+    $existing = User::factory()->create(['email' => 'already-req@example.com']);
+
+    $this->post('/join/request', [
+        'school_id' => $school->id, 'role_reference' => 'PROF', 'is_student' => false,
+        'firstname' => 'Imposteur', 'lastname' => 'X', 'email' => 'already-req@example.com',
+        'password' => 'password', 'password_confirmation' => 'password',
+    ])->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+    expect(UserSchoolRole::where('user_id', $existing->id)->count())->toBe(0);
+});
+
+test('an already-authenticated user joining a second school still works exactly as before', function () {
+    $firstSchool = makeAccessSchool('FIRSTSCH1');
+    $secondSchool = makeAccessSchool('SECONDSC1');
+    makeAccessRole('PROF', 'Professeur');
+    $user = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $firstSchool->id, 'role_id' => makeAccessRole('PROF', 'Professeur')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($user)->post('/join/with-code', [
+        'access_code' => 'SECONDSC1', 'role_reference' => 'PROF',
+    ])->assertRedirect();
+
+    $this->assertAuthenticatedAs($user);
+    $usr = UserSchoolRole::where('user_id', $user->id)->where('school_id', $secondSchool->id)->first();
+    expect($usr)->not->toBeNull()->and($usr->status)->toBe('A');
+});
+
+test('joining with a code recovers a previously soft-deleted user_school_role instead of 500ing', function () {
+    $school = makeAccessSchool('RESTORE1');
+    $role = makeAccessRole('PROF', 'Professeur');
+    $user = User::factory()->create();
+    $row = UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $role->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $row->update(['is_active' => false]);
+    $row->delete();
+    expect($row->trashed())->toBeTrue();
+
+    $this->actingAs($user)->post('/join/with-code', [
+        'access_code' => 'RESTORE1', 'role_reference' => 'PROF',
+    ])->assertRedirect();
+
+    $fresh = UserSchoolRole::where('user_id', $user->id)->where('school_id', $school->id)->first();
+    expect($fresh)->not->toBeNull()
+        ->and($fresh->trashed())->toBeFalse()
+        ->and($fresh->status)->toBe('A')
+        ->and($fresh->is_active)->toBeTrue();
+});
+
+test('joining with a code recovers a rejected user_school_role back to active, rather than leaving it stale', function () {
+    $school = makeAccessSchool('REJECTED1');
+    $role = makeAccessRole('PROF', 'Professeur');
+    $user = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $role->id, 'status' => 'R', 'is_active' => false, 'created_by' => 1]);
+
+    $this->actingAs($user)->post('/join/with-code', [
+        'access_code' => 'REJECTED1', 'role_reference' => 'PROF',
+    ])->assertRedirect();
+
+    $fresh = UserSchoolRole::where('user_id', $user->id)->where('school_id', $school->id)->first();
+    expect($fresh->status)->toBe('A')->and($fresh->is_active)->toBeTrue();
+});
+
+test('a join request recovers a rejected user_school_role back to pending, rather than leaving it stale', function () {
+    $school = makeAccessSchool();
+    $role = makeAccessRole('PROF', 'Professeur');
+    $user = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $role->id, 'status' => 'R', 'is_active' => false, 'created_by' => 1]);
+
+    $this->actingAs($user)->post('/join/request', [
+        'school_id' => $school->id, 'role_reference' => 'PROF', 'is_student' => false,
+    ])->assertRedirect(route('join.pending'));
+
+    $fresh = UserSchoolRole::where('user_id', $user->id)->where('school_id', $school->id)->first();
+    expect($fresh->status)->toBe('P')->and($fresh->is_active)->toBeTrue();
+});
+
+test('access_code is never present in the school panel or school controller JSON payloads', function () {
+    $school = makeAccessSchool('SECRET99');
+    $role = makeAccessRole('PROF', 'Professeur');
+    $user = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $role->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $response = $this->actingAs($user)->get("/schools/{$school->id}/panel");
+    $response->assertOk();
+    expect($response->getContent())->not->toContain('SECRET99');
+});

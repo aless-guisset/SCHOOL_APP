@@ -62,6 +62,7 @@ class SchedulesController extends Controller
             'userSchoolRoles' => UserSchoolRole::with(['user', 'role'])
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
+                ->where('status', 'A')
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
@@ -114,6 +115,7 @@ class SchedulesController extends Controller
             'userSchoolRoles' => UserSchoolRole::with(['user', 'role'])
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
+                ->where('status', 'A')
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),

@@ -42,6 +42,28 @@ Route::get('/invitations/{token}/accept', [SchoolInvitationsController::class, '
 Route::post('/invitations/{token}/accept', [SchoolInvitationsController::class, 'accept'])
     ->name('invitations.accept.store');
 
+// ─── Rejoindre une école (publiques : un visiteur sans compte doit pouvoir
+// atteindre ce parcours de bout en bout et créer son compte au passage — cf.
+// SchoolAccessController::joinWithCode()/joinRequest(). Un utilisateur déjà
+// authentifié peut aussi les utiliser pour rejoindre une école supplémentaire,
+// donc pas de middleware `guest` ici, juste absence de middleware `auth`.
+// `schools.search` est incluse ici : c'est la recherche d'établissement de
+// JoinRequest.vue, qui doit fonctionner avant que le visiteur ait un compte.) ─
+Route::post('/join/with-code', [SchoolAccessController::class, 'joinWithCode'])
+    ->name('join.with-code');
+Route::post('/join/request', [SchoolAccessController::class, 'joinRequest'])
+    ->name('join.request');
+Route::get('/schools/search', [SchoolAccessController::class, 'search'])
+    ->name('schools.search');
+Route::get('/join/role', fn () => Inertia::render('auth/JoinRole'))->name('join.role');
+Route::get('/join/with-code', fn () => Inertia::render('auth/JoinWithCode', [
+    'role_reference' => request()->query('role'),
+]))->name('join.with-code.show');
+Route::get('/join/request', fn () => Inertia::render('auth/JoinRequest', [
+    'role_reference' => request()->query('role'),
+    'is_student' => request()->query('role') === 'ELEVE',
+]))->name('join.request.show');
+
 // ─── Onboarding école (auth requis, sans school.context) ──────────────────
 Route::middleware(['auth', 'verified'])->group(function () {
     // Sélection d'école (multi-école)
@@ -66,22 +88,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])
         ->name('notifications.read-all');
 
-    // Rejoindre une école (nouveau système d'accès)
-    Route::post('/join/with-code', [SchoolAccessController::class, 'joinWithCode'])
-        ->name('join.with-code');
-    Route::post('/join/request', [SchoolAccessController::class, 'joinRequest'])
-        ->name('join.request');
-    Route::get('/schools/search', [SchoolAccessController::class, 'search'])
-        ->name('schools.search');
-
-    Route::get('/join/role', fn () => Inertia::render('auth/JoinRole'))->name('join.role');
-    Route::get('/join/with-code', fn () => Inertia::render('auth/JoinWithCode', [
-        'role_reference' => request()->query('role'),
-    ]))->name('join.with-code.show');
-    Route::get('/join/request', fn () => Inertia::render('auth/JoinRequest', [
-        'role_reference' => request()->query('role'),
-        'is_student' => request()->query('role') === 'ELEVE',
-    ]))->name('join.request.show');
+    // Statut d'attente après une demande d'accès (auth requis : l'utilisateur vient
+    // de créer/utiliser un compte via le parcours public /join/* et est maintenant connecté).
     Route::get('/join/pending', fn () => Inertia::render('school/Pending'))->name('join.pending');
 });
 

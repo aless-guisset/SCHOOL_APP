@@ -79,7 +79,7 @@ class HandleInertiaRequests extends Middleware
                 ? School::where('status', 'P')->count()
                 : 0,
             'accessRequestsPendingCount' => $currentRole === 'Directeur' && $activeSchoolId
-                ? \App\Models\UserSchoolRole::where('school_id', $activeSchoolId)->where('status', 'P')->count()
+                ? \App\Models\UserSchoolRole::where('school_id', $activeSchoolId)->where('status', 'P')->where('is_active', true)->count()
                 : 0,
             'unreadNotifications' => $user ? [
                 'count' => $user->unreadNotifications()->count(),

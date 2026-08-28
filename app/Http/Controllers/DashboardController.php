@@ -26,6 +26,7 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->where('school_id', $schoolId)
             ->where('is_active', true)
+            ->where('status', 'A')
             ->first();
 
         $currentRole = $usr?->role?->name;

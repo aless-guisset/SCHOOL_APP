@@ -194,13 +194,11 @@ class GradesController extends Controller
 
     private function canManage(Request $request, ?int $schoolId): bool
     {
-        $role = UserSchoolRole::with('role')
-            ->where('user_id', $request->user()->id)
-            ->where('school_id', $schoolId)
-            ->where('is_active', true)
-            ->first()
-            ?->role
-            ?->name;
+        if (! $schoolId) {
+            return false;
+        }
+
+        $role = $request->user()->activeRoleAt($schoolId);
 
         return in_array($role, self::MANAGE_ROLES, true);
     }

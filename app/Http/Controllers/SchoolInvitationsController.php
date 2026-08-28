@@ -83,13 +83,28 @@ class SchoolInvitationsController extends Controller
             ]);
         }
 
-        UserSchoolRole::firstOrCreate(
-            ['user_id' => $user->id, 'school_id' => $invitation->school_id, 'role_id' => $invitation->role_id],
-            ['status' => 'A', 'is_active' => true, 'created_by' => $invitation->created_by]
+        // withTrashed()->firstOrNew() (plutôt que firstOrCreate()) : une ligne soft-deleted
+        // pour ce triplet est invisible à firstOrCreate() (la contrainte UNIQUE n'inclut pas
+        // deleted_at), ce qui ferait échouer l'INSERT avec une QueryException → 500. Un
+        // status='R' (rejeté) précédent est aussi réactivé plutôt que laissé bloqué.
+        $userSchoolRole = UserSchoolRole::withTrashed()->firstOrNew(
+            ['user_id' => $user->id, 'school_id' => $invitation->school_id, 'role_id' => $invitation->role_id]
         );
+
+        if ($userSchoolRole->trashed()) {
+            $userSchoolRole->restore();
+        }
+
+        $userSchoolRole->fill([
+            'status' => $userSchoolRole->exists && $userSchoolRole->status !== 'R' ? $userSchoolRole->status : 'A',
+            'is_active' => true,
+            'created_by' => $userSchoolRole->created_by ?? $invitation->created_by,
+            'updated_by' => $invitation->created_by,
+        ])->save();
 
         $invitation->update(['accepted_at' => now()]);
 
+        $request->session()->regenerate();
         Auth::login($user);
         session(['active_school_id' => $invitation->school_id]);
 

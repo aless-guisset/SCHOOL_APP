@@ -96,4 +96,31 @@ class User extends Authenticatable
 
         return $firstRole ? $firstRole->school : null;
     }
+
+    /**
+     * Rôle actuellement actif (status='A', is_active=true) de l'utilisateur dans une école donnée —
+     * priorité au rôle le plus privilégié si plusieurs lignes existent (ne devrait normalement pas
+     * arriver, mais protège contre le cas où c'est arrivé).
+     */
+    public function activeRoleAt(int $schoolId): ?string
+    {
+        $privilegeOrder = ['Administrateur', 'Directeur', 'Power User', 'Secrétariat', 'Professeur', 'Élève'];
+
+        $roles = $this->schoolRoles()
+            ->with('role')
+            ->where('school_id', $schoolId)
+            ->where('is_active', true)
+            ->where('status', 'A')
+            ->get()
+            ->pluck('role.name')
+            ->filter();
+
+        foreach ($privilegeOrder as $candidate) {
+            if ($roles->contains($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $roles->first();
+    }
 }

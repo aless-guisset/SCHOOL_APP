@@ -7,7 +7,6 @@ use App\Models\CantineMenu;
 use App\Models\CantineOrder;
 use App\Models\School;
 use App\Models\SectionUserSchoolRole;
-use App\Models\UserSchoolRole;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -227,13 +226,11 @@ class CantineController extends Controller
     /** Même liste de rôles que EnsureCanManage — décide quoi renvoyer dans index(), pas un contrôle d'accès en soi. */
     private function userCanManage(?int $schoolId): bool
     {
-        $role = UserSchoolRole::with('role')
-            ->where('user_id', auth()->id())
-            ->where('school_id', $schoolId)
-            ->where('is_active', true)
-            ->first()
-            ?->role
-            ?->name;
+        if (! $schoolId) {
+            return false;
+        }
+
+        $role = auth()->user()->activeRoleAt($schoolId);
 
         return in_array($role, EnsureCanManage::MANAGE_ROLES, true);
     }

@@ -79,6 +79,7 @@ class TimesheetsController extends Controller
             'userSchoolRoles' => UserSchoolRole::with(['user', 'role'])
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
+                ->where('status', 'A')
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
@@ -191,6 +192,7 @@ class TimesheetsController extends Controller
             'userSchoolRoles' => UserSchoolRole::with(['user', 'role'])
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
+                ->where('status', 'A')
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
@@ -399,6 +401,7 @@ class TimesheetsController extends Controller
     {
         return function (string $attribute, mixed $value, \Closure $fail) use ($schoolId) {
             $isProf = UserSchoolRole::where('school_id', $schoolId)
+                ->where('status', 'A')
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->whereKey($value)
                 ->exists();

@@ -13,6 +13,13 @@ class School extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * access_code ne doit jamais être sérialisé dans les réponses JSON/Inertia —
+     * seul le Directeur y a accès, via le prop partagé `school` construit
+     * manuellement dans HandleInertiaRequests (qui n'est pas affecté par $hidden).
+     */
+    protected $hidden = ['access_code'];
+
     protected $fillable = [
         'name',
         'reference',

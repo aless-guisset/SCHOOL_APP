@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { Form, Head, router, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
+import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 
 const props = defineProps<{ role_reference: string | null; is_student: boolean }>();
+
+// Anonyme : le formulaire crée le compte au passage (mêmes champs que
+// InvitationAccept.vue / JoinWithCode.vue). Déjà connecté : formulaire inchangé.
+const page = usePage();
+const isAuthenticated = computed(() => !!page.props.auth.user);
 
 type SchoolResult = { id: number; name: string };
 const query = ref('');
@@ -37,12 +43,6 @@ watch(query, (value) => {
         title="Demander l'accès"
         :description="props.is_student ? 'Recherchez votre établissement' : 'Recherchez l\'établissement, votre demande sera validée par le Directeur'"
     >
-        <div class="mb-4 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-            Pas encore de compte ?
-            <Link href="/register" class="font-medium underline underline-offset-4">Créez-en un</Link>
-            puis revenez ici pour rechercher votre école.
-        </div>
-
         <div class="grid gap-2">
             <Label for="school_search">Nom de l'établissement</Label>
             <Input id="school_search" v-model="query" placeholder="Lycée..." autofocus />
@@ -73,6 +73,39 @@ watch(query, (value) => {
             </p>
             <InputError :message="errors.school_id" />
             <InputError :message="errors.role_reference" />
+
+            <template v-if="!isAuthenticated">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label for="firstname">Prénom</Label>
+                        <Input id="firstname" name="firstname" type="text" required autocomplete="given-name" />
+                        <InputError :message="errors.firstname" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="lastname">Nom</Label>
+                        <Input id="lastname" name="lastname" type="text" required autocomplete="family-name" />
+                        <InputError :message="errors.lastname" />
+                    </div>
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="email">Adresse email</Label>
+                    <Input id="email" name="email" type="email" required autocomplete="email" />
+                    <InputError :message="errors.email" />
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="password">Mot de passe</Label>
+                    <PasswordInput id="password" name="password" required autocomplete="new-password" />
+                    <InputError :message="errors.password" />
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="password_confirmation">Confirmer le mot de passe</Label>
+                    <PasswordInput id="password_confirmation" name="password_confirmation" required autocomplete="new-password" />
+                    <InputError :message="errors.password_confirmation" />
+                </div>
+            </template>
 
             <Button type="submit" :disabled="processing" class="w-full">Envoyer la demande</Button>
         </Form>
