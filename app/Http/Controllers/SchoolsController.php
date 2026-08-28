@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\School;
+use App\Models\UserSchoolRole;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -50,13 +52,38 @@ class SchoolsController extends Controller
         abort_if($school->status !== 'P', 422, 'Cette école n\'est plus en attente d\'approbation.');
 
         $school->update([
-            'status'     => 'A',
-            'is_active'  => true,
-            'updated_by' => $request->user()->id,
+            'status'      => 'A',
+            'is_active'   => true,
+            'access_code' => $school->access_code ?? $this->generateAccessCode(),
+            'updated_by'  => $request->user()->id,
         ]);
+
+        $directeurRole = Role::where('reference', 'DIR')->first();
+        if ($directeurRole && $school->created_by) {
+            UserSchoolRole::firstOrCreate(
+                ['user_id' => $school->created_by, 'school_id' => $school->id, 'role_id' => $directeurRole->id],
+                ['status' => 'A', 'is_active' => true, 'created_by' => $request->user()->id]
+            );
+        }
 
         return redirect()->route('schools.pending')
             ->with('flash', ['type' => 'success', 'message' => "L'école \"{$school->name}\" a été approuvée."]);
+    }
+
+    /**
+     * Code alphanumérique court (8 caractères), pensé pour être dicté/partagé
+     * à l'oral — pas de 0/O/1/I pour éviter les confusions. Régénéré en cas de
+     * collision improbable (unique() sur `access_code`).
+     */
+    private function generateAccessCode(): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+        do {
+            $code = collect(range(1, 8))->map(fn () => $alphabet[random_int(0, strlen($alphabet) - 1)])->implode('');
+        } while (School::where('access_code', $code)->exists());
+
+        return $code;
     }
 
     public function reject(Request $request, School $school)
