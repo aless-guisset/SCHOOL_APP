@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, router, usePage } from '@inertiajs/vue3';
-import { Check, CheckCircle2, Clock, Copy, RefreshCw, UserRound, XCircle } from 'lucide-vue-next';
+import { Check, CheckCircle2, Clock, Copy, Mail, RefreshCw, UserRound, X, XCircle } from 'lucide-vue-next';
 import { ref } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -20,8 +20,17 @@ interface AccessRequest {
     requested_at: string;
 }
 
+interface PendingInvitation {
+    id: number;
+    email: string;
+    role: string;
+    expired: boolean;
+    sent_at: string;
+}
+
 const props = defineProps<{
     requests: AccessRequest[];
+    invitations: PendingInvitation[];
 }>();
 
 const page = usePage<{ school: { access_code: string | null } | null }>();
@@ -52,6 +61,17 @@ function reject(request: AccessRequest) {
     router.post(`/access-requests/${request.id}/reject`, {}, {
         preserveScroll: true,
         onFinish: () => { processingId.value = null; },
+    });
+}
+
+const cancelingId = ref<number | null>(null);
+
+function cancelInvitation(invitation: PendingInvitation) {
+    if (!confirm(`Annuler l'invitation envoyée à ${invitation.email} ?`)) return;
+    cancelingId.value = invitation.id;
+    router.delete(`/invitations/${invitation.id}`, {
+        preserveScroll: true,
+        onFinish: () => { cancelingId.value = null; },
     });
 }
 </script>
@@ -115,6 +135,37 @@ function reject(request: AccessRequest) {
                         </div>
                         <Button type="submit" size="sm" :disabled="processing">Envoyer l'invitation</Button>
                     </Form>
+                </CardContent>
+            </Card>
+
+            <!-- Invitations en attente -->
+            <Card v-if="props.invitations.length">
+                <CardHeader>
+                    <CardTitle class="text-base">Invitations en attente ({{ props.invitations.length }})</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-2">
+                    <div
+                        v-for="invitation in props.invitations" :key="invitation.id"
+                        class="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"
+                    >
+                        <div class="flex items-center gap-2">
+                            <Mail class="size-4 shrink-0 text-muted-foreground" />
+                            <div>
+                                <p class="font-medium">{{ invitation.email }} <span class="font-normal text-muted-foreground">— {{ invitation.role }}</span></p>
+                                <p class="text-xs text-muted-foreground">
+                                    Envoyée {{ invitation.sent_at }}
+                                    <Badge v-if="invitation.expired" variant="destructive" class="ml-1">Expirée</Badge>
+                                </p>
+                            </div>
+                        </div>
+                        <Button
+                            variant="outline" size="icon" class="size-8"
+                            :disabled="cancelingId === invitation.id"
+                            @click="cancelInvitation(invitation)"
+                        >
+                            <X class="size-4 text-destructive" />
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
 

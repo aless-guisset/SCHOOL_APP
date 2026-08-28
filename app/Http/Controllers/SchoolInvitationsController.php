@@ -45,6 +45,17 @@ class SchoolInvitationsController extends Controller
         return back()->with('flash', ['type' => 'success', 'message' => "Invitation envoyée à {$data['email']}."]);
     }
 
+    public function destroy(SchoolInvitation $schoolInvitation): RedirectResponse
+    {
+        abort_unless($schoolInvitation->school_id == session('active_school_id'), 404);
+        abort_if($schoolInvitation->accepted_at !== null, 422, 'Cette invitation a déjà été acceptée.');
+
+        $schoolInvitation->update(['is_active' => false, 'updated_by' => request()->user()->id]);
+        $schoolInvitation->delete();
+
+        return back()->with('flash', ['type' => 'success', 'message' => 'Invitation annulée.']);
+    }
+
     public function show(string $token): Response
     {
         $invitation = SchoolInvitation::where('token', $token)->firstOrFail();

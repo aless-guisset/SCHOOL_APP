@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SchoolInvitation;
 use App\Models\UserSchoolRole;
 use App\Notifications\AccessRequestDecidedNotification;
 use Illuminate\Http\RedirectResponse;
@@ -29,8 +30,23 @@ class AccessRequestsController extends Controller
                 'requested_at' => $r->created_at->diffForHumans(),
             ]);
 
+        $invitations = SchoolInvitation::with('role')
+            ->where('school_id', $schoolId)
+            ->where('is_active', true)
+            ->whereNull('accepted_at')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (SchoolInvitation $i) => [
+                'id'    => $i->id,
+                'email' => $i->email,
+                'role'  => $i->role->name,
+                'expired' => $i->expires_at->isPast(),
+                'sent_at' => $i->created_at->diffForHumans(),
+            ]);
+
         return Inertia::render('director/web/AccessRequests/Index', [
             'requests' => $requests,
+            'invitations' => $invitations,
         ]);
     }
 

@@ -150,3 +150,26 @@ test('shared school prop never leaks access_code to a non-Directeur role, even P
         ->get('/dashboard')
         ->assertInertia(fn ($page) => $page->where('school.access_code', null));
 });
+
+test('access-requests index lists pending invitations for the school, accepted ones excluded', function () {
+    $school = makeReqSchool();
+    $directeur = makeReqDirecteur($school);
+    $profRole = makeReqRole('PROF', 'Professeur');
+
+    \App\Models\SchoolInvitation::create([
+        'school_id' => $school->id, 'email' => 'pending@example.com', 'role_id' => $profRole->id,
+        'token' => 'pendingtoken', 'expires_at' => now()->addDays(7), 'is_active' => true, 'created_by' => $directeur->id,
+    ]);
+    \App\Models\SchoolInvitation::create([
+        'school_id' => $school->id, 'email' => 'accepted@example.com', 'role_id' => $profRole->id,
+        'token' => 'acceptedtoken', 'expires_at' => now()->addDays(7), 'accepted_at' => now(), 'is_active' => true, 'created_by' => $directeur->id,
+    ]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/access-requests')
+        ->assertInertia(fn ($page) => $page
+            ->has('invitations', 1)
+            ->where('invitations.0.email', 'pending@example.com')
+        );
+});

@@ -127,6 +127,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::post('/access-requests/{userSchoolRole}/approve', [AccessRequestsController::class, 'approve'])->name('access-requests.approve');
         Route::post('/access-requests/{userSchoolRole}/reject', [AccessRequestsController::class, 'reject'])->name('access-requests.reject');
         Route::post('/invitations', [SchoolInvitationsController::class, 'store'])->name('invitations.store');
+        Route::delete('/invitations/{schoolInvitation}', [SchoolInvitationsController::class, 'destroy'])->name('invitations.destroy');
         Route::post('/school/access-code/regenerate', [SchoolAccessController::class, 'regenerateCode'])->name('school.access-code.regenerate');
     });
 

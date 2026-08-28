@@ -112,3 +112,75 @@ test('an already-accepted invitation cannot be reused', function () {
 
     $this->get('/invitations/usedtoken/accept')->assertNotFound();
 });
+
+test('Directeur can cancel a pending invitation, which then cannot be accepted', function () {
+    $school = makeInvSchool();
+    $directeur = makeInvDirecteur($school);
+    $role = makeInvRole('PROF', 'Professeur');
+    $invitation = SchoolInvitation::create([
+        'school_id' => $school->id, 'email' => 'cancel-me@example.com', 'role_id' => $role->id,
+        'token' => 'cancelmetoken', 'expires_at' => now()->addDays(7), 'is_active' => true, 'created_by' => $directeur->id,
+    ]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/invitations/{$invitation->id}")
+        ->assertRedirect();
+
+    expect(SchoolInvitation::find($invitation->id))->toBeNull();
+    $this->get('/invitations/cancelmetoken/accept')->assertNotFound();
+});
+
+test('a Directeur cannot cancel another school\'s invitation', function () {
+    $schoolA = makeInvSchool();
+    $schoolB = makeInvSchool();
+    $directeurA = makeInvDirecteur($schoolA);
+    makeInvDirecteur($schoolB);
+    $role = makeInvRole('PROF', 'Professeur');
+    $invitation = SchoolInvitation::create([
+        'school_id' => $schoolB->id, 'email' => 'other-school@example.com', 'role_id' => $role->id,
+        'token' => 'othertoken', 'expires_at' => now()->addDays(7), 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($directeurA)
+        ->withSession(['active_school_id' => $schoolA->id])
+        ->delete("/invitations/{$invitation->id}")
+        ->assertNotFound();
+
+    expect(SchoolInvitation::find($invitation->id))->not->toBeNull();
+});
+
+test('an already-accepted invitation cannot be canceled', function () {
+    $school = makeInvSchool();
+    $directeur = makeInvDirecteur($school);
+    $role = makeInvRole('PROF', 'Professeur');
+    $invitation = SchoolInvitation::create([
+        'school_id' => $school->id, 'email' => 'already-accepted@example.com', 'role_id' => $role->id,
+        'token' => 'acceptedtoken', 'expires_at' => now()->addDays(7), 'accepted_at' => now(), 'is_active' => true, 'created_by' => $directeur->id,
+    ]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/invitations/{$invitation->id}")
+        ->assertStatus(422);
+});
+
+test('a non-Directeur cannot cancel an invitation', function () {
+    $school = makeInvSchool();
+    makeInvDirecteur($school);
+    $powerRole = makeInvRole('POWER', 'Power User');
+    $power = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $power->id, 'school_id' => $school->id, 'role_id' => $powerRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $role = makeInvRole('PROF', 'Professeur');
+    $invitation = SchoolInvitation::create([
+        'school_id' => $school->id, 'email' => 'protected@example.com', 'role_id' => $role->id,
+        'token' => 'protectedtoken', 'expires_at' => now()->addDays(7), 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($power)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/invitations/{$invitation->id}")
+        ->assertForbidden();
+
+    expect(SchoolInvitation::find($invitation->id))->not->toBeNull();
+});
