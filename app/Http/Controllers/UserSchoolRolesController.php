@@ -55,6 +55,7 @@ class UserSchoolRolesController extends Controller
 
         $data['school_id']  = $schoolId;
         $data['is_active']  = true;
+        $data['status']     = 'A';
         $data['created_by'] = $request->user()->id;
 
         // Vérifie si la combinaison existe déjà (même avec soft delete)

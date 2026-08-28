@@ -21,6 +21,7 @@ class School extends Model
         'phone_number',
         'address',
         'status',
+        'access_code',
         'is_active',
         'cantine_enabled',
         'year_end_date',
