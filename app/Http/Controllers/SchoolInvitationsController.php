@@ -30,6 +30,20 @@ class SchoolInvitationsController extends Controller
         $school = School::findOrFail(session('active_school_id'));
         $role = Role::where('reference', $data['role_reference'])->firstOrFail();
 
+        // Une nouvelle invitation remplace toute invitation encore active pour
+        // la même adresse dans cette école — évite d'avoir plusieurs liens
+        // valides en même temps pour la même personne (peu importe le rôle
+        // proposé la première fois).
+        SchoolInvitation::where('school_id', $school->id)
+            ->where('email', $data['email'])
+            ->where('is_active', true)
+            ->whereNull('accepted_at')
+            ->get()
+            ->each(function (SchoolInvitation $old) use ($request) {
+                $old->update(['is_active' => false, 'updated_by' => $request->user()->id]);
+                $old->delete();
+            });
+
         $invitation = SchoolInvitation::create([
             'school_id' => $school->id,
             'email' => $data['email'],

@@ -44,6 +44,43 @@ test('Directeur can send an invitation restricted to PROF/SEC/POWER, never ELEVE
         ->assertSessionHasErrors('role_reference');
 });
 
+test('sending a new invitation to the same email cancels the previous still-pending one instead of stacking both', function () {
+    $school = makeInvSchool();
+    $directeur = makeInvDirecteur($school);
+    makeInvRole('PROF', 'Professeur');
+    makeInvRole('SEC', 'Secrétariat');
+
+    $this->actingAs($directeur)->withSession(['active_school_id' => $school->id])
+        ->post('/invitations', ['email' => 'redo@example.com', 'role_reference' => 'PROF']);
+    $first = SchoolInvitation::where('email', 'redo@example.com')->first();
+
+    $this->actingAs($directeur)->withSession(['active_school_id' => $school->id])
+        ->post('/invitations', ['email' => 'redo@example.com', 'role_reference' => 'SEC'])
+        ->assertRedirect();
+
+    expect(SchoolInvitation::where('email', 'redo@example.com')->count())->toBe(1)
+        ->and(SchoolInvitation::find($first->id))->toBeNull();
+
+    $second = SchoolInvitation::where('email', 'redo@example.com')->first();
+    expect($second->role->reference)->toBe('SEC');
+});
+
+test('sending a new invitation does not cancel an already-accepted one for the same email', function () {
+    $school = makeInvSchool();
+    $directeur = makeInvDirecteur($school);
+    $role = makeInvRole('PROF', 'Professeur');
+    $accepted = SchoolInvitation::create([
+        'school_id' => $school->id, 'email' => 'already@example.com', 'role_id' => $role->id,
+        'token' => 'alreadytoken', 'expires_at' => now()->addDays(7), 'accepted_at' => now(), 'is_active' => true, 'created_by' => $directeur->id,
+    ]);
+
+    $this->actingAs($directeur)->withSession(['active_school_id' => $school->id])
+        ->post('/invitations', ['email' => 'already@example.com', 'role_reference' => 'PROF']);
+
+    expect(SchoolInvitation::find($accepted->id))->not->toBeNull()
+        ->and(SchoolInvitation::where('email', 'already@example.com')->count())->toBe(2);
+});
+
 test('accepting a valid invitation for a new email creates the account and grants active access', function () {
     $school = makeInvSchool();
     $directeur = makeInvDirecteur($school);
