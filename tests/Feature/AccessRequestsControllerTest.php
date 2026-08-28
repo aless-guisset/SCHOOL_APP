@@ -137,3 +137,16 @@ test('accessRequestsPendingCount prop is populated only for a Directeur, matchin
         ->get('/dashboard')
         ->assertInertia(fn ($page) => $page->where('accessRequestsPendingCount', 1));
 });
+
+test('shared school prop never leaks access_code to a non-Directeur role, even Power User', function () {
+    $school = makeReqSchool();
+    $school->update(['access_code' => 'SECRETCODE']);
+    $powerRole = makeReqRole('POWER', 'Power User');
+    $power = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $power->id, 'school_id' => $school->id, 'role_id' => $powerRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($power)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('school.access_code', null));
+});

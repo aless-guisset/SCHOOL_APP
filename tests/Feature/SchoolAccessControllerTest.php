@@ -77,3 +77,41 @@ test('school search returns only active schools matching the query, id and name 
         ->and($results[0])->toHaveKeys(['id', 'name'])
         ->and(collect($results)->pluck('name')->contains('Lycée En Attente'))->toBeFalse();
 });
+
+test('a Directeur can regenerate the access code, and the old code stops working immediately', function () {
+    $school = makeAccessSchool('OLDCODE1');
+    makeAccessRole('PROF', 'Professeur');
+    $directeurRole = makeAccessRole('DIR', 'Directeur');
+    $directeur = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $directeur->id, 'school_id' => $school->id, 'role_id' => $directeurRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/school/access-code/regenerate')
+        ->assertRedirect();
+
+    $newCode = $school->fresh()->access_code;
+    expect($newCode)->not->toBeNull()->and($newCode)->not->toBe('OLDCODE1');
+
+    // L'ancien code ne fonctionne plus, prouvant qu'il est réellement révoqué
+    // (et pas simplement qu'un nouveau code coexiste avec lui).
+    $joiner = User::factory()->create();
+    $this->actingAs($joiner)->post('/join/with-code', [
+        'access_code' => 'OLDCODE1', 'role_reference' => 'PROF',
+    ])->assertSessionHasErrors('access_code');
+    expect(UserSchoolRole::where('user_id', $joiner->id)->count())->toBe(0);
+});
+
+test('a non-Directeur cannot regenerate the access code, even Power User', function () {
+    $school = makeAccessSchool('KEEPCODE');
+    $powerRole = makeAccessRole('POWER', 'Power User');
+    $power = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $power->id, 'school_id' => $school->id, 'role_id' => $powerRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($power)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/school/access-code/regenerate')
+        ->assertForbidden();
+
+    expect($school->fresh()->access_code)->toBe('KEEPCODE');
+});
