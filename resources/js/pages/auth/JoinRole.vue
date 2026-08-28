@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { Briefcase, GraduationCap, ShieldCheck, Users } from 'lucide-vue-next';
-import AuthLayout from '@/layouts/AuthLayout.vue';
+import JoinAuthLayout from '@/layouts/JoinAuthLayout.vue';
 
 const roles = [
     { reference: 'ELEVE', label: 'Étudiant', icon: GraduationCap, description: 'Je rejoins ma classe' },
@@ -13,21 +13,72 @@ const roles = [
 
 <template>
     <Head title="Rejoindre une école" />
-    <AuthLayout title="Rejoindre une école" description="Sélectionnez votre rôle pour continuer">
-        <div class="grid grid-cols-2 gap-3">
+    <JoinAuthLayout badge="Plateforme de gestion scolaire" title="Rejoindre une école" description="Sélectionnez votre rôle pour continuer">
+        <div class="role-grid">
             <Link
                 v-for="r in roles" :key="r.reference"
                 :href="r.reference === 'ELEVE' ? `/join/request?role=${r.reference}` : `/join/with-code?role=${r.reference}`"
-                class="flex flex-col items-center gap-2 rounded-xl border-2 border-border px-4 py-5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-foreground"
+                class="role-card"
             >
-                <component :is="r.icon" class="size-7" />
-                <span>{{ r.label }}</span>
-                <span class="text-center text-xs font-normal opacity-70">{{ r.description }}</span>
+                <component :is="r.icon" class="role-icon" />
+                <span class="role-label">{{ r.label }}</span>
+                <span class="role-desc">{{ r.description }}</span>
             </Link>
         </div>
-        <p class="mt-6 text-center text-sm text-muted-foreground">
+        <p class="join-footer">
             Vous fondez un nouvel établissement ?
-            <Link href="/register" class="underline underline-offset-4">Créer une école</Link>
+            <Link href="/register" class="join-link">Créer une école</Link>
         </p>
-    </AuthLayout>
+    </JoinAuthLayout>
 </template>
+
+<style scoped>
+.role-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+.role-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 22px 14px;
+    border: 1px solid #e8e8e4;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #666666;
+    text-align: center;
+    transition: border-color 0.2s, color 0.2s;
+}
+.role-card:hover {
+    border-color: #b7dfc8;
+    color: #111111;
+}
+.role-icon {
+    width: 26px;
+    height: 26px;
+    color: #1a3d2b;
+}
+.role-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111111;
+}
+.role-desc {
+    font-size: 12px;
+    line-height: 1.4;
+}
+.join-footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 13px;
+    color: #666666;
+}
+.join-link {
+    color: #1a3d2b;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-weight: 500;
+}
+</style>

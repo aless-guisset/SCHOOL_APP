@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AuthBase from '@/layouts/AuthLayout.vue';
+import JoinAuthLayout from '@/layouts/JoinAuthLayout.vue';
 
 const props = defineProps<{
     email: string;
@@ -41,15 +41,20 @@ function submit() {
                   password_confirmation: passwordConfirmation.value,
               },
         {
-            onError: (e) => { errors.value = e as Record<string, string>; },
-            onFinish: () => { processing.value = false; },
+            onError: (e) => {
+ errors.value = e as Record<string, string>; 
+},
+            onFinish: () => {
+ processing.value = false; 
+},
         }
     );
 }
 </script>
 
 <template>
-    <AuthBase
+    <JoinAuthLayout
+        badge="Invitation directe"
         title="Invitation reçue"
         :description="`Rejoignez ${props.school_name} en tant que ${props.role_name}`"
     >
@@ -97,5 +102,5 @@ function submit() {
                 Accepter l'invitation
             </Button>
         </form>
-    </AuthBase>
+    </JoinAuthLayout>
 </template>

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Form, Head, router, usePage } from '@inertiajs/vue3';
+import { Form, Head, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AuthLayout from '@/layouts/AuthLayout.vue';
+import JoinAuthLayout from '@/layouts/JoinAuthLayout.vue';
 
 const props = defineProps<{ role_reference: string | null; is_student: boolean }>();
 
@@ -24,10 +24,13 @@ let debounceHandle: ReturnType<typeof setTimeout> | undefined;
 watch(query, (value) => {
     selectedSchool.value = null;
     clearTimeout(debounceHandle);
+
     if (value.trim().length < 2) {
         results.value = [];
+
         return;
     }
+
     debounceHandle = setTimeout(async () => {
         const res = await fetch(`/schools/search?q=${encodeURIComponent(value.trim())}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -39,18 +42,19 @@ watch(query, (value) => {
 
 <template>
     <Head title="Demander l'accès" />
-    <AuthLayout
+    <JoinAuthLayout
+        badge="Validation par le Directeur"
         title="Demander l'accès"
         :description="props.is_student ? 'Recherchez votre établissement' : 'Recherchez l\'établissement, votre demande sera validée par le Directeur'"
     >
         <div class="grid gap-2">
             <Label for="school_search">Nom de l'établissement</Label>
             <Input id="school_search" v-model="query" placeholder="Lycée..." autofocus />
-            <ul v-if="results.length" class="rounded-md border border-border divide-y divide-border">
+            <ul v-if="results.length" class="school-results">
                 <li
                     v-for="s in results" :key="s.id"
-                    class="cursor-pointer px-3 py-2 text-sm hover:bg-muted"
-                    :class="{ 'bg-primary/10 font-medium': selectedSchool?.id === s.id }"
+                    class="school-result"
+                    :class="{ active: selectedSchool?.id === s.id }"
                     @click="selectedSchool = s"
                 >
                     {{ s.name }}
@@ -109,5 +113,30 @@ watch(query, (value) => {
 
             <Button type="submit" :disabled="processing" class="w-full">Envoyer la demande</Button>
         </Form>
-    </AuthLayout>
+    </JoinAuthLayout>
 </template>
+
+<style scoped>
+.school-results {
+    border: 1px solid #e8e8e4;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.school-results > li + li {
+    border-top: 1px solid #e8e8e4;
+}
+.school-result {
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #111111;
+    transition: background 0.15s;
+}
+.school-result:hover {
+    background: #fafaf8;
+}
+.school-result.active {
+    background: #e8f5ee;
+    font-weight: 500;
+}
+</style>

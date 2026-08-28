@@ -6,7 +6,7 @@ import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AuthLayout from '@/layouts/AuthLayout.vue';
+import JoinAuthLayout from '@/layouts/JoinAuthLayout.vue';
 
 const props = defineProps<{ role_reference: string | null }>();
 
@@ -18,7 +18,7 @@ const isAuthenticated = computed(() => !!page.props.auth.user);
 
 <template>
     <Head title="Rejoindre avec un code" />
-    <AuthLayout title="Rejoindre avec un code d'accès" description="Renseignez le code fourni par votre établissement">
+    <JoinAuthLayout badge="Accès instantané" title="Rejoindre avec un code d'accès" description="Renseignez le code fourni par votre établissement">
         <Form
             action="/join/with-code" method="post"
             :reset-on-success="['access_code']"
@@ -73,11 +73,26 @@ const isAuthenticated = computed(() => !!page.props.auth.user);
             <Button type="submit" :disabled="processing" class="w-full">Rejoindre</Button>
         </Form>
 
-        <p class="mt-4 text-center text-sm text-muted-foreground">
+        <p class="join-footer">
             Pas de code ?
-            <Link :href="`/join/request?role=${props.role_reference ?? ''}`" class="underline underline-offset-4">
+            <Link :href="`/join/request?role=${props.role_reference ?? ''}`" class="join-link">
                 Demander l'accès sans code
             </Link>
         </p>
-    </AuthLayout>
+    </JoinAuthLayout>
 </template>
+
+<style scoped>
+.join-footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: #666666;
+}
+.join-link {
+    color: #1a3d2b;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-weight: 500;
+}
+</style>
