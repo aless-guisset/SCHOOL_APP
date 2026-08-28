@@ -30,6 +30,7 @@ class EnsureCanManage
             ->where('user_id', $user->id)
             ->where('school_id', $activeSchoolId)
             ->where('is_active', true)
+            ->where('status', 'A')
             ->first()
             ?->role
             ?->name;

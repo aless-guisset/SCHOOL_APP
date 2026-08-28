@@ -25,43 +25,44 @@ class CheckSchoolContext
             return $next($request);
         }
 
-        // Routes exclues du check (settings perso, sélection/création d'école)
-        $excludedPrefixes = ['school/', 'settings/', 'api/', 'logout'];
+        // Routes exclues du check (settings perso, sélection/création d'école,
+        // nouveau parcours d'inscription/accès)
+        $excludedPrefixes = ['school/', 'settings/', 'api/', 'logout', 'join/', 'invitations/'];
         foreach ($excludedPrefixes as $prefix) {
             if ($request->is($prefix) || $request->is($prefix.'*')) {
                 return $next($request);
             }
         }
 
-        $schoolRoles = $user->schoolRoles()->with('school')->where('is_active', true)->get();
-        $schoolCount = $schoolRoles->count();
+        $activeSchoolRoles = $user->schoolRoles()->with('school')->where('is_active', true)->where('status', 'A')->get();
+        $schoolCount = $activeSchoolRoles->count();
 
         if ($schoolCount === 0) {
-            // Étudiant sans école : page d'attente d'invitation
-            if ($user->profile === 'student') {
-                return redirect()->route('school.waiting');
+            $hasPendingRequest = $user->schoolRoles()->where('is_active', true)->where('status', 'P')->exists();
+            if ($hasPendingRequest) {
+                return redirect()->route('join.pending');
             }
-            // Créateur d'école : formulaire de demande
-            return redirect()->route('school.create');
+            if ($user->profile === 'school_owner') {
+                return redirect()->route('school.create');
+            }
+
+            return redirect()->route('join.role');
         }
 
         // Vérifier si l'école en session est encore valide
         $activeSchoolId = session('active_school_id');
-        $validSchoolIds = $schoolRoles->pluck('school_id')->toArray();
+        $validSchoolIds = $activeSchoolRoles->pluck('school_id')->toArray();
 
         if ($activeSchoolId && in_array($activeSchoolId, $validSchoolIds)) {
-            // Session valide, on continue
             return $next($request);
         }
 
         if ($schoolCount === 1) {
-            // Une seule école : on la met en session automatiquement
-            session(['active_school_id' => $schoolRoles->first()->school_id]);
+            session(['active_school_id' => $activeSchoolRoles->first()->school_id]);
 
             return $next($request);
         }
 
-        // Plusieurs écoles : résoudre l'école par défaut ou demander de choisir
         $defaultSchool = $user->resolveDefaultSchool();
         if ($defaultSchool && in_array($defaultSchool->id, $validSchoolIds)) {
             session(['active_school_id' => $defaultSchool->id]);

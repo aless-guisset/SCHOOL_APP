@@ -7,7 +7,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureAdministrateur
+class EnsureDirecteur
 {
     public function handle(Request $request, Closure $next): Response
     {
@@ -27,7 +27,7 @@ class EnsureAdministrateur
             ?->role
             ?->name;
 
-        if ($role !== 'Administrateur') {
+        if ($role !== 'Directeur') {
             abort(403);
         }
 

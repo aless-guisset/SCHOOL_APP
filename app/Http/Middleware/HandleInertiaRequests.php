@@ -38,6 +38,7 @@ class HandleInertiaRequests extends Middleware
                 ->with('role')
                 ->where('school_id', $activeSchoolId)
                 ->where('is_active', true)
+                ->where('status', 'A')
                 ->first();
 
             $currentRole = $schoolRole?->role?->name;
@@ -46,6 +47,7 @@ class HandleInertiaRequests extends Middleware
             $userSchools = $user->schoolRoles()
                 ->with('school')
                 ->where('is_active', true)
+                ->where('status', 'A')
                 ->get()
                 ->map(fn ($sr) => [
                     'id'         => $sr->school->id,

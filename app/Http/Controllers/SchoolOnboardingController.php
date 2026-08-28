@@ -21,7 +21,7 @@ class SchoolOnboardingController extends Controller
 
         $schools = School::whereIn(
             'id',
-            $user->schoolRoles()->where('is_active', true)->pluck('school_id')
+            $user->schoolRoles()->where('is_active', true)->where('status', 'A')->pluck('school_id')
         )
             ->where('is_active', true)
             ->get()
@@ -59,6 +59,7 @@ class SchoolOnboardingController extends Controller
         $belongs = $user->schoolRoles()
             ->where('school_id', $schoolId)
             ->where('is_active', true)
+            ->where('status', 'A')
             ->exists();
 
         abort_unless($belongs, 403, 'Accès non autorisé à cet établissement.');
@@ -124,6 +125,7 @@ class SchoolOnboardingController extends Controller
         $belongs = $user->schoolRoles()
             ->where('school_id', $schoolId)
             ->where('is_active', true)
+            ->where('status', 'A')
             ->exists();
 
         abort_unless($belongs, 403, 'Accès non autorisé à cet établissement.');

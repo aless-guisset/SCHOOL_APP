@@ -87,12 +87,12 @@ class User extends Authenticatable
     {
         if ($this->default_school_id) {
             $school = $this->defaultSchool;
-            if ($school && $this->schoolRoles()->where('school_id', $this->default_school_id)->exists()) {
+            if ($school && $this->schoolRoles()->where('school_id', $this->default_school_id)->where('status', 'A')->exists()) {
                 return $school;
             }
         }
 
-        $firstRole = $this->schoolRoles()->where('is_active', true)->first();
+        $firstRole = $this->schoolRoles()->where('is_active', true)->where('status', 'A')->first();
 
         return $firstRole ? $firstRole->school : null;
     }

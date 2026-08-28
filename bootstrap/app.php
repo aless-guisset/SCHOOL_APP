@@ -3,6 +3,7 @@
 use App\Http\Middleware\CheckSchoolContext;
 use App\Http\Middleware\EnsureAdministrateur;
 use App\Http\Middleware\EnsureCanManage;
+use App\Http\Middleware\EnsureDirecteur;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'school.context' => CheckSchoolContext::class,
             'admin'          => EnsureAdministrateur::class,
             'can-manage'     => EnsureCanManage::class,
+            'director-only'  => EnsureDirecteur::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
