@@ -32,6 +32,7 @@ class SchoolOnboardingController extends Controller
                 'is_default' => $school->id === $user->default_school_id,
                 'role' => $user->schoolRoles()
                     ->where('school_id', $school->id)
+                    ->where('status', 'A')
                     ->with('role')
                     ->first()
                     ?->role

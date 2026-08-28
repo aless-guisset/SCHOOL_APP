@@ -4,6 +4,7 @@ use App\Models\Role;
 use App\Models\School;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function makePendingScopingSchool(): School
 {
@@ -60,4 +61,25 @@ test('director-only middleware allows Directeur and blocks everyone else', funct
 
     $this->actingAs($prof)->withSession(['active_school_id' => $school->id])
         ->get('/__test-director-only')->assertForbidden();
+});
+
+test('select() shows the status=A role, never a pending/rejected one, when a user has two rows at the same school', function () {
+    $school = makePendingScopingSchool();
+    $dirRole = makePendingScopingRole('DIR', 'Directeur');
+    $profRole = makePendingScopingRole('PROF', 'Professeur');
+    $user = User::factory()->create();
+
+    // Pending row created first (lower id) so a naive `->first()` without a
+    // `status='A'` filter would surface this role instead of the active one.
+    UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $dirRole->id, 'status' => 'P', 'is_active' => true, 'created_by' => 1]);
+    UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $profRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($user)
+        ->get('/school/select')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('school/Select')
+            ->has('schools', 1)
+            ->where('schools.0.id', $school->id)
+            ->where('schools.0.role', 'Professeur')
+        );
 });
