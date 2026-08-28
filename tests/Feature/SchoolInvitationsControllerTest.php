@@ -66,6 +66,29 @@ test('accepting a valid invitation for a new email creates the account and grant
     expect($invitation->fresh()->accepted_at)->not->toBeNull();
 });
 
+test('accepting a valid invitation for an existing account attaches the role without re-validating credentials', function () {
+    $school = makeInvSchool();
+    $directeur = makeInvDirecteur($school);
+    $role = makeInvRole('PROF', 'Professeur');
+    $existingUser = User::factory()->create(['email' => 'existing@example.com']);
+    $invitation = SchoolInvitation::create([
+        'school_id' => $school->id, 'email' => 'existing@example.com', 'role_id' => $role->id,
+        'token' => 'existingtoken', 'expires_at' => now()->addDays(7), 'is_active' => true, 'created_by' => $directeur->id,
+    ]);
+
+    $this->post('/invitations/existingtoken/accept', [])->assertRedirect();
+
+    expect(User::where('email', 'existing@example.com')->count())->toBe(1);
+
+    $usr = UserSchoolRole::where('user_id', $existingUser->id)->where('school_id', $school->id)->first();
+    expect($usr)->not->toBeNull()
+        ->and($usr->status)->toBe('A')
+        ->and($usr->role->reference)->toBe('PROF');
+    expect($invitation->fresh()->accepted_at)->not->toBeNull();
+
+    $this->assertAuthenticatedAs($existingUser);
+});
+
 test('an expired invitation cannot be accepted', function () {
     $school = makeInvSchool();
     $directeur = makeInvDirecteur($school);
