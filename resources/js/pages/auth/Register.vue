@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { Building2, GraduationCap } from 'lucide-vue-next';
-import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
@@ -12,8 +10,6 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
-
-const profile = ref<'student' | 'school_owner' | null>(null);
 </script>
 
 <template>
@@ -30,42 +26,15 @@ const profile = ref<'student' | 'school_owner' | null>(null);
             class="flex flex-col gap-6"
         >
             <div class="grid gap-6">
-                <!-- ── Choix du profil ─────────────────────────────────────── -->
-                <div class="grid gap-2">
-                    <Label>Je suis… <span class="text-destructive">*</span></Label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <!-- Étudiant -->
-                        <button
-                            type="button"
-                            class="flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-4 text-sm font-medium transition-all"
-                            :class="profile === 'student'
-                                ? 'border-primary bg-primary/5 text-primary'
-                                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
-                            @click="profile = 'student'"
-                        >
-                            <GraduationCap class="size-7" />
-                            <span>Étudiant</span>
-                            <span class="text-xs font-normal opacity-70">Je rejoins une école</span>
-                        </button>
+                <!-- ── Profil automatique (school_owner) ─────────────────────────────────────── -->
+                <input type="hidden" name="profile" value="school_owner" />
 
-                        <!-- Créateur d'école -->
-                        <button
-                            type="button"
-                            class="flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-4 text-sm font-medium transition-all"
-                            :class="profile === 'school_owner'
-                                ? 'border-primary bg-primary/5 text-primary'
-                                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
-                            @click="profile = 'school_owner'"
-                        >
-                            <Building2 class="size-7" />
-                            <span>Établissement</span>
-                            <span class="text-xs font-normal opacity-70">Je crée une école</span>
-                        </button>
-                    </div>
-
-                    <!-- Input caché soumis avec le formulaire -->
-                    <input type="hidden" name="profile" :value="profile ?? ''" />
-                    <p v-if="errors.profile" class="text-xs text-destructive">{{ errors.profile }}</p>
+                <div class="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                    Ce formulaire crée un compte fondateur d'établissement — votre
+                    demande sera examinée par un administrateur.
+                    <TextLink href="/join/role" class="font-medium underline underline-offset-4">
+                        Vous rejoignez une école existante ?
+                    </TextLink>
                 </div>
 
                 <!-- ── Prénom + Nom ────────────────────────────────────────── -->
@@ -144,7 +113,7 @@ const profile = ref<'student' | 'school_owner' | null>(null);
                     type="submit"
                     class="mt-2 w-full"
                     tabindex="6"
-                    :disabled="processing || profile === null"
+                    :disabled="processing"
                     data-test="register-user-button"
                 >
                     <Spinner v-if="processing" />

@@ -25,3 +25,13 @@ test('new users can register', function () {
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
 });
+
+test('registering with profile=student is rejected — student signup now goes through /join', function () {
+    $response = $this->post(route('register.store'), [
+        'firstname' => 'Test', 'lastname' => 'Student', 'email' => 'student@example.com',
+        'password' => 'password', 'password_confirmation' => 'password', 'profile' => 'student',
+    ]);
+
+    $response->assertSessionHasErrors('profile');
+    $this->assertGuest();
+});
