@@ -67,6 +67,7 @@ class HandleInertiaRequests extends Middleware
                 'id'   => $activeSchool->id,
                 'name' => $activeSchool->name,
                 'cantine_enabled' => $activeSchool->cantine_enabled,
+                'access_code' => $activeSchool->access_code,
             ] : null,
             'currentRole' => $currentRole,
             'userSchools' => $userSchools,
@@ -76,6 +77,9 @@ class HandleInertiaRequests extends Middleware
             'translations' => TranslationService::getForLocale(app()->getLocale()),
             'pendingCount' => $currentRole === 'Administrateur'
                 ? School::where('status', 'P')->count()
+                : 0,
+            'accessRequestsPendingCount' => $currentRole === 'Directeur' && $activeSchoolId
+                ? \App\Models\UserSchoolRole::where('school_id', $activeSchoolId)->where('status', 'P')->count()
                 : 0,
             'unreadNotifications' => $user ? [
                 'count' => $user->unreadNotifications()->count(),

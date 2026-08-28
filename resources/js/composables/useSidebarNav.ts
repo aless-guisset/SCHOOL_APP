@@ -8,6 +8,7 @@ import {
     GraduationCap,
     Home,
     Hourglass,
+    KeyRound,
     Languages,
     LayoutDashboard,
     Library,
@@ -93,6 +94,7 @@ const nav: NavMap = {
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
+                { label: 'Gestion des accès', icon: KeyRound, route: '/access-requests', routeName: 'access-requests.index' },
             ],
         },
     ],

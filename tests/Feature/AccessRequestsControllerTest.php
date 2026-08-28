@@ -113,3 +113,27 @@ test('a non-Directeur cannot approve requests, even Power User', function () {
         ->post("/access-requests/{$usr->id}/approve")
         ->assertForbidden();
 });
+
+test('access-requests index exposes school access_code to the Directeur for display', function () {
+    $school = makeReqSchool();
+    $school->update(['access_code' => 'TESTCODE']);
+    $directeur = makeReqDirecteur($school);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/access-requests')
+        ->assertInertia(fn ($page) => $page->component('director/web/AccessRequests/Index'));
+});
+
+test('accessRequestsPendingCount prop is populated only for a Directeur, matching the P-count of their school', function () {
+    $school = makeReqSchool();
+    makeReqRole('PROF', 'Professeur');
+    $directeur = makeReqDirecteur($school);
+    $requester = User::factory()->create();
+    $this->actingAs($requester)->post('/join/request', ['school_id' => $school->id, 'role_reference' => 'PROF', 'is_student' => false]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('accessRequestsPendingCount', 1));
+});

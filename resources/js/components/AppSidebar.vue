@@ -30,6 +30,7 @@ const page = usePage<{
     school: { id: number; name: string; cantine_enabled?: boolean } | null;
     userSchools: Array<{ id: number; name: string; is_active: boolean; is_default: boolean }>;
     pendingCount: number;
+    accessRequestsPendingCount: number;
     routeName: string | null;
 }>();
 
@@ -37,6 +38,7 @@ const currentRole = computed(() => page.props.currentRole);
 const activeSchool = computed(() => page.props.school);
 const userSchools = computed(() => page.props.userSchools ?? []);
 const pendingCount = computed(() => page.props.pendingCount ?? 0);
+const accessRequestsPendingCount = computed(() => page.props.accessRequestsPendingCount ?? 0);
 const hasMultipleSchools = computed(() => userSchools.value.length > 1);
 
 // Le nav "Cantine" est déclaré statiquement dans useSidebarNav (qui n'a pas
@@ -162,6 +164,12 @@ function isCurrentRoute(item: { route: string; routeName?: string }): boolean {
                             class="bg-amber-500 text-white"
                         >
                             {{ pendingCount }}
+                        </SidebarMenuBadge>
+                        <SidebarMenuBadge
+                            v-if="item.route === '/access-requests' && accessRequestsPendingCount > 0"
+                            class="bg-amber-500 text-white"
+                        >
+                            {{ accessRequestsPendingCount }}
                         </SidebarMenuBadge>
                     </SidebarMenuItem>
                 </SidebarMenu>

@@ -96,4 +96,26 @@ class SchoolAccessController extends Controller
 
         return response()->json($schools);
     }
+
+    public function regenerateCode(Request $request): RedirectResponse
+    {
+        $school = School::findOrFail(session('active_school_id'));
+        $school->update(['access_code' => $this->generateAccessCode(), 'updated_by' => $request->user()->id]);
+
+        return back()->with('flash', ['type' => 'success', 'message' => 'Code d\'accès régénéré.']);
+    }
+
+    /** Même génération que SchoolsController::generateAccessCode() — dupliqué
+     * volontairement ici (2 occurrences, pas de troisième prévue) plutôt que
+     * d'extraire un service pour 2 appelants seulement. */
+    private function generateAccessCode(): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+        do {
+            $code = collect(range(1, 8))->map(fn () => $alphabet[random_int(0, strlen($alphabet) - 1)])->implode('');
+        } while (School::where('access_code', $code)->exists());
+
+        return $code;
+    }
 }
