@@ -52,7 +52,7 @@ defineProps<{
                 <div class="grid gap-2">
                     <div class="flex items-center justify-between">
                         <Label for="password">Mot de passe</Label>
-                        <a v-if="canResetPassword" :href="request()" class="join-link text-xs" :tabindex="5">
+                        <a v-if="canResetPassword" :href="request().url" class="join-link text-xs" :tabindex="5">
                             Mot de passe oublié ?
                         </a>
                     </div>
@@ -88,7 +88,7 @@ defineProps<{
 
             <div class="join-footer" v-if="canRegister">
                 Pas encore de compte ?
-                <a :href="register()" class="join-link" :tabindex="5">S'inscrire</a>
+                <a :href="register().url" class="join-link" :tabindex="5">S'inscrire</a>
             </div>
         </Form>
     </JoinAuthLayout>
