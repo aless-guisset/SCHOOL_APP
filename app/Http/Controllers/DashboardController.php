@@ -28,14 +28,12 @@ class DashboardController extends Controller
         $schoolId = session('active_school_id');
         $user = $request->user();
 
-        $usr = UserSchoolRole::with('role')
-            ->where('user_id', $user->id)
-            ->where('school_id', $schoolId)
-            ->where('is_active', true)
-            ->where('status', 'A')
-            ->first();
-
-        $currentRole = $usr?->role?->name;
+        $usr = $user->scopedUserSchoolRole($schoolId ?? 0);
+        // currentRole reste le rôle RÉEL de l'utilisateur (Parent), pas celui de
+        // l'enfant — MANAGE_ROLES n'inclut pas 'Parent', donc weekSchedule()/
+        // recentActivity() prennent naturellement la branche "section de $usr",
+        // désormais celle de l'enfant grâce à scopedUserSchoolRole().
+        $currentRole = $user->activeRoleAt($schoolId ?? 0);
 
         return Inertia::render('Dashboard', [
             'week_schedule' => $this->weekSchedule($schoolId, $usr, $currentRole),

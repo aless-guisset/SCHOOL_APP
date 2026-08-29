@@ -249,3 +249,37 @@ test('recent_activity is null for professeur and eleve', function () {
             ->where('recent_activity', null)
         );
 });
+
+test('a parent sees the week_schedule of their linked child\'s section, not the whole school', function () {
+    $school = makeSchool();
+    $profRole = makeRole('PROF', 'Professeur');
+    $teacherUsr = makeUsr($school, $profRole);
+    $otherTeacherUsr = makeUsr($school, $profRole);
+
+    $scheduleA = makeScheduleFor($school, $teacherUsr, 'Classe A');
+    makeScheduleFor($school, $otherTeacherUsr, 'Classe B');
+
+    $eleveUsr = makeUsr($school, makeRole('ELEVE', 'Élève'));
+    $sectionA = $scheduleA->sectionCourse->sectionUser->section;
+    SectionUserSchoolRole::create([
+        'section_id' => $sectionA->id, 'user_school_role_id' => $eleveUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $parentRole = makeRole('PARENT', 'Parent');
+    $parent = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
+        'linked_student_user_school_role_id' => $eleveUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('week_schedule.slots', 1)
+            ->where('week_schedule.slots.0.course_label', 'Maths Classe A')
+        );
+});
