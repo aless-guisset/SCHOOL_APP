@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GrantsSchoolRoles;
 use App\Concerns\PasswordValidationRules;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\User;
-use App\Models\UserSchoolRole;
 use App\Notifications\AccessRequestSubmittedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 class SchoolAccessController extends Controller
 {
-    use PasswordValidationRules;
+    use GrantsSchoolRoles, PasswordValidationRules;
 
     /** Rôles auto-inscriptibles — jamais Directeur ni Administrateur. */
     public const JOINABLE_ROLES = ['PROF', 'SEC', 'POWER'];
@@ -46,7 +46,7 @@ class SchoolAccessController extends Controller
         $role = Role::where('reference', $data['role_reference'])->firstOrFail();
         $user = $this->resolveUser($request, $data);
 
-        $this->grantOrRestoreRole($user, $school->id, $role->id, 'A');
+        $this->grantOrRestoreSchoolRole($user->id, $school->id, $role->id, 'A', $user->id);
 
         session(['active_school_id' => $school->id]);
 
@@ -81,7 +81,7 @@ class SchoolAccessController extends Controller
         $roleReference = $data['is_student'] ? 'ELEVE' : $data['role_reference'];
         $role = Role::where('reference', $roleReference)->firstOrFail();
 
-        $this->grantOrRestoreRole($user, $school->id, $role->id, 'P');
+        $this->grantOrRestoreSchoolRole($user->id, $school->id, $role->id, 'P', $user->id);
 
         $directeurRole = Role::where('reference', 'DIR')->first();
         if ($directeurRole) {
@@ -155,34 +155,6 @@ class SchoolAccessController extends Controller
         Auth::login($user);
 
         return $user;
-    }
-
-    /**
-     * Octroie (ou restaure) un UserSchoolRole pour ce triplet user/school/role.
-     * Gère deux pièges : une ligne soft-deleted invisible à firstOrCreate (la contrainte
-     * UNIQUE(user_id, school_id, role_id) n'inclut pas deleted_at → 500 sur INSERT), et
-     * une ligne status='R' (rejetée) qu'il faut réactiver plutôt que laisser bloquée pour
-     * toujours. Un statut déjà 'A' ou 'P' existant est préservé tel quel (idempotent) ;
-     * $defaultStatus ne s'applique qu'aux lignes neuves ou précédemment rejetées.
-     */
-    private function grantOrRestoreRole(User $user, int $schoolId, int $roleId, string $defaultStatus): UserSchoolRole
-    {
-        $userSchoolRole = UserSchoolRole::withTrashed()->firstOrNew(
-            ['user_id' => $user->id, 'school_id' => $schoolId, 'role_id' => $roleId]
-        );
-
-        if ($userSchoolRole->trashed()) {
-            $userSchoolRole->restore();
-        }
-
-        $userSchoolRole->fill([
-            'status' => $userSchoolRole->exists && $userSchoolRole->status !== 'R' ? $userSchoolRole->status : $defaultStatus,
-            'is_active' => true,
-            'created_by' => $userSchoolRole->created_by ?? $user->id,
-            'updated_by' => $user->id,
-        ])->save();
-
-        return $userSchoolRole;
     }
 
     public function regenerateCode(Request $request): RedirectResponse

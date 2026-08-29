@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GrantsSchoolRoles;
 use App\Concerns\PasswordValidationRules;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\SchoolInvitation;
 use App\Models\User;
-use App\Models\UserSchoolRole;
 use App\Notifications\SchoolInvitationNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +21,7 @@ use Inertia\Response;
 
 class SchoolInvitationsController extends Controller
 {
-    use PasswordValidationRules;
+    use GrantsSchoolRoles, PasswordValidationRules;
 
     public function store(Request $request): RedirectResponse
     {
@@ -111,24 +111,9 @@ class SchoolInvitationsController extends Controller
             ]);
         }
 
-        // withTrashed()->firstOrNew() (plutôt que firstOrCreate()) : une ligne soft-deleted
-        // pour ce triplet est invisible à firstOrCreate() (la contrainte UNIQUE n'inclut pas
-        // deleted_at), ce qui ferait échouer l'INSERT avec une QueryException → 500. Un
-        // status='R' (rejeté) précédent est aussi réactivé plutôt que laissé bloqué.
-        $userSchoolRole = UserSchoolRole::withTrashed()->firstOrNew(
-            ['user_id' => $user->id, 'school_id' => $invitation->school_id, 'role_id' => $invitation->role_id]
+        $this->grantOrRestoreSchoolRole(
+            $user->id, $invitation->school_id, $invitation->role_id, 'A', $invitation->created_by
         );
-
-        if ($userSchoolRole->trashed()) {
-            $userSchoolRole->restore();
-        }
-
-        $userSchoolRole->fill([
-            'status' => $userSchoolRole->exists && $userSchoolRole->status !== 'R' ? $userSchoolRole->status : 'A',
-            'is_active' => true,
-            'created_by' => $userSchoolRole->created_by ?? $invitation->created_by,
-            'updated_by' => $invitation->created_by,
-        ])->save();
 
         $invitation->update(['accepted_at' => now()]);
 

@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GrantsSchoolRoles;
 use App\Models\Role;
 use App\Models\School;
-use App\Models\UserSchoolRole;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SchoolsController extends Controller
 {
+    use GrantsSchoolRoles;
+
     public function index(): Response
     {
         return Inertia::render('admin/web/Schools/Index', [
@@ -60,9 +62,8 @@ class SchoolsController extends Controller
 
         $directeurRole = Role::where('reference', 'DIR')->first();
         if ($directeurRole && $school->created_by) {
-            UserSchoolRole::firstOrCreate(
-                ['user_id' => $school->created_by, 'school_id' => $school->id, 'role_id' => $directeurRole->id],
-                ['status' => 'A', 'is_active' => true, 'created_by' => $request->user()->id]
+            $this->grantOrRestoreSchoolRole(
+                $school->created_by, $school->id, $directeurRole->id, 'A', $request->user()->id
             );
         }
 
