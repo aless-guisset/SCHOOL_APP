@@ -123,4 +123,31 @@ class User extends Authenticatable
 
         return $roles->first();
     }
+
+    /**
+     * Ligne UserSchoolRole dont les données doivent être affichées à cet
+     * utilisateur pour cette école : la sienne pour la plupart des rôles,
+     * celle de l'enfant lié pour un Parent. Retourne null si aucune ligne
+     * active n'existe, ou si l'enfant lié a lui-même perdu son accès actif
+     * entre-temps (l'école a désactivé l'élève : le parent ne doit plus
+     * rien voir plutôt que d'afficher les données figées d'un élève parti).
+     */
+    public function scopedUserSchoolRole(int $schoolId): ?UserSchoolRole
+    {
+        $usr = $this->schoolRoles()
+            ->with('role')
+            ->where('school_id', $schoolId)
+            ->where('is_active', true)
+            ->where('status', 'A')
+            ->first();
+
+        if ($usr?->role?->reference === 'PARENT') {
+            return $usr->linkedStudentUserSchoolRole()
+                ->where('status', 'A')
+                ->where('is_active', true)
+                ->first();
+        }
+
+        return $usr;
+    }
 }

@@ -16,6 +16,7 @@ class RoleSeeder extends Seeder
             ['name' => 'Secrétariat',    'reference' => 'SEC',    'description' => 'Gestion administrative de l\'école.',               'status' => 'A', 'is_active' => true],
             ['name' => 'Professeur',     'reference' => 'PROF',   'description' => 'Consultation de ses cours et feuilles de temps.',   'status' => 'A', 'is_active' => true],
             ['name' => 'Élève',          'reference' => 'ELEVE',  'description' => 'Consultation de son horaire et ses ressources.',    'status' => 'A', 'is_active' => true],
+            ['name' => 'Parent',         'reference' => 'PARENT', 'description' => 'Suivi en lecture seule d\'un enfant (notes, horaire, présences).', 'status' => 'A', 'is_active' => true],
         ];
 
         foreach ($roles as $role) {

@@ -20,6 +20,8 @@ class UserSchoolRole extends Model
         'user_id',
         'school_id',
         'role_id',
+        'linked_student_user_school_role_id',
+        'student_access_code',
         'status',
         'is_active',
         'created_by',
@@ -46,6 +48,11 @@ class UserSchoolRole extends Model
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function linkedStudentUserSchoolRole()
+    {
+        return $this->belongsTo(self::class, 'linked_student_user_school_role_id');
     }
 
     public function sectionUserRoles(): HasMany
