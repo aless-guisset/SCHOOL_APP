@@ -28,4 +28,5 @@ yarn-error.log
 /.zed
 /docs/superpowers/
 /.claude/
+/.worktrees/
 COMPTES_DEMO.txt
