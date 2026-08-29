@@ -22,6 +22,7 @@ use App\Http\Controllers\SchoolYearSettingsController;
 use App\Http\Controllers\SectionCoursesController;
 use App\Http\Controllers\SectionsController;
 use App\Http\Controllers\StudentAccessController;
+use App\Http\Controllers\StudentInvitationsController;
 use App\Http\Controllers\SubjectsController;
 use App\Http\Controllers\TimesheetsController;
 use App\Http\Controllers\TranslationsController;
@@ -54,6 +55,11 @@ Route::get('/invitations/{token}/accept', [SchoolInvitationsController::class, '
 Route::post('/invitations/{token}/accept', [SchoolInvitationsController::class, 'accept'])
     ->middleware('throttle:account-creation')
     ->name('invitations.accept.store');
+Route::get('/invitations/student/{token}/accept', [StudentInvitationsController::class, 'show'])
+    ->name('invitations.student.accept.show');
+Route::post('/invitations/student/{token}/accept', [StudentInvitationsController::class, 'accept'])
+    ->middleware('throttle:account-creation')
+    ->name('invitations.student.accept.store');
 
 // ─── Rejoindre une école (publiques : un visiteur sans compte doit pouvoir
 // atteindre ce parcours de bout en bout et créer son compte au passage — cf.
@@ -106,6 +112,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-access', [StudentAccessController::class, 'show'])->name('my-access.show');
     Route::post('/my-access/regenerate-code', [StudentAccessController::class, 'regenerateCode'])->name('my-access.regenerate-code');
     Route::delete('/my-access/parents/{userSchoolRole}', [StudentAccessController::class, 'revoke'])->name('my-access.parents.revoke');
+    Route::post('/my-access/invitations', [StudentInvitationsController::class, 'store'])->name('my-access.invitations.store');
+    Route::delete('/my-access/invitations/{invitation}', [StudentInvitationsController::class, 'destroy'])->name('my-access.invitations.destroy');
 
     // Notifications (aucun contexte école requis pour marquer comme lu)
     Route::patch('/notifications/{notification}', [NotificationsController::class, 'markRead'])
