@@ -105,6 +105,7 @@ test('power user sees every schedule of the active school in week_schedule', fun
     ]);
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
@@ -123,6 +124,7 @@ test('professeur only sees their own schedules in week_schedule', function () {
     makeScheduleFor($school, $otherTeacherUsr, 'Classe B');
 
     $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
         ->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
@@ -149,6 +151,7 @@ test('eleve only sees schedules of their own section in week_schedule', function
     ]);
 
     $this->actingAs($eleveUsr->user)
+        ->withSession(['active_school_id' => $school->id])
         ->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
@@ -186,6 +189,7 @@ test('week_schedule overlays teacher, classroom and subject when a timesheet exi
     ]);
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
@@ -222,6 +226,7 @@ test('power user sees recent activity scoped to their school', function () {
     // (School, UserSchoolRole, Course "Maths"), et surtout PAS l'entrée Course "Physique"
     // de $otherSchool.
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
@@ -237,6 +242,7 @@ test('recent_activity is null for professeur and eleve', function () {
     $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
 
     $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
         ->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')

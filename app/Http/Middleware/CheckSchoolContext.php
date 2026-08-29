@@ -57,17 +57,22 @@ class CheckSchoolContext
             return $next($request);
         }
 
+        // Redirige (plutôt que $next()) après avoir écrit active_school_id en
+        // session : HandleInertiaRequests::share() s'exécute plus tôt dans le
+        // pipeline (middleware global) et lirait sinon l'ancienne valeur
+        // (vide) pour CETTE requête — school/currentRole/userSchools
+        // resteraient null jusqu'à la requête suivante.
         if ($schoolCount === 1) {
             session(['active_school_id' => $activeSchoolRoles->first()->school_id]);
 
-            return $next($request);
+            return redirect($request->fullUrl());
         }
 
         $defaultSchool = $user->resolveDefaultSchool();
         if ($defaultSchool && in_array($defaultSchool->id, $validSchoolIds)) {
             session(['active_school_id' => $defaultSchool->id]);
 
-            return $next($request);
+            return redirect($request->fullUrl());
         }
 
         return redirect()->route('school.select');

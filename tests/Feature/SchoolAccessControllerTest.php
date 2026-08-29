@@ -255,7 +255,9 @@ test('access_code is never present in the school panel or school controller JSON
     $user = User::factory()->create();
     UserSchoolRole::create(['user_id' => $user->id, 'school_id' => $school->id, 'role_id' => $role->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
 
-    $response = $this->actingAs($user)->get("/schools/{$school->id}/panel");
+    $response = $this->actingAs($user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/schools/{$school->id}/panel");
     $response->assertOk();
     expect($response->getContent())->not->toContain('SECRET99');
 });

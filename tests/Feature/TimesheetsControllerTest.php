@@ -84,6 +84,7 @@ test('power user does not see another school schedules in the timesheets create 
     ]);
 
     $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
         ->get('/timesheets/create')
         ->assertInertia(fn (Assert $page) => $page
             ->component('power-user/web/Timesheets/Create')
@@ -114,6 +115,7 @@ test('checkConflict rejects a classroom and user_school_role belonging to anothe
     ]);
 
     $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
         ->getJson('/timesheets/check-conflict?'.http_build_query([
             'schedule_id'         => $scheduleA->id,
             'date'                => '2026-09-07',
@@ -146,6 +148,7 @@ test('checkConflict rejects a schedule belonging to another school', function ()
     ]);
 
     $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
         ->getJson('/timesheets/check-conflict?'.http_build_query([
             'schedule_id'         => $scheduleB->id, // école B
             'date'                => '2026-09-07',
@@ -201,16 +204,19 @@ test('store rejects a schedule, user_school_role, or classroom belonging to anot
     ];
 
     $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
         ->postJson('/timesheets', [...$basePayload, 'schedule_id' => $scheduleB->id]) // école B
         ->assertStatus(422)
         ->assertJsonValidationErrors(['schedule_id']);
 
     $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
         ->postJson('/timesheets', [...$basePayload, 'user_school_role_id' => $teacherB->id]) // école B
         ->assertStatus(422)
         ->assertJsonValidationErrors(['user_school_role_id']);
 
     $this->actingAs($powerUserA)
+        ->withSession(['active_school_id' => $schoolA->id])
         ->postJson('/timesheets', [...$basePayload, 'classroom_id' => $classroomB->id]) // école B
         ->assertStatus(422)
         ->assertJsonValidationErrors(['classroom_id']);
@@ -372,6 +378,7 @@ test('checkConflict returns the conflicting timesheet id and type, not just a me
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
 
     $response = $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->getJson('/timesheets/check-conflict?'.http_build_query([
             'schedule_id' => $schedule->id, 'date' => '2026-09-07',
             'user_school_role_id' => $teacher->id, 'classroom_id' => $classroom->id,
@@ -404,6 +411,7 @@ test('checkConflict includes details of the existing timesheet so the frontend c
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
 
     $response = $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->getJson('/timesheets/check-conflict?'.http_build_query([
             'schedule_id' => $schedule->id, 'date' => '2026-09-07',
             'user_school_role_id' => $teacher->id, 'classroom_id' => $classroom->id,
@@ -430,6 +438,7 @@ test('store rejects a user_school_role_id belonging to a student, not a teacher'
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->post('/timesheets', [
             'user_school_role_id' => $student->id, 'schedule_id' => $schedule->id,
             'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
@@ -447,6 +456,7 @@ test('create excludes students from the teacher (userSchoolRoles) dropdown', fun
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->get('/timesheets/create')
         ->assertInertia(fn (Assert $page) => $page
             ->has('userSchoolRoles', 1)
@@ -470,6 +480,7 @@ test('store with replace_conflict_ids deletes the genuinely conflicting timeshee
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->post('/timesheets', [
             'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
             'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
@@ -503,6 +514,7 @@ test('store ignores a replace_conflict_ids entry that is not actually conflictin
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->post('/timesheets', [
             'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
             'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
@@ -533,6 +545,7 @@ test('store allows a real conflict to coexist when replace_conflict_ids is not p
     $powerUser = makeTimesheetUsr($school, makeTimesheetRole('POWER', 'Power User'))->user;
 
     $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
         ->post('/timesheets', [
             'user_school_role_id' => $teacher->id, 'schedule_id' => $schedule->id,
             'subject_id' => $subject->id, 'classroom_id' => $classroom->id,

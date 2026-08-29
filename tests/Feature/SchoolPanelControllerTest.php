@@ -23,7 +23,9 @@ function createSchoolWithRole(string $roleReference, string $roleName): array
 test('a director can access their school panel', function () {
     [$school, $user] = createSchoolWithRole('DIR', 'Directeur');
 
-    $this->actingAs($user)->get(route('school.panel', $school))->assertOk();
+    $this->actingAs($user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get(route('school.panel', $school))->assertOk();
 });
 
 test('the platform Administrateur cannot access a school panel even with a role row scoped to that school', function () {
@@ -32,5 +34,7 @@ test('the platform Administrateur cannot access a school panel even with a role 
     // qu'il gère — pas d'autorité sur le contenu académique (CLAUDE.md).
     [$school, $user] = createSchoolWithRole('ADMIN', 'Administrateur');
 
-    $this->actingAs($user)->get(route('school.panel', $school))->assertNotFound();
+    $this->actingAs($user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get(route('school.panel', $school))->assertNotFound();
 });
