@@ -138,8 +138,11 @@ class GradesController extends Controller
         abort_unless($grade->attachment_path && Storage::disk('local')->exists($grade->attachment_path), 404);
 
         if (! $this->canManage($request, $schoolId)) {
+            // Même portée que index() : sa propre ligne, ou celle de l'enfant
+            // lié pour un Parent — jamais un autre élève.
             $grade->loadMissing('sectionUser.userschoolrole');
-            abort_unless($grade->sectionUser?->userschoolrole?->user_id === $request->user()->id, 403);
+            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            abort_unless($scopedUsr && $grade->sectionUser?->userschoolrole?->id === $scopedUsr->id, 403);
         }
 
         return Storage::disk('local')->download($grade->attachment_path, $grade->attachment_original_name);
@@ -151,9 +154,12 @@ class GradesController extends Controller
 
         abort_unless($sectionUser->userschoolrole?->school_id == $schoolId, 404);
 
-        // Un rôle sans portée de gestion ne peut télécharger que son propre bulletin.
+        // Un rôle sans portée de gestion ne peut télécharger que son propre
+        // bulletin — ou celui de l'enfant lié pour un Parent (même portée que
+        // index()).
         if (! $this->canManage($request, $schoolId)) {
-            abort_unless($sectionUser->userschoolrole?->user_id === $request->user()->id, 403);
+            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            abort_unless($scopedUsr && $sectionUser->userschoolrole?->id === $scopedUsr->id, 403);
         }
 
         $grades = Grade::where('section_user_id', $sectionUser->id)

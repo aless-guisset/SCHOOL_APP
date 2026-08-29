@@ -42,6 +42,20 @@ function makeGradesStudent(School $school): SectionUserSchoolRole
     return SectionUserSchoolRole::create(['section_id' => $section->id, 'user_school_role_id' => $usr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
 }
 
+/** Compte parent lié à l'élève donné, dans la même école. */
+function makeGradesParent(School $school, SectionUserSchoolRole $child): User
+{
+    $parent = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id,
+        'role_id' => makeGradesScaleRole('PARENT', 'Parent')->id,
+        'linked_student_user_school_role_id' => $child->userschoolrole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    return $parent;
+}
+
 beforeEach(function () {
     Storage::fake('local');
 });
@@ -325,6 +339,80 @@ test('bulletin pdf reflects the actual max_grade of each grade, not a hardcoded 
         ->get("/grades/bulletin/{$student->id}")
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
+});
+
+test('bulletin: a student can download only their own bulletin, 403 on another student\'s', function () {
+    $school = makeGradesScaleSchool();
+    $subject = makeGradesSubject($school);
+    $ownStudent = makeGradesStudent($school);
+    $otherStudent = makeGradesStudent($school);
+    $ownStudentUser = User::find($ownStudent->userschoolrole->user_id);
+
+    Grade::create(['section_user_id' => $ownStudent->id, 'subject_id' => $subject->id, 'period' => 'T1', 'grade' => 12, 'max_grade' => 20, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($ownStudentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/bulletin/{$ownStudent->id}")
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    $this->actingAs($ownStudentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/bulletin/{$otherStudent->id}")
+        ->assertForbidden();
+});
+
+test('bulletin: a parent can download their linked child\'s bulletin, 403 on another student\'s', function () {
+    $school = makeGradesScaleSchool();
+    $subject = makeGradesSubject($school);
+    $child = makeGradesStudent($school);
+    $otherStudent = makeGradesStudent($school);
+    $parent = makeGradesParent($school, $child);
+
+    Grade::create(['section_user_id' => $child->id, 'subject_id' => $subject->id, 'period' => 'T1', 'grade' => 15, 'max_grade' => 20, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/bulletin/{$child->id}")
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/bulletin/{$otherStudent->id}")
+        ->assertForbidden();
+});
+
+test('downloadAttachment: a parent can download their linked child\'s attachment, 403 on another student\'s', function () {
+    $school = makeGradesScaleSchool();
+    $power = makeGradesScaleUsr($school, makeGradesScaleRole('POWER', 'Power User'))->user;
+    $subject = makeGradesSubject($school);
+    $child = makeGradesStudent($school);
+    $otherStudent = makeGradesStudent($school);
+    $parent = makeGradesParent($school, $child);
+
+    $this->actingAs($power)->withSession(['active_school_id' => $school->id])->post('/grades', [
+        'section_user_id' => $child->id, 'subject_id' => $subject->id,
+        'period' => 'T1', 'max_grade' => 20, 'grade' => 15,
+        'attachment' => UploadedFile::fake()->create('enfant.pdf', 100, 'application/pdf'),
+    ]);
+    $this->actingAs($power)->withSession(['active_school_id' => $school->id])->post('/grades', [
+        'section_user_id' => $otherStudent->id, 'subject_id' => $subject->id,
+        'period' => 'T1', 'max_grade' => 20, 'grade' => 8,
+        'attachment' => UploadedFile::fake()->create('autre.pdf', 100, 'application/pdf'),
+    ]);
+    $childGrade = Grade::where('section_user_id', $child->id)->first();
+    $otherGrade = Grade::where('section_user_id', $otherStudent->id)->first();
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/{$childGrade->id}/attachment")
+        ->assertOk();
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/grades/{$otherGrade->id}/attachment")
+        ->assertForbidden();
 });
 
 test('a parent only sees the grades of their linked child, never other students', function () {

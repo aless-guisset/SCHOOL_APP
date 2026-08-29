@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -98,30 +99,49 @@ class User extends Authenticatable
     }
 
     /**
-     * Rôle actuellement actif (status='A', is_active=true) de l'utilisateur dans une école donnée —
-     * priorité au rôle le plus privilégié si plusieurs lignes existent (ne devrait normalement pas
-     * arriver, mais protège contre le cas où c'est arrivé).
+     * Ordre de privilège départageant plusieurs lignes UserSchoolRole d'un même
+     * utilisateur dans une même école. Ce cas est légitime : un Professeur peut
+     * être aussi le parent d'un élève de son établissement. 'Parent' est en
+     * dernier — le rôle le moins privilégié ne doit jamais éclipser un rôle
+     * exercé en propre.
      */
-    public function activeRoleAt(int $schoolId): ?string
-    {
-        $privilegeOrder = ['Administrateur', 'Directeur', 'Power User', 'Secrétariat', 'Professeur', 'Élève'];
+    private const PRIVILEGE_ORDER = [
+        'Administrateur', 'Directeur', 'Power User', 'Secrétariat', 'Professeur', 'Élève', 'Parent',
+    ];
 
-        $roles = $this->schoolRoles()
+    /**
+     * Lignes actives (status='A', is_active=true) de l'utilisateur dans une école,
+     * triées du rôle le plus privilégié au moins privilégié. Les rôles inconnus de
+     * PRIVILEGE_ORDER sont placés en fin de liste, dans leur ordre en base.
+     *
+     * @return Collection<int, UserSchoolRole>
+     */
+    private function activeSchoolRolesAt(int $schoolId): Collection
+    {
+        return $this->schoolRoles()
             ->with('role')
             ->where('school_id', $schoolId)
             ->where('is_active', true)
             ->where('status', 'A')
             ->get()
+            ->sortBy(function (UserSchoolRole $usr) {
+                $rank = array_search($usr->role?->name, self::PRIVILEGE_ORDER, true);
+
+                return $rank === false ? PHP_INT_MAX : $rank;
+            })
+            ->values();
+    }
+
+    /**
+     * Rôle actuellement actif (status='A', is_active=true) de l'utilisateur dans une école donnée —
+     * priorité au rôle le plus privilégié si plusieurs lignes existent.
+     */
+    public function activeRoleAt(int $schoolId): ?string
+    {
+        return $this->activeSchoolRolesAt($schoolId)
             ->pluck('role.name')
-            ->filter();
-
-        foreach ($privilegeOrder as $candidate) {
-            if ($roles->contains($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return $roles->first();
+            ->filter()
+            ->first();
     }
 
     /**
@@ -131,15 +151,17 @@ class User extends Authenticatable
      * active n'existe, ou si l'enfant lié a lui-même perdu son accès actif
      * entre-temps (l'école a désactivé l'élève : le parent ne doit plus
      * rien voir plutôt que d'afficher les données figées d'un élève parti).
+     *
+     * La ligne de départ est la plus privilégiée (même tri que activeRoleAt()) :
+     * le rôle rapporté à l'appelant et les données qu'on lui montre proviennent
+     * ainsi toujours de la MÊME ligne. Un compte qui est à la fois Professeur et
+     * Parent dans une école voit donc ses propres données de prof, jamais celles
+     * de son enfant ; la branche Parent ne s'applique que si toutes ses lignes
+     * actives dans cette école sont des lignes PARENT.
      */
     public function scopedUserSchoolRole(int $schoolId): ?UserSchoolRole
     {
-        $usr = $this->schoolRoles()
-            ->with('role')
-            ->where('school_id', $schoolId)
-            ->where('is_active', true)
-            ->where('status', 'A')
-            ->first();
+        $usr = $this->activeSchoolRolesAt($schoolId)->first();
 
         if ($usr?->role?->reference === 'PARENT') {
             return $usr->linkedStudentUserSchoolRole()

@@ -104,12 +104,20 @@ class StudentAccessController extends Controller
     /** L'élève révoque un de ses parents, ou le Directeur de l'école révoque n'importe lequel. */
     public function revoke(Request $request, UserSchoolRole $userSchoolRole): RedirectResponse
     {
-        $schoolId = session('active_school_id');
+        // La route vit hors du groupe `school.context` : l'école active n'est pas
+        // garantie en session, et activeRoleAt() n'accepte pas null.
+        $schoolId = session('active_school_id') ?? 0;
+
+        // Cet endpoint ne révoque QUE des accès parent, quelle que soit la
+        // branche empruntée — invariant explicite, et non simplement garanti par
+        // le fait que linked_student_user_school_role_id n'est peuplé que sur
+        // des lignes PARENT.
+        abort_unless($userSchoolRole->role?->reference === 'PARENT', 403);
+
         $isOwnStudent = $userSchoolRole->linked_student_user_school_role_id
             && $request->user()->schoolRoles()->where('id', $userSchoolRole->linked_student_user_school_role_id)->exists();
         $isDirecteur = $request->user()->activeRoleAt($schoolId) === 'Directeur'
-            && $userSchoolRole->school_id == $schoolId
-            && $userSchoolRole->role->reference === 'PARENT';
+            && $userSchoolRole->school_id == $schoolId;
 
         abort_unless($isOwnStudent || $isDirecteur, 403);
 

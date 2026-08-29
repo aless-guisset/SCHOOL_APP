@@ -77,6 +77,32 @@ test('accepting an invitation creates an account and grants the Parent role', fu
         ->and($link->linked_student_user_school_role_id)->toBe($studentUsr->id);
 });
 
+test('accepting an invitation with an account already linked to another child fails as a field error, not a 422 page', function () {
+    $school = makeSicSchool();
+    $studentA = makeSicStudent($school);
+    $studentB = makeSicStudent($school);
+    $parentRole = makeSicRole('PARENT', 'Parent');
+
+    $parent = User::factory()->create(['email' => 'deja-lie@example.com']);
+    UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
+        'linked_student_user_school_role_id' => $studentA->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $invitation = StudentInvitation::create([
+        'student_user_school_role_id' => $studentB->id, 'email' => 'deja-lie@example.com',
+        'token' => 'already-linked-token', 'expires_at' => now()->addDays(7), 'is_active' => true, 'created_by' => $studentB->user_id,
+    ]);
+
+    $this->post("/invitations/student/{$invitation->token}/accept")
+        ->assertSessionHasErrors('email');
+
+    $invitation->refresh();
+    expect($invitation->accepted_at)->toBeNull()
+        ->and(UserSchoolRole::where('user_id', $parent->id)->where('linked_student_user_school_role_id', $studentB->id)->exists())->toBeFalse();
+});
+
 test('an expired invitation cannot be accepted', function () {
     $school = makeSicSchool();
     $studentUsr = makeSicStudent($school);

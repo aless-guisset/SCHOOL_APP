@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -103,11 +104,15 @@ class StudentInvitationsController extends Controller
             ->where('status', 'A')
             ->first();
 
-        abort_if(
-            $existing && $existing->linked_student_user_school_role_id !== $invitation->student_user_school_role_id,
-            422,
-            'Ce compte est déjà lié à un autre élève.'
-        );
+        // Même canal d'erreur que StudentAccessController::assertSingleChild() :
+        // une ValidationException remonte dans le bag d'erreurs Inertia et
+        // s'affiche en ligne dans StudentInvitationAccept.vue, là où un
+        // abort_if(422) affichait une page d'erreur générique.
+        if ($existing && $existing->linked_student_user_school_role_id !== $invitation->student_user_school_role_id) {
+            throw ValidationException::withMessages([
+                'email' => 'Ce compte est déjà lié à un autre élève.',
+            ]);
+        }
 
         $parentRole = Role::where('reference', 'PARENT')->firstOrFail();
         $parentUsr = $this->grantOrRestoreSchoolRole(

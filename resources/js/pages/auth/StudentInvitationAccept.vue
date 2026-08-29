@@ -56,6 +56,8 @@ function submit() {
             <div class="grid gap-2">
                 <Label>Adresse email</Label>
                 <Input :model-value="props.email" type="email" disabled />
+                <!-- Canal d'erreur de accept() : compte déjà lié à un autre élève. -->
+                <InputError :message="errors.email" />
             </div>
 
             <template v-if="!props.account_exists">

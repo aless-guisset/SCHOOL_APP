@@ -250,6 +250,49 @@ test('recent_activity is null for professeur and eleve', function () {
         );
 });
 
+test('a user who is both Professeur and Parent at the same school sees their own teaching schedule, not the child\'s', function () {
+    $school = makeSchool();
+    // Rôle PARENT créé en premier à dessein : sans tri explicite par privilège,
+    // c'est la ligne PARENT que le `first()` non ordonné de scopedUserSchoolRole()
+    // ramenait (l'ordre de parcours SQLite suit ici role_id).
+    $parentRole = makeRole('PARENT', 'Parent');
+    $profRole = makeRole('PROF', 'Professeur');
+
+    // L'enfant : élève de la Classe B, qui a son propre horaire.
+    $otherTeacherUsr = makeUsr($school, $profRole);
+    $scheduleB = makeScheduleFor($school, $otherTeacherUsr, 'Classe B');
+    $childUsr = makeUsr($school, makeRole('ELEVE', 'Élève'));
+    SectionUserSchoolRole::create([
+        'section_id' => $scheduleB->sectionCourse->sectionUser->section_id,
+        'user_school_role_id' => $childUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    // Le compte concerné : la ligne PARENT est créée AVANT la ligne Professeur,
+    // pour que la résolution ne puisse pas tomber juste par hasard sur la bonne
+    // ligne via un `first()` non ordonné.
+    $person = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $person->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
+        'linked_student_user_school_role_id' => $childUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $teacherUsr = UserSchoolRole::create([
+        'user_id' => $person->id, 'school_id' => $school->id, 'role_id' => $profRole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    makeScheduleFor($school, $teacherUsr, 'Classe A');
+
+    $this->actingAs($person)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('week_schedule.slots', 1)
+            ->where('week_schedule.slots.0.course_label', 'Maths Classe A')
+        );
+});
+
 test('a parent sees the week_schedule of their linked child\'s section, not the whole school', function () {
     $school = makeSchool();
     $profRole = makeRole('PROF', 'Professeur');

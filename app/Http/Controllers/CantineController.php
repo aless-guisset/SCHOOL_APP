@@ -58,7 +58,9 @@ class CantineController extends Controller
             // séparément via scopedUserSchoolRole() ; can_order reste false
             // pour un Parent quel que soit ce que cette résolution retourne.
             $ownSectionUser = $this->currentSectionUser($schoolId);
-            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            // Résolution parent uniquement si l'appelant n'a pas déjà sa propre
+            // ligne section_user : évite une requête inutile pour chaque élève.
+            $scopedUsr = $ownSectionUser ? null : $request->user()->scopedUserSchoolRole($schoolId);
             $displaySectionUser = $ownSectionUser
                 ?? ($scopedUsr ? $scopedUsr->sectionUserRoles()->first() : null);
 
