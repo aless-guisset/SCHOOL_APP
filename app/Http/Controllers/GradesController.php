@@ -32,9 +32,15 @@ class GradesController extends Controller
             ->orderByDesc('created_at');
 
         if (! $this->canManage($request, $schoolId)) {
-            // Rôle sans portée de gestion (Élève, Directeur…) : uniquement ses
-            // propres notes, jamais celles de toute l'école.
-            $query->whereHas('sectionUser.userschoolrole', fn ($q) => $q->where('user_id', $request->user()->id));
+            // Rôle sans portée de gestion (Élève, Parent, Directeur…) : uniquement
+            // ses propres notes (ou celles de l'enfant lié pour un Parent), jamais
+            // celles de toute l'école.
+            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            $query->when(
+                $scopedUsr,
+                fn ($q) => $q->whereHas('sectionUser.userschoolrole', fn ($q2) => $q2->where('id', $scopedUsr->id)),
+                fn ($q) => $q->whereRaw('1 = 0')
+            );
         }
 
         return Inertia::render('power-user/web/Grades/Index', [

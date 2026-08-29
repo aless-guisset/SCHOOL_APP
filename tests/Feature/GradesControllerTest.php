@@ -326,3 +326,38 @@ test('bulletin pdf reflects the actual max_grade of each grade, not a hardcoded 
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
 });
+
+test('a parent only sees the grades of their linked child, never other students', function () {
+    $school = makeGradesScaleSchool();
+    $subject = makeGradesSubject($school);
+    $childStudent = makeGradesStudent($school);
+    $otherStudent = makeGradesStudent($school);
+
+    \App\Models\Grade::create([
+        'section_user_id' => $childStudent->id, 'subject_id' => $subject->id, 'period' => 'T1',
+        'grade' => 15, 'max_grade' => 20, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    \App\Models\Grade::create([
+        'section_user_id' => $otherStudent->id, 'subject_id' => $subject->id, 'period' => 'T1',
+        'grade' => 8, 'max_grade' => 20, 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $childUsr = $childStudent->userschoolrole;
+    $parentRole = \App\Models\Role::firstOrCreate(['reference' => 'PARENT'], ['name' => 'Parent', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parent = \App\Models\User::factory()->create();
+    \App\Models\UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
+        'linked_student_user_school_role_id' => $childUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $response = $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/grades');
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('power-user/web/Grades/Index')
+        ->has('grades', 1)
+        ->where('grades.0.grade', 15)
+    );
+});
