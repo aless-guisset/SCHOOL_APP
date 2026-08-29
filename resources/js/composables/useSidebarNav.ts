@@ -16,6 +16,7 @@ import {
     ScrollText,
     Settings,
     ShieldCheck,
+    UserRound,
     Users,
     Utensils,
     type LucideIcon,
@@ -161,6 +162,7 @@ const nav: NavMap = {
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
+                { label: 'Donner l\'accès', icon: UserRound, route: '/my-access', routeName: 'my-access.show' },
             ],
         },
     ],
