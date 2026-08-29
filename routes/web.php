@@ -36,6 +36,15 @@ Route::inertia('/', 'Welcome', [
     'canRegister' => true,
 ])->name('home');
 
+// DEBUG TEMPORAIRE — diagnostic de la résolution d'IP derrière le proxy
+// Railway pour le rate-limiting. À retirer après investigation.
+Route::get('/__debug-ip', fn (\Illuminate\Http\Request $request) => response()->json([
+    'ip' => $request->ip(),
+    'ips' => $request->ips(),
+    'x_forwarded_for' => $request->header('X-Forwarded-For'),
+    'x_real_ip' => $request->header('X-Real-IP'),
+]));
+
 // ─── Inscription fondateur d'établissement (publique, hors Fortify — cf.
 // SchoolOnboardingController::createFounderAccount()/registerFounder() et
 // config/fortify.php) ────────────────────────────────────────────────────
