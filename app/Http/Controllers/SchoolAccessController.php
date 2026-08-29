@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\PasswordValidationRules;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\User;
@@ -18,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class SchoolAccessController extends Controller
 {
+    use PasswordValidationRules;
+
     /** Rôles auto-inscriptibles — jamais Directeur ni Administrateur. */
     public const JOINABLE_ROLES = ['PROF', 'SEC', 'POWER'];
 
@@ -117,7 +120,7 @@ class SchoolAccessController extends Controller
             'firstname' => 'required|string|max:100',
             'lastname' => 'required|string|max:100',
             'email' => 'required|email|max:191',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => $this->passwordRules(),
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\PasswordValidationRules;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\SchoolInvitation;
@@ -20,6 +21,8 @@ use Inertia\Response;
 
 class SchoolInvitationsController extends Controller
 {
+    use PasswordValidationRules;
+
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -96,7 +99,7 @@ class SchoolInvitationsController extends Controller
             $data = $request->validate([
                 'firstname' => 'required|string|max:100',
                 'lastname' => 'required|string|max:100',
-                'password' => 'required|string|min:8|confirmed',
+                'password' => $this->passwordRules(),
             ]);
 
             $user = User::create([

@@ -4,6 +4,7 @@ use App\Models\Role;
 use App\Models\School;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use Illuminate\Support\Facades\RateLimiter;
 
 function makeAccessSchool(?string $code = null): School
 {
@@ -260,4 +261,17 @@ test('access_code is never present in the school panel or school controller JSON
         ->get("/schools/{$school->id}/panel");
     $response->assertOk();
     expect($response->getContent())->not->toContain('SECRET99');
+});
+
+test('join.with-code is rate-limited per IP to prevent account-creation abuse', function () {
+    RateLimiter::increment(md5('account-creation'.'127.0.0.1'), amount: 5);
+
+    $response = $this->post('/join/with-code', [
+        'access_code' => 'WHATEVER',
+        'role_reference' => 'PROF',
+        'firstname' => 'Test', 'lastname' => 'User', 'email' => 'ratelimit@example.com',
+        'password' => 'password', 'password_confirmation' => 'password',
+    ]);
+
+    $response->assertTooManyRequests();
 });

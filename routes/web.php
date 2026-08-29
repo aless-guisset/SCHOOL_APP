@@ -43,7 +43,7 @@ Route::get('/register', [SchoolOnboardingController::class, 'createFounderAccoun
     ->middleware('guest')
     ->name('register');
 Route::post('/register', [SchoolOnboardingController::class, 'registerFounder'])
-    ->middleware('guest')
+    ->middleware(['guest', 'throttle:account-creation'])
     ->name('register.store');
 
 // ─── Invitations par email (publiques : le destinataire n'a pas forcément
@@ -51,6 +51,7 @@ Route::post('/register', [SchoolOnboardingController::class, 'registerFounder'])
 Route::get('/invitations/{token}/accept', [SchoolInvitationsController::class, 'show'])
     ->name('invitations.accept.show');
 Route::post('/invitations/{token}/accept', [SchoolInvitationsController::class, 'accept'])
+    ->middleware('throttle:account-creation')
     ->name('invitations.accept.store');
 
 // ─── Rejoindre une école (publiques : un visiteur sans compte doit pouvoir
@@ -61,8 +62,10 @@ Route::post('/invitations/{token}/accept', [SchoolInvitationsController::class, 
 // `schools.search` est incluse ici : c'est la recherche d'établissement de
 // JoinRequest.vue, qui doit fonctionner avant que le visiteur ait un compte.) ─
 Route::post('/join/with-code', [SchoolAccessController::class, 'joinWithCode'])
+    ->middleware('throttle:account-creation')
     ->name('join.with-code');
 Route::post('/join/request', [SchoolAccessController::class, 'joinRequest'])
+    ->middleware('throttle:account-creation')
     ->name('join.request');
 Route::get('/schools/search', [SchoolAccessController::class, 'search'])
     ->name('schools.search');

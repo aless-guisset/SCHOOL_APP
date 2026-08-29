@@ -89,5 +89,14 @@ class FortifyServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($throttleKey);
         });
+
+        // Parcours capables de créer un compte sans authentification préalable
+        // (SchoolAccessController::joinWithCode()/joinRequest(),
+        // SchoolInvitationsController::accept()) : accessibles publiquement
+        // (recherche d'école par nom, ou lien d'invitation), à limiter contre
+        // le spam/l'énumération de comptes.
+        RateLimiter::for('account-creation', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
     }
 }
