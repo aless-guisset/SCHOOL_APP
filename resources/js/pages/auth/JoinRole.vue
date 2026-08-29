@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Briefcase, GraduationCap, ShieldCheck, Users } from 'lucide-vue-next';
+import { Briefcase, GraduationCap, HeartHandshake, ShieldCheck, Users, type LucideIcon } from 'lucide-vue-next';
 import JoinAuthLayout from '@/layouts/JoinAuthLayout.vue';
 
-const roles = [
-    { reference: 'ELEVE', label: 'Étudiant', icon: GraduationCap, description: 'Je rejoins ma classe' },
-    { reference: 'PROF', label: 'Professeur', icon: Briefcase, description: "J'enseigne dans un établissement" },
-    { reference: 'SEC', label: 'Secrétariat', icon: Users, description: 'Je gère l\'administratif' },
-    { reference: 'POWER', label: 'Power User', icon: ShieldCheck, description: 'Gestion étendue de l\'école' },
+// `wide` : la carte occupe toute la largeur de la grille (2 colonnes) — utilisé
+// pour le dernier parcours, qui n'a pas de voisin sur sa ligne.
+type RoleCard = {
+    reference: string;
+    label: string;
+    icon: LucideIcon;
+    description: string;
+    href: string;
+    wide?: boolean;
+};
+
+const roles: RoleCard[] = [
+    { reference: 'ELEVE', label: 'Étudiant', icon: GraduationCap, description: 'Je rejoins ma classe', href: '/join/request?role=ELEVE' },
+    { reference: 'PROF', label: 'Professeur', icon: Briefcase, description: "J'enseigne dans un établissement", href: '/join/with-code?role=PROF' },
+    { reference: 'SEC', label: 'Secrétariat', icon: Users, description: 'Je gère l\'administratif', href: '/join/with-code?role=SEC' },
+    { reference: 'POWER', label: 'Power User', icon: ShieldCheck, description: 'Gestion étendue de l\'école', href: '/join/with-code?role=POWER' },
+    { reference: 'PARENT', label: 'Parent/Tuteur', icon: HeartHandshake, description: 'Je suis le parcours de mon enfant', href: '/join/parent', wide: true },
 ];
 </script>
 
@@ -17,8 +29,9 @@ const roles = [
         <div class="role-grid">
             <Link
                 v-for="r in roles" :key="r.reference"
-                :href="r.reference === 'ELEVE' ? `/join/request?role=${r.reference}` : `/join/with-code?role=${r.reference}`"
+                :href="r.href"
                 class="role-card"
+                :class="{ 'role-card--wide': r.wide }"
             >
                 <component :is="r.icon" class="role-icon" />
                 <span class="role-label">{{ r.label }}</span>
@@ -50,6 +63,9 @@ const roles = [
     color: #666666;
     text-align: center;
     transition: border-color 0.2s, color 0.2s;
+}
+.role-card--wide {
+    grid-column: 1 / -1;
 }
 .role-card:hover {
     border-color: #b7dfc8;

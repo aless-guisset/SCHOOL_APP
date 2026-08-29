@@ -130,11 +130,20 @@ function cancelOrder() {
                         </Button>
                     </template>
 
-                    <!-- Lecture seule (Directeur, ou élève sans droit de commande) -->
+                    <!-- Lecture seule (Parent, Directeur, ou élève sans droit de commande) :
+                         pas de bouton de commande, mais le menu commandé — celui de
+                         l'enfant lié pour un Parent — reste identifié. -->
                     <template v-else-if="!canManage">
-                        <div v-for="m in menus" :key="m.id" class="rounded-md border border-border p-3 text-sm">
-                            <span class="font-medium">{{ m.label }}</span>
-                            <span v-if="m.description" class="block text-xs text-muted-foreground">{{ m.description }}</span>
+                        <div
+                            v-for="m in menus" :key="m.id"
+                            class="flex items-center justify-between gap-3 rounded-md border p-3 text-sm"
+                            :class="my_order?.cantine_menu_id === m.id ? 'border-primary bg-primary/10' : 'border-border'"
+                        >
+                            <span>
+                                <span class="font-medium">{{ m.label }}</span>
+                                <span v-if="m.description" class="block text-xs text-muted-foreground">{{ m.description }}</span>
+                            </span>
+                            <Badge v-if="my_order?.cantine_menu_id === m.id" variant="default">Commandé</Badge>
                         </div>
                     </template>
 
