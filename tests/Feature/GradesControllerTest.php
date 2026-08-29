@@ -98,6 +98,35 @@ test('store accepts a valid pdf attachment and records its path and original nam
     Storage::disk('local')->assertExists($grade->attachment_path);
 });
 
+test('destroy deletes the physical attachment file, not just the database row', function () {
+    // Le stockage étant maintenant persistant en prod (Railway Volume), un
+    // fichier non nettoyé au destroy() reste orphelin indéfiniment au lieu
+    // d'être perdu au prochain déploiement comme avant.
+    $school = makeGradesScaleSchool();
+    $power = makeGradesScaleUsr($school, makeGradesScaleRole('POWER', 'Power User'))->user;
+    $subject = makeGradesSubject($school);
+    $student = makeGradesStudent($school);
+    $file = UploadedFile::fake()->create('controle-t1.pdf', 500, 'application/pdf');
+
+    $this->actingAs($power)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/grades', [
+            'section_user_id' => $student->id, 'subject_id' => $subject->id,
+            'period' => 'T1', 'max_grade' => 20, 'grade' => 15, 'attachment' => $file,
+        ]);
+
+    $grade = Grade::where('period', 'T1')->first();
+    $attachmentPath = $grade->attachment_path;
+    Storage::disk('local')->assertExists($attachmentPath);
+
+    $this->actingAs($power)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/grades/{$grade->id}")
+        ->assertRedirect();
+
+    Storage::disk('local')->assertMissing($attachmentPath);
+});
+
 test('store rejects a disallowed file type', function () {
     $school = makeGradesScaleSchool();
     $power = makeGradesScaleUsr($school, makeGradesScaleRole('POWER', 'Power User'))->user;

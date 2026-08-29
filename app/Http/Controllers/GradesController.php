@@ -115,6 +115,10 @@ class GradesController extends Controller
 
     public function destroy(Grade $grade): RedirectResponse
     {
+        if ($grade->attachment_path) {
+            Storage::disk('local')->delete($grade->attachment_path);
+        }
+
         $grade->update(['is_active' => false, 'updated_by' => request()->user()->id]);
         $grade->delete();
 
