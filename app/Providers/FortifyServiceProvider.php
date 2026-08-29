@@ -85,7 +85,7 @@ class FortifyServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$this->clientIp($request));
 
             return Limit::perMinute(5)->by($throttleKey);
         });
@@ -96,7 +96,22 @@ class FortifyServiceProvider extends ServiceProvider
         // (recherche d'école par nom, ou lien d'invitation), à limiter contre
         // le spam/l'énumération de comptes.
         RateLimiter::for('account-creation', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
+            return Limit::perMinute(5)->by($this->clientIp($request));
         });
+    }
+
+    /**
+     * IP client réelle. Railway (`trustProxies(at: '*')`) fait tourner l'IP
+     * de son propre nœud d'edge entre deux requêtes d'un même visiteur — donc
+     * $request->ip() (dernier maillon de X-Forwarded-For une fois tous les
+     * proxies approuvés) change à chaque requête et neutralise silencieusement
+     * tout rate-limiting basé dessus. X-Real-IP, que Railway pose lui-même,
+     * reste stable. Découvert en vérifiant que le rate-limiting déployé
+     * fonctionnait réellement : 6 tentatives successives ne déclenchaient
+     * jamais de 429, y compris sur le limiter 'login' pourtant préexistant.
+     */
+    private function clientIp(Request $request): string
+    {
+        return $request->header('X-Real-IP') ?: $request->ip();
     }
 }
