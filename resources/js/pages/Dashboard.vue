@@ -72,9 +72,12 @@ const statCards = computed(() => {
 
             <PageHeader :title="t('dashboard.title')" :description="greeting" />
 
-            <!-- École active -->
+            <!-- École active : jamais pour l'Administrateur, qui n'a pas d'autorité
+                 sur le contenu académique d'une école en particulier (CLAUDE.md) —
+                 même s'il possède une ligne UserSchoolRole (role Administrateur)
+                 rattachée à une school_id précise, ce n'est pas une école qu'il gère. -->
             <div
-                v-if="activeSchool"
+                v-if="activeSchool && !isAdmin"
                 class="flex items-center gap-3 rounded-xl border border-border bg-card px-5 py-4"
             >
                 <Building2 class="size-8 shrink-0 text-primary" />

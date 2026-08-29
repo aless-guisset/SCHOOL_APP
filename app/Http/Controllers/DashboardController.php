@@ -14,8 +14,14 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    /** Rôles ayant une vue de gestion sur toute l'école (aligné sur useSchool.ts::canManage). */
-    private const MANAGE_ROLES = ['Administrateur', 'Power User', 'Directeur'];
+    /**
+     * Rôles ayant une vue d'ensemble (horaire complet + activité récente) sur
+     * l'école active. Administrateur en est exclu : rôle de gestion
+     * plateforme sans autorité sur le contenu académique d'une école en
+     * particulier (CLAUDE.md), même s'il possède une ligne UserSchoolRole
+     * (role Administrateur) rattachée à une school_id précise.
+     */
+    private const MANAGE_ROLES = ['Power User', 'Directeur'];
 
     public function index(Request $request): Response
     {

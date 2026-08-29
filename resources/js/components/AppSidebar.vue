@@ -23,7 +23,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useSchool } from '@/composables/useSchool';
 import { useSidebarNav } from '@/composables/useSidebarNav';
+
+const { isAdmin } = useSchool();
 
 const page = usePage<{
     currentRole: string | null;
@@ -88,8 +91,11 @@ function isCurrentRoute(item: { route: string; routeName?: string }): boolean {
                 </SidebarMenuItem>
             </SidebarMenu>
 
-            <!-- School switcher (affiché seulement si l'utilisateur a une école) -->
-            <div v-if="activeSchool" class="px-2 pb-1">
+            <!-- School switcher : jamais pour l'Administrateur, qui n'a pas d'autorité
+                 sur le contenu académique d'une école en particulier (CLAUDE.md) —
+                 même s'il possède une ligne UserSchoolRole (role Administrateur)
+                 rattachée à une school_id précise, ce n'est pas une école qu'il gère. -->
+            <div v-if="activeSchool && !isAdmin" class="px-2 pb-1">
                 <DropdownMenu v-if="hasMultipleSchools">
                     <DropdownMenuTrigger as-child>
                         <button

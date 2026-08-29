@@ -17,11 +17,16 @@ class SchoolPanelController extends Controller
 {
     public function __invoke(Request $request, School $school): Response
     {
+        // Le rôle Administrateur n'ouvre jamais ce panel, même s'il possède une
+        // ligne UserSchoolRole rattachée à cette school_id précise : c'est un
+        // rôle de gestion plateforme, sans autorité sur le contenu académique
+        // d'une école en particulier (CLAUDE.md).
         abort_unless(
             $request->user()->schoolRoles()
                 ->where('school_id', $school->id)
                 ->where('is_active', true)
                 ->where('status', 'A')
+                ->whereHas('role', fn ($q) => $q->where('reference', '!=', 'ADMIN'))
                 ->exists(),
             404
         );
