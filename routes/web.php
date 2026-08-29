@@ -21,6 +21,7 @@ use App\Http\Controllers\SchoolsController;
 use App\Http\Controllers\SchoolYearSettingsController;
 use App\Http\Controllers\SectionCoursesController;
 use App\Http\Controllers\SectionsController;
+use App\Http\Controllers\StudentAccessController;
 use App\Http\Controllers\SubjectsController;
 use App\Http\Controllers\TimesheetsController;
 use App\Http\Controllers\TranslationsController;
@@ -67,6 +68,9 @@ Route::post('/join/with-code', [SchoolAccessController::class, 'joinWithCode'])
 Route::post('/join/request', [SchoolAccessController::class, 'joinRequest'])
     ->middleware('throttle:account-creation')
     ->name('join.request');
+Route::post('/join/parent', [StudentAccessController::class, 'joinWithCode'])
+    ->middleware('throttle:account-creation')
+    ->name('join.parent');
 Route::get('/schools/search', [SchoolAccessController::class, 'search'])
     ->name('schools.search');
 Route::get('/join/role', fn () => Inertia::render('auth/JoinRole'))->name('join.role');
@@ -77,6 +81,7 @@ Route::get('/join/request', fn () => Inertia::render('auth/JoinRequest', [
     'role_reference' => request()->query('role'),
     'is_student' => request()->query('role') === 'ELEVE',
 ]))->name('join.request.show');
+Route::get('/join/parent', fn () => Inertia::render('auth/JoinParent'))->name('join.parent.show');
 
 // ─── Onboarding école (auth requis, sans school.context) ──────────────────
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -95,6 +100,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Définir l'école par défaut
     Route::post('/school/set-default', [SchoolOnboardingController::class, 'setDefault'])
         ->name('school.set-default');
+
+    // Accès élève ↔ parent : génération/regénération du code personnel de
+    // l'élève et révocation d'un parent lié (cf. StudentAccessController).
+    Route::get('/my-access', [StudentAccessController::class, 'show'])->name('my-access.show');
+    Route::post('/my-access/regenerate-code', [StudentAccessController::class, 'regenerateCode'])->name('my-access.regenerate-code');
+    Route::delete('/my-access/parents/{userSchoolRole}', [StudentAccessController::class, 'revoke'])->name('my-access.parents.revoke');
 
     // Notifications (aucun contexte école requis pour marquer comme lu)
     Route::patch('/notifications/{notification}', [NotificationsController::class, 'markRead'])
