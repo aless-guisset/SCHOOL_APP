@@ -108,7 +108,8 @@ class StudentAccessController extends Controller
         $isOwnStudent = $userSchoolRole->linked_student_user_school_role_id
             && $request->user()->schoolRoles()->where('id', $userSchoolRole->linked_student_user_school_role_id)->exists();
         $isDirecteur = $request->user()->activeRoleAt($schoolId) === 'Directeur'
-            && $userSchoolRole->school_id == $schoolId;
+            && $userSchoolRole->school_id == $schoolId
+            && $userSchoolRole->role->reference === 'PARENT';
 
         abort_unless($isOwnStudent || $isDirecteur, 403);
 

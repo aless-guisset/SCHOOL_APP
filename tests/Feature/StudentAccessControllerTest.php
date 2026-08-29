@@ -136,3 +136,47 @@ test('a parent role recovers from a previous soft-delete instead of erroring', f
     $link = UserSchoolRole::where('user_id', $parent->id)->where('school_id', $school->id)->first();
     expect($link->trashed())->toBeFalse()->and($link->status)->toBe('A');
 });
+
+test('a Directeur can revoke a linked parent at their school', function () {
+    $school = makeSauSchool();
+    $studentUsr = makeSauStudent($school);
+    $parent = User::factory()->create();
+    $parentUsr = UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
+        'linked_student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $directeur = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $directeur->id, 'school_id' => $school->id, 'role_id' => makeSauRole('DIR', 'Directeur')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/my-access/parents/{$parentUsr->id}")
+        ->assertRedirect();
+
+    expect(UserSchoolRole::find($parentUsr->id))->toBeNull();
+});
+
+test('a Directeur cannot revoke a non-Parent user_school_role through this endpoint', function () {
+    $school = makeSauSchool();
+    $professeur = User::factory()->create();
+    $professeurUsr = UserSchoolRole::create([
+        'user_id' => $professeur->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PROF', 'Professeur')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $directeur = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $directeur->id, 'school_id' => $school->id, 'role_id' => makeSauRole('DIR', 'Directeur')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/my-access/parents/{$professeurUsr->id}")
+        ->assertForbidden();
+
+    expect(UserSchoolRole::find($professeurUsr->id))->not->toBeNull();
+});
