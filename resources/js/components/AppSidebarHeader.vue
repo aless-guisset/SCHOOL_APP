@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import DownloadAppButton from '@/components/DownloadAppButton.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { BreadcrumbItem } from '@/types';
 
@@ -25,6 +27,8 @@ withDefaults(
             </template>
         </div>
         <div class="ml-auto flex items-center">
+            <DownloadAppButton />
+            <ThemeToggle />
             <NotificationBell />
         </div>
     </header>

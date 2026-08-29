@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { Download, Moon, Sun } from 'lucide-vue-next';
 import { onMounted, onUnmounted } from 'vue';
+import { useAppearance } from '@/composables/useAppearance';
 import { login, register } from '@/routes';
+
+const { resolvedAppearance, updateAppearance } = useAppearance();
+
+function toggleTheme() {
+    updateAppearance(resolvedAppearance.value === 'dark' ? 'light' : 'dark');
+}
 
 withDefaults(
     defineProps<{
@@ -95,6 +103,13 @@ onUnmounted(() => {
         <header class="nav">
             <span class="nav-logo">school<b>app</b></span>
             <div class="nav-right">
+                <button class="icon-btn off" disabled title="Télécharger l'application — pas disponible pour le moment">
+                    <Download :size="16" />
+                </button>
+                <button class="icon-btn" @click="toggleTheme" :title="resolvedAppearance === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'">
+                    <Moon v-if="resolvedAppearance === 'dark'" :size="16" />
+                    <Sun v-else :size="16" />
+                </button>
                 <template v-if="auth?.user">
                     <button class="btn btn-sm off" disabled>Soumettre une école</button>
                     <button
@@ -201,13 +216,40 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Force light mode sur toute la page */
+/* Palette claire par défaut, sur des custom properties pour permettre un
+   thème sombre (.dark, cf useAppearance.ts) sans dupliquer chaque règle. */
 .page {
-    background: #ffffff;
-    color: #111111;
+    --bg: #ffffff;
+    --fg: #111111;
+    --muted: #666666;
+    --muted-2: #999999;
+    --border: #e6e6e1;
+    --hover-bg: #f5f5f3;
+    --green: #1a3d2b;
+    --green-hover: #2d6a4a;
+    --green-bg: #e8f5ee;
+    --green-border: #b7dfc8;
+
+    background: var(--bg);
+    color: var(--fg);
     min-height: 100vh;
     font-family: ui-sans-serif, system-ui, sans-serif;
     color-scheme: light;
+}
+
+.dark .page {
+    --bg: #0a0a0a;
+    --fg: #f2f2f2;
+    --muted: #a3a3a3;
+    --muted-2: #737373;
+    --border: #262626;
+    --hover-bg: #1a1a1a;
+    --green: #5eba8c;
+    --green-hover: #7fd1ab;
+    --green-bg: #123024;
+    --green-border: #2f5943;
+
+    color-scheme: dark;
 }
 
 /* NAV */
@@ -215,16 +257,16 @@ onUnmounted(() => {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: #ffffff;
-    border-bottom: 1px solid #e8e8e4;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
     height: 54px;
     padding: 0 1.75rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
-.nav-logo { font-size: 17px; color: #1a3d2b; }
-.nav-logo b { color: #111111; font-weight: 700; }
+.nav-logo { font-size: 17px; color: var(--green); }
+.nav-logo b { color: var(--fg); font-weight: 700; }
 .nav-right { display: flex; align-items: center; gap: 8px; }
 
 /* BUTTONS */
@@ -237,21 +279,21 @@ onUnmounted(() => {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    border: 1px solid #e0e0db;
-    background: #ffffff;
-    color: #111111;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
     text-decoration: none;
     transition: background 0.15s;
     white-space: nowrap;
     line-height: 1;
 }
-.btn:hover { background: #f5f5f3; }
+.btn:hover { background: var(--hover-bg); }
 .btn-sm { padding: 6px 14px; font-size: 13px; }
 .btn-lg { padding: 11px 26px; font-size: 15px; border-radius: 10px; }
-.btn-ghost { border-color: transparent; color: #666666; }
-.btn-ghost:hover { background: #f5f5f3; }
-.btn-green { background: #1a3d2b; color: #ffffff; border-color: #1a3d2b; }
-.btn-green:hover { background: #2d6a4a; }
+.btn-ghost { border-color: transparent; color: var(--muted); }
+.btn-ghost:hover { background: var(--hover-bg); }
+.btn-green { background: var(--green); color: #ffffff; border-color: var(--green); }
+.btn-green:hover { background: var(--green-hover); }
 .btn-white { background: #ffffff; color: #1a3d2b; border-color: #ffffff; }
 .btn-white:hover { background: #f0f0ee; }
 .off { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
@@ -264,12 +306,28 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #e8f5ee;
-    border: 1px solid #b7dfc8;
-    color: #1a3d2b;
+    background: var(--green-bg);
+    border: 1px solid var(--green-border);
+    color: var(--green);
     cursor: pointer;
 }
 .avatar svg { width: 16px; height: 16px; }
+
+.icon-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.icon-btn:hover { background: var(--hover-bg); color: var(--fg); }
 
 /* HERO */
 .hero {
@@ -280,9 +338,9 @@ onUnmounted(() => {
 }
 .badge {
     display: inline-block;
-    background: #e8f5ee;
-    color: #1a3d2b;
-    border: 1px solid #b7dfc8;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green-border);
     border-radius: 20px;
     padding: 4px 14px;
     font-size: 12px;
@@ -294,13 +352,13 @@ onUnmounted(() => {
     font-weight: 700;
     line-height: 1.12;
     letter-spacing: -1px;
-    color: #111111;
+    color: var(--fg);
     margin-bottom: 20px;
 }
-.green { color: #1a3d2b; }
+.green { color: var(--green); }
 .hero-sub {
     font-size: 16px;
-    color: #666666;
+    color: var(--muted);
     line-height: 1.7;
     margin-bottom: 32px;
 }
@@ -309,7 +367,7 @@ onUnmounted(() => {
 /* SEPARATEUR */
 .sep {
     border: none;
-    border-top: 1px solid #e8e8e4;
+    border-top: 1px solid var(--border);
     margin: 0 1.75rem;
 }
 
@@ -326,17 +384,17 @@ onUnmounted(() => {
     font-weight: 600;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    color: #1a3d2b;
+    color: var(--green);
     margin-bottom: 10px;
 }
 .section h2 {
     font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.4px;
-    color: #111111;
+    color: var(--fg);
     margin-bottom: 10px;
 }
-.section-sub { font-size: 15px; color: #666666; line-height: 1.65; }
+.section-sub { font-size: 15px; color: var(--muted); line-height: 1.65; }
 
 /* MODULES */
 .grid {
@@ -345,22 +403,22 @@ onUnmounted(() => {
     gap: 14px;
 }
 .card {
-    border: 1px solid #e8e8e4;
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 20px 22px;
-    background: #ffffff;
+    background: var(--bg);
     transition: border-color 0.2s, opacity 0.5s ease, transform 0.5s ease;
 }
-.card:hover { border-color: #b7dfc8; }
+.card:hover { border-color: var(--green-border); }
 .card-num {
     font-size: 11px;
     font-weight: 600;
-    color: #1a3d2b;
+    color: var(--green);
     letter-spacing: 1px;
     margin-bottom: 10px;
 }
-.card-title { font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 8px; }
-.card-desc { font-size: 13px; color: #666666; line-height: 1.6; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 8px; }
+.card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
 /* ÉTAPES */
 .steps { display: flex; flex-direction: column; }
@@ -369,7 +427,7 @@ onUnmounted(() => {
     align-items: flex-start;
     gap: 18px;
     padding: 20px 0;
-    border-bottom: 1px solid #e8e8e4;
+    border-bottom: 1px solid var(--border);
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
 .step:last-child { border-bottom: none; }
@@ -377,7 +435,7 @@ onUnmounted(() => {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #1a3d2b;
+    background: var(--green);
     color: #ffffff;
     font-size: 13px;
     font-weight: 700;
@@ -387,8 +445,8 @@ onUnmounted(() => {
     flex-shrink: 0;
     margin-top: 1px;
 }
-.step-title { font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 4px; }
-.step-desc { font-size: 13px; color: #666666; line-height: 1.6; }
+.step-title { font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+.step-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
 /* CTA */
 .cta-wrap { padding: 0 1.75rem 72px; }
@@ -404,14 +462,14 @@ onUnmounted(() => {
 
 /* FOOTER */
 .footer {
-    border-top: 1px solid #e8e8e4;
+    border-top: 1px solid var(--border);
     padding: 22px 1.75rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 13px;
-    color: #999999;
-    background: #ffffff;
+    color: var(--muted-2);
+    background: var(--bg);
 }
 
 /* SCROLL REVEAL */
