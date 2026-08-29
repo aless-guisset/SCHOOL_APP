@@ -2,21 +2,17 @@
 import { Form, Head } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
-import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AuthBase from '@/layouts/AuthLayout.vue';
+import JoinAuthLayout from '@/layouts/JoinAuthLayout.vue';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 </script>
 
 <template>
-    <AuthBase
-        title="Créer un compte"
-        description="Renseignez vos informations pour créer votre compte"
-    >
+    <JoinAuthLayout badge="Fondateur d'établissement" title="Créer une école" description="Renseignez vos informations pour créer votre compte">
         <Head title="Inscription" />
 
         <Form
@@ -29,12 +25,10 @@ import { store } from '@/routes/register';
                 <!-- ── Profil automatique (school_owner) ─────────────────────────────────────── -->
                 <input type="hidden" name="profile" value="school_owner" />
 
-                <div class="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                <div class="info-box">
                     Ce formulaire crée un compte fondateur d'établissement — votre
                     demande sera examinée par un administrateur.
-                    <TextLink href="/join/role" class="font-medium underline underline-offset-4">
-                        Vous rejoignez une école existante ?
-                    </TextLink>
+                    <a href="/join/role" class="join-link">Vous rejoignez une école existante ?</a>
                 </div>
 
                 <!-- ── Prénom + Nom ────────────────────────────────────────── -->
@@ -121,16 +115,38 @@ import { store } from '@/routes/register';
                 </Button>
             </div>
 
-            <div class="text-center text-sm text-muted-foreground">
+            <div class="join-footer">
                 Déjà un compte ?
-                <TextLink
-                    :href="login()"
-                    class="underline underline-offset-4"
-                    :tabindex="7"
-                >
-                    Se connecter
-                </TextLink>
+                <a :href="login()" class="join-link" :tabindex="7">Se connecter</a>
             </div>
         </Form>
-    </AuthBase>
+    </JoinAuthLayout>
 </template>
+
+<style scoped>
+.info-box {
+    border-radius: 10px;
+    border: 1px solid #e8e8e4;
+    background: #fafaf8;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #666666;
+    line-height: 1.5;
+}
+.info-box .join-link {
+    display: block;
+    margin-top: 4px;
+}
+.join-footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: #666666;
+}
+.join-link {
+    color: #1a3d2b;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-weight: 500;
+}
+</style>
