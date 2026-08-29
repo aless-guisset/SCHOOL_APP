@@ -421,3 +421,49 @@ test('re-adding a previously deleted menu label restores it, and a genuine live 
 
     expect(CantineMenu::withTrashed()->where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat C')->count())->toBe(1);
 });
+
+test('a parent sees their linked child\'s cantine order but cannot place one', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $date = Carbon::today()->toDateString();
+
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $existingOrder = CantineOrder::create(['section_user_id' => $student->id, 'cantine_menu_id' => $menu->id, 'date' => $date, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $parentRole = makeCantineRole('PARENT', 'Parent');
+    $parent = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
+        'linked_student_user_school_role_id' => $student->userschoolrole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/cantine?date='.$date)
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('can_order', false)
+            ->where('my_order.id', $existingOrder->id)
+        );
+});
+
+test('a parent cannot post a cantine order even by calling the route directly', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $date = Carbon::today()->toDateString();
+
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $parentRole = makeCantineRole('PARENT', 'Parent');
+    $parent = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
+        'linked_student_user_school_role_id' => $student->userschoolrole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertForbidden();
+});

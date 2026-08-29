@@ -52,11 +52,19 @@ class CantineController extends Controller
                 'note' => $o->note,
             ])->sortBy('name')->values();
         } else {
-            $sectionUser = $this->currentSectionUser($schoolId);
+            // currentSectionUser() reste basé sur auth()->id() : c'est ce qui
+            // garantit qu'un Parent n'a jamais de $sectionUser via ce chemin.
+            // Pour l'AFFICHAGE (voir la commande de l'enfant), on résout
+            // séparément via scopedUserSchoolRole() ; can_order reste false
+            // pour un Parent quel que soit ce que cette résolution retourne.
+            $ownSectionUser = $this->currentSectionUser($schoolId);
+            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            $displaySectionUser = $ownSectionUser
+                ?? ($scopedUsr ? $scopedUsr->sectionUserRoles()->first() : null);
 
-            $props['can_order'] = (bool) $sectionUser;
-            $props['my_order'] = $sectionUser
-                ? CantineOrder::where('section_user_id', $sectionUser->id)
+            $props['can_order'] = (bool) $ownSectionUser;
+            $props['my_order'] = $displaySectionUser
+                ? CantineOrder::where('section_user_id', $displaySectionUser->id)
                     ->whereDate('date', $date)
                     ->where('is_active', true)
                     ->first(['id', 'cantine_menu_id'])
