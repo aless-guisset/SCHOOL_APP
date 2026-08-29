@@ -166,6 +166,20 @@ const nav: NavMap = {
             ],
         },
     ],
+
+    // ── Parent/Tuteur ──────────────────────────────────────────────────────
+    Parent: [
+        {
+            section: 'Suivi',
+            items: [
+                { label: 'Accueil', icon: Home, route: '/dashboard', routeName: 'dashboard' },
+                { label: 'Horaire', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
+                { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+                // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
+                { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
+            ],
+        },
+    ],
 };
 
 /**
