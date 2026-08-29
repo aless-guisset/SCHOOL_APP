@@ -107,14 +107,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/school/set-default', [SchoolOnboardingController::class, 'setDefault'])
         ->name('school.set-default');
 
-    // Accès élève ↔ parent : génération/regénération du code personnel de
-    // l'élève et révocation d'un parent lié (cf. StudentAccessController).
-    Route::get('/my-access', [StudentAccessController::class, 'show'])->name('my-access.show');
-    Route::post('/my-access/regenerate-code', [StudentAccessController::class, 'regenerateCode'])->name('my-access.regenerate-code');
-    Route::delete('/my-access/parents/{userSchoolRole}', [StudentAccessController::class, 'revoke'])->name('my-access.parents.revoke');
-    Route::post('/my-access/invitations', [StudentInvitationsController::class, 'store'])->name('my-access.invitations.store');
-    Route::delete('/my-access/invitations/{invitation}', [StudentInvitationsController::class, 'destroy'])->name('my-access.invitations.destroy');
-
     // Notifications (aucun contexte école requis pour marquer comme lu)
     Route::patch('/notifications/{notification}', [NotificationsController::class, 'markRead'])
         ->name('notifications.read');
@@ -128,6 +120,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 // ─── Application principale (auth + contexte école requis) ────────────────
 Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
+
+    // Accès élève ↔ parent : génération/regénération du code personnel de
+    // l'élève et révocation d'un parent lié (cf. StudentAccessController).
+    // Dans ce groupe (contrairement à /school/create) car un élève a déjà
+    // une école active — sans school.context, active_school_id n'est jamais
+    // établi sur une session fraîche et requireOwnStudentRole() 403 à tort.
+    Route::get('/my-access', [StudentAccessController::class, 'show'])->name('my-access.show');
+    Route::post('/my-access/regenerate-code', [StudentAccessController::class, 'regenerateCode'])->name('my-access.regenerate-code');
+    Route::delete('/my-access/parents/{userSchoolRole}', [StudentAccessController::class, 'revoke'])->name('my-access.parents.revoke');
+    Route::post('/my-access/invitations', [StudentInvitationsController::class, 'store'])->name('my-access.invitations.store');
+    Route::delete('/my-access/invitations/{invitation}', [StudentInvitationsController::class, 'destroy'])->name('my-access.invitations.destroy');
 
     // Dashboard (router par rôle côté Vue)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

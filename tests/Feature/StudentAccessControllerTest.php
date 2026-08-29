@@ -81,6 +81,28 @@ test('a parent account already linked to a different child cannot join a second 
     expect(UserSchoolRole::where('user_id', $parent->id)->where('linked_student_user_school_role_id', $studentB->id)->exists())->toBeFalse();
 });
 
+test('a student with a single school reaches /my-access on a fresh session with no active_school_id pre-set', function () {
+    // /my-access est dans le groupe school.context (pas hors-contexte comme
+    // /school/create) précisément pour ce cas : sur une toute première
+    // requête après connexion, active_school_id n'est pas encore en session.
+    // CheckSchoolContext doit l'établir (redirection puis rendu réel) plutôt
+    // que laisser requireOwnStudentRole() chercher school_id=null et 403 à tort.
+    $school = makeSauSchool();
+    $studentUsr = makeSauStudent($school);
+
+    $this->actingAs($studentUsr->user);
+
+    $response = $this->get('/my-access');
+    $response->assertRedirect('/my-access');
+
+    $response = $this->get('/my-access');
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('student/GiveAccess')
+        ->where('access_code', 'STUCODE1')
+    );
+});
+
 test('the student can regenerate their access code, and the old code stops working', function () {
     $school = makeSauSchool();
     $studentUsr = makeSauStudent($school);
