@@ -28,12 +28,23 @@ use App\Http\Controllers\UserSchoolRolesController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
 // ─── Page d'accueil publique ───────────────────────────────────────────────
 Route::inertia('/', 'Welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
+    // Toujours vrai : l'inscription fondateur n'est plus une feature Fortify
+    // togglable, elle fait partie du socle de l'app (cf. SchoolOnboardingController).
+    'canRegister' => true,
 ])->name('home');
+
+// ─── Inscription fondateur d'établissement (publique, hors Fortify — cf.
+// SchoolOnboardingController::createFounderAccount()/registerFounder() et
+// config/fortify.php) ────────────────────────────────────────────────────
+Route::get('/register', [SchoolOnboardingController::class, 'createFounderAccount'])
+    ->middleware('guest')
+    ->name('register');
+Route::post('/register', [SchoolOnboardingController::class, 'registerFounder'])
+    ->middleware('guest')
+    ->name('register.store');
 
 // ─── Invitations par email (publiques : le destinataire n'a pas forcément
 // de compte au moment de cliquer le lien, donc hors de tout groupe `auth`) ─

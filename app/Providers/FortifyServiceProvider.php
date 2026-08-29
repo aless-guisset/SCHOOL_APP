@@ -49,7 +49,8 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/Login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
-            'canRegister' => Features::enabled(Features::registration()),
+            // Toujours vrai : /register n'est plus une feature Fortify togglable.
+            'canRegister' => true,
             'status' => $request->session()->get('status'),
         ]));
 
@@ -66,7 +67,8 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::registerView(fn () => Inertia::render('auth/Register'));
+        // Pas de Fortify::registerView() : /register est géré par
+        // SchoolOnboardingController (cf. config/fortify.php), pas par Fortify.
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
 

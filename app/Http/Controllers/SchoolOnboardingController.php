@@ -2,16 +2,57 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\PasswordValidationRules;
+use App\Concerns\ProfileValidationRules;
 use App\Models\School;
 use App\Models\User;
 use App\Notifications\SchoolPendingNotification;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SchoolOnboardingController extends Controller
 {
+    use PasswordValidationRules, ProfileValidationRules;
+
+    /**
+     * Formulaire de création de compte fondateur d'établissement.
+     */
+    public function createFounderAccount(): Response
+    {
+        return Inertia::render('auth/Register');
+    }
+
+    /**
+     * Crée le compte fondateur (profile=school_owner) et le connecte.
+     * `profile` n'est jamais lu depuis la requête : ce parcours ne crée que des
+     * fondateurs, donc la valeur est forcée côté serveur (même convention que
+     * SchoolAccessController::joinRequest() pour le rôle ELEVE).
+     */
+    public function registerFounder(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            ...$this->profileRules(),
+            'password' => $this->passwordRules(),
+        ]);
+
+        $user = User::create([
+            'firstname' => $data['firstname'],
+            'lastname'  => $data['lastname'],
+            'email'     => $data['email'],
+            'password'  => $data['password'],
+            'profile'   => 'school_owner',
+        ]);
+
+        $request->session()->regenerate();
+        Auth::login($user);
+
+        return redirect()->route('school.create');
+    }
+
     /**
      * Page de sélection d'école (quand l'utilisateur en a plusieurs).
      */

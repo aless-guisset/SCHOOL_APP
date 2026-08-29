@@ -22,9 +22,6 @@ import { store } from '@/routes/register';
             class="flex flex-col gap-6"
         >
             <div class="grid gap-6">
-                <!-- ── Profil automatique (school_owner) ─────────────────────────────────────── -->
-                <input type="hidden" name="profile" value="school_owner" />
-
                 <div class="info-box">
                     Ce formulaire crée un compte fondateur d'établissement — votre
                     demande sera examinée par un administrateur.
@@ -117,7 +114,7 @@ import { store } from '@/routes/register';
 
             <div class="join-footer">
                 Déjà un compte ?
-                <a :href="login()" class="join-link" :tabindex="7">Se connecter</a>
+                <a :href="login().url" class="join-link" :tabindex="7">Se connecter</a>
             </div>
         </Form>
     </JoinAuthLayout>

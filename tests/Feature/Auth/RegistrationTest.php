@@ -1,11 +1,5 @@
 <?php
 
-use Laravel\Fortify\Features;
-
-beforeEach(function () {
-    $this->skipUnlessFortifyFeature(Features::registration());
-});
-
 test('registration screen can be rendered', function () {
     $response = $this->get(route('register'));
 
@@ -19,19 +13,20 @@ test('new users can register', function () {
         'email'     => 'test@example.com',
         'password'  => 'password',
         'password_confirmation' => 'password',
-        'profile'   => 'school_owner',
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    expect(auth()->user()->profile)->toBe('school_owner');
+    $response->assertRedirect(route('school.create', absolute: false));
 });
 
-test('registering with profile=student is rejected — student signup now goes through /join', function () {
+test('the profile field cannot be set by the client — always forced to school_owner', function () {
     $response = $this->post(route('register.store'), [
         'firstname' => 'Test', 'lastname' => 'Student', 'email' => 'student@example.com',
         'password' => 'password', 'password_confirmation' => 'password', 'profile' => 'student',
     ]);
 
-    $response->assertSessionHasErrors('profile');
-    $this->assertGuest();
+    $this->assertAuthenticated();
+    expect(auth()->user()->profile)->toBe('school_owner');
+    $response->assertRedirect(route('school.create', absolute: false));
 });

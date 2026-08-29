@@ -144,7 +144,11 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // registration() est volontairement absente : la création de compte
+        // fondateur d'établissement (/register) est gérée par
+        // SchoolOnboardingController, pas par le RegisteredUserController de
+        // Fortify — ce parcours est un pilier de l'app, pas une fonctionnalité
+        // togglable, et doit rester actif même si ce tableau change.
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([
