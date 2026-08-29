@@ -95,6 +95,7 @@ const nav: NavMap = {
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
                 { label: 'Gestion des accès', icon: KeyRound, route: '/access-requests', routeName: 'access-requests.index' },
+                { label: 'Soumettre une école', icon: Building2, route: '/school/create', routeName: 'school.create' },
             ],
         },
     ],
