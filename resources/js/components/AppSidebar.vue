@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Building2, ChevronsUpDown, Star } from 'lucide-vue-next';
+import { Building2, ChevronsUpDown, Home, NotebookText, Star, UserRound, Utensils } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -35,6 +35,8 @@ const page = usePage<{
     pendingCount: number;
     accessRequestsPendingCount: number;
     routeName: string | null;
+    myChildren: Array<{ id: number; name: string; is_active: boolean }>;
+    hasParentAccess: boolean;
 }>();
 
 const currentRole = computed(() => page.props.currentRole);
@@ -43,20 +45,49 @@ const userSchools = computed(() => page.props.userSchools ?? []);
 const pendingCount = computed(() => page.props.pendingCount ?? 0);
 const accessRequestsPendingCount = computed(() => page.props.accessRequestsPendingCount ?? 0);
 const hasMultipleSchools = computed(() => userSchools.value.length > 1);
+const myChildren = computed(() => page.props.myChildren ?? []);
+const hasMultipleChildren = computed(() => myChildren.value.length > 1);
+const hasParentAccess = computed(() => page.props.hasParentAccess ?? false);
+
+function switchChild(linkId: number) {
+    router.post('/my-children/activate', { link_id: linkId });
+}
 
 // Le nav "Cantine" est déclaré statiquement dans useSidebarNav (qui n'a pas
 // accès à l'état de l'école active) ; on le retire ici si le module n'est pas
 // activé pour l'école active.
 const navGroups = computed(() => {
     const cantineEnabled = activeSchool.value?.cantine_enabled ?? false;
-    const groups = useSidebarNav(currentRole.value);
+    let groups = useSidebarNav(currentRole.value);
 
-    if (cantineEnabled) return groups;
+    if (!cantineEnabled) {
+        groups = groups.map((group) => ({
+            ...group,
+            items: group.items.filter((item) => item.routeName !== 'cantine.index'),
+        }));
+    }
 
-    return groups.map((group) => ({
-        ...group,
-        items: group.items.filter((item) => item.routeName !== 'cantine.index'),
-    }));
+    // Double rôle : le rôle principal (currentRole) pilote la nav normale ;
+    // si l'utilisateur a AUSSI un rôle Parent actif, on ajoute une section
+    // dédiée pointant vers les mêmes pages avec ?as_parent=1 — jamais un
+    // remplacement de la nav existante, toujours un ajout.
+    if (hasParentAccess.value && currentRole.value !== 'Parent') {
+        groups = [
+            ...groups,
+            {
+                section: 'Mes enfants',
+                items: [
+                    { label: 'Accueil', icon: Home, route: '/dashboard?as_parent=1', routeName: 'dashboard' },
+                    { label: 'Notes', icon: NotebookText, route: '/grades?as_parent=1', routeName: 'grades.index' },
+                    ...(cantineEnabled
+                        ? [{ label: 'Cantine', icon: Utensils, route: '/cantine?as_parent=1', routeName: 'cantine.index' }]
+                        : []),
+                ],
+            },
+        ];
+    }
+
+    return groups;
 });
 
 function switchSchool(schoolId: number) {
@@ -142,6 +173,36 @@ function isCurrentRoute(item: { route: string; routeName?: string }): boolean {
                     <Building2 class="size-4 shrink-0 text-sidebar-primary" />
                     <span class="truncate text-xs font-medium text-sidebar-accent-foreground">{{ activeSchool.name }}</span>
                 </div>
+            </div>
+
+            <!-- Sélecteur d'enfant : uniquement si l'utilisateur a un rôle Parent
+                 actif à cette école et plus d'un enfant lié (sinon rien à choisir). -->
+            <div v-if="hasMultipleChildren" class="px-2 pb-1">
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <button
+                            class="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent px-3 py-2 text-sm font-medium text-sidebar-accent-foreground transition hover:bg-sidebar-accent/80"
+                        >
+                            <UserRound class="size-4 shrink-0 text-sidebar-primary" />
+                            <span class="flex-1 truncate text-left text-xs">
+                                {{ myChildren.find((c) => c.is_active)?.name ?? myChildren[0]?.name }}
+                            </span>
+                            <ChevronsUpDown class="size-3 shrink-0 text-muted-foreground" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" class="w-52">
+                        <DropdownMenuItem
+                            v-for="child in myChildren"
+                            :key="child.id"
+                            class="flex cursor-pointer items-center gap-2"
+                            :class="{ 'font-semibold text-primary': child.is_active }"
+                            @click="switchChild(child.id)"
+                        >
+                            <UserRound class="size-4 shrink-0" />
+                            <span class="flex-1 truncate text-xs">{{ child.name }}</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </SidebarHeader>
 
