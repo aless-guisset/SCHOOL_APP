@@ -29,19 +29,16 @@ class HandleInertiaRequests extends Middleware
         $activeSchool = null;
         $currentRole = null;
         $userSchools = [];
+        $myChildren = [];
+        $parentUsr = null;
 
         if ($user && $activeSchoolId) {
             $activeSchool = School::find($activeSchoolId);
 
-            // Rôle de l'utilisateur dans l'école active
-            $schoolRole = $user->schoolRoles()
-                ->with('role')
-                ->where('school_id', $activeSchoolId)
-                ->where('is_active', true)
-                ->where('status', 'A')
-                ->first();
-
-            $currentRole = $schoolRole?->role?->name;
+            // Aligné sur User::activeSchoolRolesAt() (privilège) — évite qu'un
+            // utilisateur à plusieurs rôles dans cette école (ex: Professeur ET
+            // Parent) voie un rôle différent ici et dans scopedUserSchoolRole().
+            $currentRole = $user->activeRoleAt($activeSchoolId);
 
             // Liste des écoles de l'utilisateur (pour le school switcher)
             $userSchools = $user->schoolRoles()
@@ -55,6 +52,27 @@ class HandleInertiaRequests extends Middleware
                     'is_active'  => $sr->school->id === $activeSchoolId,
                     'is_default' => $sr->school->id === $user->default_school_id,
                 ]);
+
+            $parentUsr = $user->schoolRoles()
+                ->where('school_id', $activeSchoolId)
+                ->where('status', 'A')->where('is_active', true)
+                ->whereHas('role', fn ($q) => $q->where('reference', 'PARENT'))
+                ->first();
+
+            $myChildren = $parentUsr
+                ? \App\Models\ParentStudentLink::with('studentUserSchoolRole.user')
+                    ->where('parent_user_school_role_id', $parentUsr->id)
+                    ->where('status', 'A')->where('is_active', true)
+                    ->get()
+                    ->map(fn ($link) => [
+                        'id' => $link->id,
+                        'name' => $link->studentUserSchoolRole?->user
+                            ? "{$link->studentUserSchoolRole->user->firstname} {$link->studentUserSchoolRole->user->lastname}"
+                            : '—',
+                        'is_active' => $link->id === session('active_child_link_id')
+                            || (! session('active_child_link_id') && $link->is($parentUsr->parentLinks->first())),
+                    ])
+                : [];
         }
 
         return [
@@ -71,6 +89,8 @@ class HandleInertiaRequests extends Middleware
             ] : null,
             'currentRole' => $currentRole,
             'userSchools' => $userSchools,
+            'myChildren' => $myChildren,
+            'hasParentAccess' => $parentUsr !== null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash'        => $request->session()->get('flash'),
             'locale'       => app()->getLocale(),

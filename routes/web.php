@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GradesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\ParentAccessController;
 use App\Http\Controllers\ResourcesController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SchedulesController;
@@ -131,6 +132,10 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::delete('/my-access/parents/{userSchoolRole}', [StudentAccessController::class, 'revoke'])->name('my-access.parents.revoke');
     Route::post('/my-access/invitations', [StudentInvitationsController::class, 'store'])->name('my-access.invitations.store');
     Route::delete('/my-access/invitations/{invitation}', [StudentInvitationsController::class, 'destroy'])->name('my-access.invitations.destroy');
+
+    // Sélecteur d'enfant actif pour un parent lié à plusieurs élèves
+    // (cf. ParentAccessController / active_child_link_id en session).
+    Route::post('/my-children/activate', [ParentAccessController::class, 'activate'])->name('my-children.activate');
 
     // Dashboard (router par rôle côté Vue)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
