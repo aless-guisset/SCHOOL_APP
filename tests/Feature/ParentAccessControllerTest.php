@@ -64,3 +64,42 @@ test('myChildren shared prop lists all active links for a parent', function () {
         ->has('myChildren', 1)
     );
 });
+
+test('myChildren falls back to the only active link when an older link is revoked and nothing is selected', function () {
+    $school = makePacSchool();
+    $studentA = UserSchoolRole::create(['user_id' => User::factory()->create()->id, 'school_id' => $school->id, 'role_id' => makePacRole('ELEVE', 'Élève')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $studentB = UserSchoolRole::create(['user_id' => User::factory()->create()->id, 'school_id' => $school->id, 'role_id' => makePacRole('ELEVE', 'Élève')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parent = User::factory()->create();
+    $parentUsr = UserSchoolRole::create(['user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makePacRole('PARENT', 'Parent')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // Lien le plus ancien (id le plus bas) mais révoqué.
+    ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentA->id, 'status' => 'R', 'is_active' => false, 'created_by' => 1]);
+    // Lien plus récent, actif — le seul candidat valide.
+    $linkB = ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentB->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $response = $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('hasParentAccess', true)
+        ->has('myChildren', 1)
+        ->where('myChildren.0.id', $linkB->id)
+        ->where('myChildren.0.is_active', true)
+    );
+});
+
+test('myChildren and hasParentAccess stay empty/false for a user with a non-Parent role', function () {
+    $school = makePacSchool();
+    $teacher = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $teacher->id, 'school_id' => $school->id, 'role_id' => makePacRole('PROF', 'Professeur')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $response = $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('hasParentAccess', false)
+        ->has('myChildren', 0)
+    );
+});

@@ -59,20 +59,27 @@ class HandleInertiaRequests extends Middleware
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PARENT'))
                 ->first();
 
-            $myChildren = $parentUsr
+            $parentLinks = $parentUsr
                 ? \App\Models\ParentStudentLink::with('studentUserSchoolRole.user')
                     ->where('parent_user_school_role_id', $parentUsr->id)
                     ->where('status', 'A')->where('is_active', true)
+                    ->orderBy('id')
                     ->get()
-                    ->map(fn ($link) => [
-                        'id' => $link->id,
-                        'name' => $link->studentUserSchoolRole?->user
-                            ? "{$link->studentUserSchoolRole->user->firstname} {$link->studentUserSchoolRole->user->lastname}"
-                            : '—',
-                        'is_active' => $link->id === session('active_child_link_id')
-                            || (! session('active_child_link_id') && $link->is($parentUsr->parentLinks->first())),
-                    ])
-                : [];
+                : collect();
+
+            // Repli sur le premier lien actif (même ordre que la requête
+            // ci-dessus) si rien n'est sélectionné en session — cohérent avec
+            // User::resolveActiveChild(), qui applique la même règle côté
+            // résolution des données réellement affichées au parent.
+            $activeChildLinkId = session('active_child_link_id') ?? $parentLinks->first()?->id;
+
+            $myChildren = $parentLinks->map(fn ($link) => [
+                'id' => $link->id,
+                'name' => $link->studentUserSchoolRole?->user
+                    ? "{$link->studentUserSchoolRole->user->firstname} {$link->studentUserSchoolRole->user->lastname}"
+                    : '—',
+                'is_active' => $link->id === $activeChildLinkId,
+            ]);
         }
 
         return [
