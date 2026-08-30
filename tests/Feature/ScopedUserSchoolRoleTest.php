@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ParentStudentLink;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\User;
@@ -39,9 +40,12 @@ test('scopedUserSchoolRole returns the linked child row for a parent role', func
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
     $parent = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
@@ -64,9 +68,12 @@ test('scopedUserSchoolRole prefers the caller\'s own non-parent row when they al
 
     // Ligne PARENT créée en premier : un `first()` non ordonné la retournerait.
     $prof = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $prof->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
     $profUsr = UserSchoolRole::create([
@@ -99,9 +106,12 @@ test('scopedUserSchoolRole returns null when the linked child has been deactivat
         'status' => 'A', 'is_active' => false, 'created_by' => 1,
     ]);
     $parent = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 

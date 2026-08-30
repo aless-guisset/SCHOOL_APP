@@ -2,6 +2,7 @@
 
 use App\Models\Course;
 use App\Models\Grade;
+use App\Models\ParentStudentLink;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\Section;
@@ -46,10 +47,13 @@ function makeGradesStudent(School $school): SectionUserSchoolRole
 function makeGradesParent(School $school, SectionUserSchoolRole $child): User
 {
     $parent = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id,
         'role_id' => makeGradesScaleRole('PARENT', 'Parent')->id,
-        'linked_student_user_school_role_id' => $child->userschoolrole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $child->userschoolrole->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
@@ -433,9 +437,12 @@ test('a parent only sees the grades of their linked child, never other students'
     $childUsr = $childStudent->userschoolrole;
     $parentRole = \App\Models\Role::firstOrCreate(['reference' => 'PARENT'], ['name' => 'Parent', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
     $parent = \App\Models\User::factory()->create();
-    \App\Models\UserSchoolRole::create([
+    $parentUsr = \App\Models\UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $childUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $childUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 

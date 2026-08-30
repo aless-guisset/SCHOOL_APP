@@ -164,12 +164,48 @@ class User extends Authenticatable
         $usr = $this->activeSchoolRolesAt($schoolId)->first();
 
         if ($usr?->role?->reference === 'PARENT') {
-            return $usr->linkedStudentUserSchoolRole()
-                ->where('status', 'A')
-                ->where('is_active', true)
-                ->first();
+            return $this->resolveActiveChild($usr);
         }
 
         return $usr;
+    }
+
+    /**
+     * Enfant actif du rôle Parent de cet utilisateur à cette école,
+     * indépendamment de son rôle le plus privilégié — contrairement à
+     * scopedUserSchoolRole(), qui ne résout vers un enfant que si Parent
+     * EST le rôle le plus privilégié. Utilisée uniquement quand l'appelant
+     * consulte explicitement la vue "Mes enfants" (paramètre as_parent=1
+     * sur les contrôleurs concernés) : retourne null si l'utilisateur n'a
+     * pas de rôle Parent actif à cette école, quel que soit son autre rôle.
+     */
+    public function parentLinkedStudent(int $schoolId): ?UserSchoolRole
+    {
+        $parentUsr = $this->schoolRoles()
+            ->where('school_id', $schoolId)
+            ->where('status', 'A')->where('is_active', true)
+            ->whereHas('role', fn ($q) => $q->where('reference', 'PARENT'))
+            ->first();
+
+        return $parentUsr ? $this->resolveActiveChild($parentUsr) : null;
+    }
+
+    /**
+     * Enfant actif d'une ligne de rôle Parent donnée : le lien pointé par
+     * active_child_link_id en session s'il appartient bien à ce parent et
+     * est actif, sinon le premier lien actif de ce parent.
+     */
+    private function resolveActiveChild(UserSchoolRole $parentUsr): ?UserSchoolRole
+    {
+        $linkId = session('active_child_link_id');
+        $link = ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
+            ->where('status', 'A')->where('is_active', true)
+            ->when($linkId, fn ($q) => $q->where('id', $linkId))
+            ->first()
+            ?? ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
+                ->where('status', 'A')->where('is_active', true)->first();
+
+        return $link?->studentUserSchoolRole()
+            ->where('status', 'A')->where('is_active', true)->first();
     }
 }

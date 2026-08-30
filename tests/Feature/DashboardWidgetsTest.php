@@ -2,6 +2,7 @@
 
 use App\Models\Classroom;
 use App\Models\Course;
+use App\Models\ParentStudentLink;
 use App\Models\Role;
 use App\Models\Schedule;
 use App\Models\School;
@@ -272,9 +273,12 @@ test('a user who is both Professeur and Parent at the same school sees their own
     // pour que la résolution ne puisse pas tomber juste par hasard sur la bonne
     // ligne via un `first()` non ordonné.
     $person = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $person->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $childUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $childUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
     $teacherUsr = UserSchoolRole::create([
@@ -311,9 +315,12 @@ test('a parent sees the week_schedule of their linked child\'s section, not the 
 
     $parentRole = makeRole('PARENT', 'Parent');
     $parent = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $eleveUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $eleveUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 

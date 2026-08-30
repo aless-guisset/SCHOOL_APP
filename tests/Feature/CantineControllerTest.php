@@ -2,6 +2,7 @@
 
 use App\Models\CantineMenu;
 use App\Models\CantineOrder;
+use App\Models\ParentStudentLink;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\Section;
@@ -432,9 +433,12 @@ test('a parent sees their linked child\'s cantine order but cannot place one', f
 
     $parentRole = makeCantineRole('PARENT', 'Parent');
     $parent = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $student->userschoolrole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $student->userschoolrole->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
@@ -456,9 +460,12 @@ test('a parent cannot post a cantine order even by calling the route directly', 
 
     $parentRole = makeCantineRole('PARENT', 'Parent');
     $parent = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $student->userschoolrole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $student->userschoolrole->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 

@@ -74,7 +74,7 @@ test('accepting an invitation creates an account and grants the Parent role', fu
     $parent = User::where('email', 'invite-accept@example.com')->first();
     $link = UserSchoolRole::where('user_id', $parent->id)->first();
     expect($link->role->reference)->toBe('PARENT')
-        ->and($link->linked_student_user_school_role_id)->toBe($studentUsr->id);
+        ->and(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $link->id)->where('student_user_school_role_id', $studentUsr->id)->exists())->toBeTrue();
 });
 
 test('accepting an invitation with an account already linked to another child fails as a field error, not a 422 page', function () {
