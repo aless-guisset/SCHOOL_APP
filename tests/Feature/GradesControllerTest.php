@@ -456,3 +456,33 @@ test('a parent only sees the grades of their linked child, never other students'
         ->where('grades.0.grade', 15)
     );
 });
+
+test('a teacher with a Parent role also sees their child\'s grades via as_parent=1, and only those', function () {
+    $school = makeGradesScaleSchool();
+    $subject = makeGradesSubject($school);
+    $child = makeGradesStudent($school);
+    $otherStudent = makeGradesStudent($school);
+
+    \App\Models\Grade::create(['section_user_id' => $child->id, 'subject_id' => $subject->id, 'period' => 'T1', 'grade' => 14, 'max_grade' => 20, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\Grade::create(['section_user_id' => $otherStudent->id, 'subject_id' => $subject->id, 'period' => 'T1', 'grade' => 9, 'max_grade' => 20, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $teacherParent = User::factory()->create();
+    $profUsr = UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeGradesScaleRole('PROF', 'Professeur')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parentUsr = UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeGradesScaleRole('PARENT', 'Parent')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $child->userschoolrole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // Sans as_parent : vue Professeur normale (canManage=true), pas la vue enfant.
+    $this->actingAs($teacherParent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/grades')
+        ->assertInertia(fn ($page) => $page->has('grades', 2)); // voit tout, rôle de gestion
+
+    // Avec as_parent=1 : uniquement les notes de l'enfant lié.
+    $this->actingAs($teacherParent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/grades?as_parent=1')
+        ->assertInertia(fn ($page) => $page
+            ->has('grades', 1)
+            ->where('grades.0.grade', 14)
+        );
+});

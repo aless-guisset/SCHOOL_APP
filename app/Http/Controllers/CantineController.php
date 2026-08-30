@@ -35,7 +35,9 @@ class CantineController extends Controller
             'menus' => $menus,
         ];
 
-        if ($this->userCanManage($schoolId)) {
+        $asParent = $request->boolean('as_parent');
+
+        if (! $asParent && $this->userCanManage($schoolId)) {
             $orders = CantineOrder::whereIn('cantine_menu_id', $menus->pluck('id'))
                 ->where('is_active', true)
                 ->with(['sectionUser.userschoolrole.user', 'sectionUser.section', 'menu'])
@@ -57,10 +59,15 @@ class CantineController extends Controller
             // Pour l'AFFICHAGE (voir la commande de l'enfant), on résout
             // séparément via scopedUserSchoolRole() ; can_order reste false
             // pour un Parent quel que soit ce que cette résolution retourne.
-            $ownSectionUser = $this->currentSectionUser($schoolId);
-            // Résolution parent uniquement si l'appelant n'a pas déjà sa propre
-            // ligne section_user : évite une requête inutile pour chaque élève.
-            $scopedUsr = $ownSectionUser ? null : $request->user()->scopedUserSchoolRole($schoolId);
+            // as_parent=1 force la résolution enfant (double rôle) : jamais la
+            // propre ligne section_user de l'appelant, même s'il en a une via
+            // son rôle principal (ex: Professeur qui consulte "Mes enfants").
+            $ownSectionUser = $asParent ? null : $this->currentSectionUser($schoolId);
+            $scopedUsr = $ownSectionUser
+                ? null
+                : ($asParent
+                    ? $request->user()->parentLinkedStudent($schoolId)
+                    : $request->user()->scopedUserSchoolRole($schoolId));
             $displaySectionUser = $ownSectionUser
                 ?? ($scopedUsr ? $scopedUsr->sectionUserRoles()->first() : null);
 

@@ -28,12 +28,22 @@ class DashboardController extends Controller
         $schoolId = session('active_school_id');
         $user = $request->user();
 
-        $usr = $user->scopedUserSchoolRole($schoolId ?? 0);
-        // currentRole reste le rôle RÉEL de l'utilisateur (Parent), pas celui de
-        // l'enfant — MANAGE_ROLES n'inclut pas 'Parent', donc weekSchedule()/
-        // recentActivity() prennent naturellement la branche "section de $usr",
-        // désormais celle de l'enfant grâce à scopedUserSchoolRole().
-        $currentRole = $user->activeRoleAt($schoolId ?? 0);
+        if ($request->boolean('as_parent')) {
+            // Vue "Mes enfants" (double rôle) : force $usr vers l'enfant lié et
+            // $currentRole vers la branche générique de weekSchedule()/
+            // recentActivity() (repli élève), quel que soit le rôle réel de
+            // l'appelant — ne JAMAIS utiliser son rôle principal ici, sous
+            // peine de mélanger ses propres données avec celles de l'enfant.
+            $usr = $user->parentLinkedStudent($schoolId ?? 0);
+            $currentRole = 'Élève';
+        } else {
+            $usr = $user->scopedUserSchoolRole($schoolId ?? 0);
+            // currentRole reste le rôle RÉEL de l'utilisateur (Parent), pas celui de
+            // l'enfant — MANAGE_ROLES n'inclut pas 'Parent', donc weekSchedule()/
+            // recentActivity() prennent naturellement la branche "section de $usr",
+            // désormais celle de l'enfant grâce à scopedUserSchoolRole().
+            $currentRole = $user->activeRoleAt($schoolId ?? 0);
+        }
 
         return Inertia::render('Dashboard', [
             'week_schedule' => $this->weekSchedule($schoolId, $usr, $currentRole),

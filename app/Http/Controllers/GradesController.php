@@ -31,11 +31,16 @@ class GradesController extends Controller
             ->when($subjectId, fn ($q) => $q->where('subject_id', $subjectId))
             ->orderByDesc('created_at');
 
-        if (! $this->canManage($request, $schoolId)) {
+        $asParent = $request->boolean('as_parent');
+
+        if ($asParent || ! $this->canManage($request, $schoolId)) {
             // Rôle sans portée de gestion (Élève, Parent, Directeur…) : uniquement
             // ses propres notes (ou celles de l'enfant lié pour un Parent), jamais
-            // celles de toute l'école.
-            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            // celles de toute l'école. as_parent=1 force cette branche même pour
+            // un rôle de gestion qui consulte "Mes enfants" (double rôle).
+            $scopedUsr = $asParent
+                ? $request->user()->parentLinkedStudent($schoolId)
+                : $request->user()->scopedUserSchoolRole($schoolId);
             $query->when(
                 $scopedUsr,
                 fn ($q) => $q->whereHas('sectionUser.userschoolrole', fn ($q2) => $q2->where('id', $scopedUsr->id)),

@@ -474,3 +474,20 @@ test('a parent cannot post a cantine order even by calling the route directly', 
         ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
         ->assertForbidden();
 });
+
+test('a teacher with a Parent role cannot place a cantine order via as_parent=1, even though they can as a teacher', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $teacherParent = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeCantineRole('PROF', 'Professeur')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parentUsr = UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeCantineRole('PARENT', 'Parent')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $student->userschoolrole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($teacherParent)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders?as_parent=1', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertForbidden();
+});

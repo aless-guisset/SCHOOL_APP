@@ -333,3 +333,29 @@ test('a parent sees the week_schedule of their linked child\'s section, not the 
             ->where('week_schedule.slots.0.course_label', 'Maths Classe A')
         );
 });
+
+test('a teacher with a Parent role sees their child\'s schedule via as_parent=1 on the dashboard', function () {
+    $school = makeSchool();
+    $profRole = makeRole('PROF', 'Professeur');
+    $teacherUsr = makeUsr($school, $profRole);
+
+    $eleveUsr = makeUsr($school, makeRole('ELEVE', 'Élève'));
+    $childSchedule = makeScheduleFor($school, $teacherUsr, 'Classe A'); // le parent n'enseigne PAS cette classe pour ce test
+    $sectionA = $childSchedule->sectionCourse->sectionUser->section;
+    SectionUserSchoolRole::create(['section_id' => $sectionA->id, 'user_school_role_id' => $eleveUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $teacherParent = User::factory()->create();
+    $profParentUsr = makeUsr($school, $profRole);
+    $profParentUsr->update(['user_id' => $teacherParent->id]);
+    $parentUsr = UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeRole('PARENT', 'Parent')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $eleveUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($teacherParent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard?as_parent=1')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('week_schedule.slots', 1)
+            ->where('week_schedule.slots.0.course_label', 'Maths Classe A')
+        );
+});
