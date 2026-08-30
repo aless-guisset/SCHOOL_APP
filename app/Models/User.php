@@ -201,9 +201,11 @@ class User extends Authenticatable
         $link = ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
             ->where('status', 'A')->where('is_active', true)
             ->when($linkId, fn ($q) => $q->where('id', $linkId))
+            ->orderBy('id')
             ->first()
             ?? ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
-                ->where('status', 'A')->where('is_active', true)->first();
+                ->where('status', 'A')->where('is_active', true)
+                ->orderBy('id')->first();
 
         return $link?->studentUserSchoolRole()
             ->where('status', 'A')->where('is_active', true)->first();
