@@ -68,10 +68,13 @@ class HandleInertiaRequests extends Middleware
                 : collect();
 
             // Repli sur le premier lien actif (même ordre que la requête
-            // ci-dessus) si rien n'est sélectionné en session — cohérent avec
+            // ci-dessus) si rien n'est sélectionné en session, ou si la valeur
+            // en session ne fait plus partie des liens actifs de ce parent
+            // (lien révoqué, ou parent d'une autre école) — cohérent avec
             // User::resolveActiveChild(), qui applique la même règle côté
             // résolution des données réellement affichées au parent.
-            $activeChildLinkId = session('active_child_link_id') ?? $parentLinks->first()?->id;
+            $activeChildLinkId = $parentLinks->firstWhere('id', session('active_child_link_id'))?->id
+                ?? $parentLinks->first()?->id;
 
             $myChildren = $parentLinks->map(fn ($link) => [
                 'id' => $link->id,

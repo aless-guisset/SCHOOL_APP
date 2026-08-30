@@ -15,6 +15,9 @@ class ParentLinksController extends Controller
 
         $links = ParentStudentLink::with(['parentUserSchoolRole.user', 'studentUserSchoolRole.user'])
             ->whereHas('parentUserSchoolRole', fn ($q) => $q->where('school_id', $schoolId))
+            // Écarte les liens dont la ligne élève a été soft-deletée (retrait
+            // de rôle côté admin) : la relation vaudrait null au mapping.
+            ->whereHas('studentUserSchoolRole')
             ->where('status', 'A')
             ->where('is_active', true)
             ->orderByDesc('created_at')

@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\UserSchoolRole;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,14 +25,10 @@ class EnsureCanManage
             abort(403);
         }
 
-        $role = UserSchoolRole::with('role')
-            ->where('user_id', $user->id)
-            ->where('school_id', $activeSchoolId)
-            ->where('is_active', true)
-            ->where('status', 'A')
-            ->first()
-            ?->role
-            ?->name;
+        // Même résolution que HandleInertiaRequests::share() (currentRole) :
+        // un Professeur qui est aussi Parent dans cette école garde son droit
+        // d'écriture, quel que soit l'ordre des lignes en base.
+        $role = $user->activeRoleAt($activeSchoolId);
 
         if (! in_array($role, self::MANAGE_ROLES, true)) {
             abort(403);

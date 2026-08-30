@@ -32,7 +32,11 @@ class StudentAccessController extends Controller
             $studentUsr->update(['student_access_code' => $this->generateStudentCode()]);
         }
 
+        // whereHas() écarte les liens orphelins : la ligne UserSchoolRole du
+        // parent peut avoir été soft-deletée (retrait de rôle côté admin) sans
+        // que le lien le soit — la relation vaudrait alors null ici.
         $parents = \App\Models\ParentStudentLink::with('parentUserSchoolRole.user')
+            ->whereHas('parentUserSchoolRole')
             ->where('student_user_school_role_id', $studentUsr->id)
             ->where('status', 'A')
             ->where('is_active', true)
@@ -119,12 +123,17 @@ class StudentAccessController extends Controller
         $parentStudentLink->update(['status' => 'R', 'is_active' => false, 'updated_by' => $request->user()->id]);
         $parentStudentLink->delete();
 
+        // Lien orphelin (ligne de rôle du parent déjà soft-deletée) : il n'y a
+        // plus de rôle Parent à désactiver, la révocation du lien suffit.
         $parentUsr = $parentStudentLink->parentUserSchoolRole;
-        $remainingLinks = \App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
-            ->where('status', 'A')->where('is_active', true)->count();
 
-        if ($remainingLinks === 0) {
-            $parentUsr->update(['status' => 'R', 'is_active' => false, 'updated_by' => $request->user()->id]);
+        if ($parentUsr) {
+            $remainingLinks = \App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
+                ->where('status', 'A')->where('is_active', true)->count();
+
+            if ($remainingLinks === 0) {
+                $parentUsr->update(['status' => 'R', 'is_active' => false, 'updated_by' => $request->user()->id]);
+            }
         }
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Accès révoqué.']);

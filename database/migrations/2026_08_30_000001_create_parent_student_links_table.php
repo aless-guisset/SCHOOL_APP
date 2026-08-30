@@ -23,9 +23,16 @@ return new class extends Migration
         });
 
         // Migre les liens existants (colonne unique) vers la nouvelle table
-        // avant de la supprimer — aucune perte de lien actif.
+        // avant de la supprimer — aucune perte de lien actif. Seules les lignes
+        // ENCORE actives sont reprises : l'ancien revoke() se contentait de
+        // passer la ligne à status='R'/is_active=false puis de la soft-deleter,
+        // sans vider linked_student_user_school_role_id. Sans ce filtre, chaque
+        // parent jadis révoqué ressusciterait en lien actif.
         DB::table('users_schools_roles')
             ->whereNotNull('linked_student_user_school_role_id')
+            ->whereNull('deleted_at')
+            ->where('status', 'A')
+            ->where('is_active', true)
             ->get(['id', 'linked_student_user_school_role_id', 'created_by', 'updated_by'])
             ->each(function ($row) {
                 DB::table('parent_student_links')->insert([
@@ -54,11 +61,18 @@ return new class extends Migration
                 ->nullOnDelete();
         });
 
-        DB::table('parent_student_links')->orderBy('id')->each(function ($row) {
-            DB::table('users_schools_roles')
-                ->where('id', $row->parent_user_school_role_id)
-                ->update(['linked_student_user_school_role_id' => $row->student_user_school_role_id]);
-        });
+        // Symétrique de up() : ne restaure que les liens actifs, sinon un lien
+        // révoqué repeuplerait la colonne et redeviendrait un accès valide.
+        DB::table('parent_student_links')
+            ->whereNull('deleted_at')
+            ->where('status', 'A')
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->each(function ($row) {
+                DB::table('users_schools_roles')
+                    ->where('id', $row->parent_user_school_role_id)
+                    ->update(['linked_student_user_school_role_id' => $row->student_user_school_role_id]);
+            });
 
         Schema::dropIfExists('parent_student_links');
     }

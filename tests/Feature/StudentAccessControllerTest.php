@@ -159,6 +159,57 @@ test('the student can revoke a linked parent', function () {
     expect(\App\Models\ParentStudentLink::find($link->id))->toBeNull();
 });
 
+test('/my-access skips links whose parent role row was soft-deleted (admin role removal)', function () {
+    $school = makeSauSchool();
+    $studentUsr = makeSauStudent($school);
+    $parent = User::factory()->create();
+    $parentUsr = UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    // Un soft delete ne déclenche aucune cascade FK : le lien reste 'A' alors
+    // que sa relation parent ne résout plus rien → 500 au mapping sans garde.
+    $parentUsr->delete();
+
+    $this->actingAs($studentUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/my-access')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('student/GiveAccess')->has('parents', 0));
+});
+
+test('a revoked parent can re-join the same child, without duplicating the link', function () {
+    $school = makeSauSchool();
+    $studentUsr = makeSauStudent($school);
+    makeSauRole('PARENT', 'Parent');
+    $parent = User::factory()->create();
+
+    $this->actingAs($parent)->post('/join/parent', ['access_code' => 'STUCODE1']);
+    $parentUsr = UserSchoolRole::where('user_id', $parent->id)->where('school_id', $school->id)->first();
+    $link = \App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)->first();
+
+    $this->actingAs($studentUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/my-access/parents/{$link->id}")
+        ->assertRedirect();
+
+    // La contrainte UNIQUE(parent, student) n'exempte pas les lignes
+    // soft-deletées : sans le withTrashed()->firstOrNew() + restore() de
+    // linkChild(), ce second passage exploserait sur un INSERT en doublon.
+    $this->actingAs($parent)
+        ->post('/join/parent', ['access_code' => 'STUCODE1'])
+        ->assertRedirect(route('dashboard'));
+
+    expect(\App\Models\ParentStudentLink::withTrashed()->where('student_user_school_role_id', $studentUsr->id)->count())->toBe(1)
+        ->and(\App\Models\ParentStudentLink::where('student_user_school_role_id', $studentUsr->id)
+            ->where('status', 'A')->where('is_active', true)->count())->toBe(1);
+});
+
 test('a parent role recovers from a previous soft-delete instead of erroring', function () {
     $school = makeSauSchool();
     $studentUsr = makeSauStudent($school);

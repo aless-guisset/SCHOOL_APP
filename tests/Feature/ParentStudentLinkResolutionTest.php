@@ -88,6 +88,32 @@ test('parentLinkedStudent resolves the child regardless of the user\'s more priv
     expect($teacherParent->parentLinkedStudent($school->id)->id)->toBe($child->id);
 });
 
+test('parentLinkedStudent returns null when the Parent role exists but is revoked or deactivated', function () {
+    $school = makePslSchool();
+    $child = makePslStudent($school);
+    $teacherParent = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makePslRole('PROF', 'Professeur')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $parentUsr = UserSchoolRole::create([
+        'user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makePslRole('PARENT', 'Parent')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    makePslParentLink($parentUsr, $child);
+
+    expect($teacherParent->parentLinkedStudent($school->id)->id)->toBe($child->id);
+
+    // Rôle Parent révoqué (status='R') puis simplement désactivé : dans les
+    // deux cas l'accès à l'enfant tombe, même si le lien parent↔élève, lui,
+    // est resté actif — c'est la frontière de sécurité de as_parent=1.
+    $parentUsr->update(['status' => 'R']);
+    expect($teacherParent->parentLinkedStudent($school->id))->toBeNull();
+
+    $parentUsr->update(['status' => 'A', 'is_active' => false]);
+    expect($teacherParent->parentLinkedStudent($school->id))->toBeNull();
+});
+
 test('parentLinkedStudent returns null when the user has no active Parent role at this school', function () {
     $school = makePslSchool();
     $prof = User::factory()->create();

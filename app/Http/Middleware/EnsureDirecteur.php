@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\UserSchoolRole;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,14 +17,11 @@ class EnsureDirecteur
             abort(403);
         }
 
-        $role = UserSchoolRole::with('role')
-            ->where('user_id', $user->id)
-            ->where('school_id', $activeSchoolId)
-            ->where('is_active', true)
-            ->where('status', 'A')
-            ->first()
-            ?->role
-            ?->name;
+        // Même résolution que HandleInertiaRequests::share() (currentRole) :
+        // un compte à plusieurs rôles dans une école (ex: Directeur ET Parent)
+        // doit être jugé ici sur le rôle le plus privilégié, pas sur la
+        // première ligne renvoyée par la base.
+        $role = $user->activeRoleAt($activeSchoolId);
 
         if ($role !== 'Directeur') {
             abort(403);

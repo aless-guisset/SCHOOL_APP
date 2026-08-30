@@ -106,6 +106,42 @@ test('accepting an invitation with an account already linked to another child ad
         ->and(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)->count())->toBe(2);
 });
 
+test('a revoked parent can accept a new invitation from the same child, without duplicating the link', function () {
+    $school = makeSicSchool();
+    $studentUsr = makeSicStudent($school);
+    $parentRole = makeSicRole('PARENT', 'Parent');
+
+    $parent = User::factory()->create(['email' => 'revoque-puis-reinvite@example.com']);
+    $parentUsr = UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $link = \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($studentUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/my-access/parents/{$link->id}")
+        ->assertRedirect();
+
+    $invitation = StudentInvitation::create([
+        'student_user_school_role_id' => $studentUsr->id, 'email' => 'revoque-puis-reinvite@example.com',
+        'token' => 're-invite-token', 'expires_at' => now()->addDays(7), 'is_active' => true, 'created_by' => $studentUsr->user_id,
+    ]);
+
+    // La contrainte UNIQUE(parent, student) n'exempte pas les lignes
+    // soft-deletées : sans le withTrashed()->firstOrNew() + restore() de
+    // accept(), cette acceptation exploserait sur un INSERT en doublon.
+    $this->post("/invitations/student/{$invitation->token}/accept")
+        ->assertRedirect(route('dashboard'));
+
+    expect(\App\Models\ParentStudentLink::withTrashed()->where('parent_user_school_role_id', $parentUsr->id)->count())->toBe(1)
+        ->and(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
+            ->where('status', 'A')->where('is_active', true)->count())->toBe(1);
+});
+
 test('an expired invitation cannot be accepted', function () {
     $school = makeSicSchool();
     $studentUsr = makeSicStudent($school);

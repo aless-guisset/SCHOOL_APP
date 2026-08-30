@@ -42,6 +42,26 @@ test('director sees all active parent-student links at their school, scoped corr
     );
 });
 
+test('director page skips links whose student role row was soft-deleted (admin role removal)', function () {
+    $school = makePlcSchool();
+    $student = UserSchoolRole::create(['user_id' => User::factory()->create()->id, 'school_id' => $school->id, 'role_id' => makePlcRole('ELEVE', 'Élève')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parentUsr = UserSchoolRole::create(['user_id' => User::factory()->create()->id, 'school_id' => $school->id, 'role_id' => makePlcRole('PARENT', 'Parent')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $student->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // Un soft delete ne déclenche aucune cascade FK : le lien reste 'A' alors
+    // que sa relation élève ne résout plus rien → 500 au mapping sans garde.
+    $student->delete();
+
+    $directeur = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $directeur->id, 'school_id' => $school->id, 'role_id' => makePlcRole('DIR', 'Directeur')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/parent-links')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('links', 0));
+});
+
 test('director can revoke a parent-student link from this page', function () {
     $school = makePlcSchool();
     $student = UserSchoolRole::create(['user_id' => User::factory()->create()->id, 'school_id' => $school->id, 'role_id' => makePlcRole('ELEVE', 'Élève')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
