@@ -97,6 +97,7 @@ const nav: NavMap = {
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
                 { label: 'Gestion des accès', icon: KeyRound, route: '/access-requests', routeName: 'access-requests.index' },
                 { label: 'Soumettre une école', icon: Building2, route: '/school/create', routeName: 'school.create' },
+                { label: 'Liens parent-élève', icon: UserRound, route: '/parent-links', routeName: 'director.parent-links.index' },
             ],
         },
     ],

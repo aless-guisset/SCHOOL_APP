@@ -32,15 +32,15 @@ class StudentAccessController extends Controller
             $studentUsr->update(['student_access_code' => $this->generateStudentCode()]);
         }
 
-        $parents = UserSchoolRole::with('user')
-            ->where('linked_student_user_school_role_id', $studentUsr->id)
+        $parents = \App\Models\ParentStudentLink::with('parentUserSchoolRole.user')
+            ->where('student_user_school_role_id', $studentUsr->id)
             ->where('status', 'A')
             ->where('is_active', true)
             ->get()
-            ->map(fn (UserSchoolRole $p) => [
-                'id' => $p->id,
-                'name' => "{$p->user->firstname} {$p->user->lastname}",
-                'email' => $p->user->email,
+            ->map(fn (\App\Models\ParentStudentLink $link) => [
+                'id' => $link->id,
+                'name' => "{$link->parentUserSchoolRole->user->firstname} {$link->parentUserSchoolRole->user->lastname}",
+                'email' => $link->parentUserSchoolRole->user->email,
             ]);
 
         $invitations = StudentInvitation::where('student_user_school_role_id', $studentUsr->id)
@@ -100,28 +100,32 @@ class StudentAccessController extends Controller
             ->with('flash', ['type' => 'success', 'message' => 'Accès accordé.']);
     }
 
-    /** L'élève révoque un de ses parents, ou le Directeur de l'école révoque n'importe lequel. */
-    public function revoke(Request $request, UserSchoolRole $userSchoolRole): RedirectResponse
+    /** L'élève révoque un lien vers un de ses parents, ou le Directeur de
+     * l'école révoque n'importe quel lien. Si c'était le dernier lien actif
+     * du parent, son rôle Parent lui-même est aussi désactivé — un rôle
+     * Parent sans aucun enfant lié n'a pas de sens. */
+    public function revoke(Request $request, \App\Models\ParentStudentLink $parentStudentLink): RedirectResponse
     {
-        // La route vit hors du groupe `school.context` : l'école active n'est pas
-        // garantie en session, et activeRoleAt() n'accepte pas null.
         $schoolId = session('active_school_id') ?? 0;
 
-        // Cet endpoint ne révoque QUE des accès parent, quelle que soit la
-        // branche empruntée — invariant explicite, et non simplement garanti par
-        // le fait que linked_student_user_school_role_id n'est peuplé que sur
-        // des lignes PARENT.
-        abort_unless($userSchoolRole->role?->reference === 'PARENT', 403);
-
-        $isOwnStudent = $userSchoolRole->linked_student_user_school_role_id
-            && $request->user()->schoolRoles()->where('id', $userSchoolRole->linked_student_user_school_role_id)->exists();
+        $studentUsr = $parentStudentLink->studentUserSchoolRole;
+        $isOwnStudent = $studentUsr
+            && $request->user()->schoolRoles()->where('id', $studentUsr->id)->exists();
         $isDirecteur = $request->user()->activeRoleAt($schoolId) === 'Directeur'
-            && $userSchoolRole->school_id == $schoolId;
+            && $parentStudentLink->parentUserSchoolRole?->school_id == $schoolId;
 
         abort_unless($isOwnStudent || $isDirecteur, 403);
 
-        $userSchoolRole->update(['status' => 'R', 'is_active' => false, 'updated_by' => $request->user()->id]);
-        $userSchoolRole->delete();
+        $parentStudentLink->update(['status' => 'R', 'is_active' => false, 'updated_by' => $request->user()->id]);
+        $parentStudentLink->delete();
+
+        $parentUsr = $parentStudentLink->parentUserSchoolRole;
+        $remainingLinks = \App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)
+            ->where('status', 'A')->where('is_active', true)->count();
+
+        if ($remainingLinks === 0) {
+            $parentUsr->update(['status' => 'R', 'is_active' => false, 'updated_by' => $request->user()->id]);
+        }
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Accès révoqué.']);
     }

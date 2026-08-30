@@ -11,6 +11,7 @@ use App\Http\Controllers\GradesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ParentAccessController;
+use App\Http\Controllers\ParentLinksController;
 use App\Http\Controllers\ResourcesController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SchedulesController;
@@ -129,7 +130,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     // établi sur une session fraîche et requireOwnStudentRole() 403 à tort.
     Route::get('/my-access', [StudentAccessController::class, 'show'])->name('my-access.show');
     Route::post('/my-access/regenerate-code', [StudentAccessController::class, 'regenerateCode'])->name('my-access.regenerate-code');
-    Route::delete('/my-access/parents/{userSchoolRole}', [StudentAccessController::class, 'revoke'])->name('my-access.parents.revoke');
+    Route::delete('/my-access/parents/{parentStudentLink}', [StudentAccessController::class, 'revoke'])->name('my-access.parents.revoke');
     Route::post('/my-access/invitations', [StudentInvitationsController::class, 'store'])->name('my-access.invitations.store');
     Route::delete('/my-access/invitations/{invitation}', [StudentInvitationsController::class, 'destroy'])->name('my-access.invitations.destroy');
 
@@ -170,6 +171,8 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::post('/invitations', [SchoolInvitationsController::class, 'store'])->name('invitations.store');
         Route::delete('/invitations/{schoolInvitation}', [SchoolInvitationsController::class, 'destroy'])->name('invitations.destroy');
         Route::post('/school/access-code/regenerate', [SchoolAccessController::class, 'regenerateCode'])->name('school.access-code.regenerate');
+        Route::get('/parent-links', [ParentLinksController::class, 'index'])->name('director.parent-links.index');
+        Route::delete('/parent-links/{parentStudentLink}', [ParentLinksController::class, 'revoke'])->name('director.parent-links.revoke');
     });
 
     // ── Power User / Secrétariat ────────────────────────────────────────────

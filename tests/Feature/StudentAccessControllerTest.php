@@ -144,16 +144,19 @@ test('the student can revoke a linked parent', function () {
     $parent = User::factory()->create();
     $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
-        'linked_student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $link = \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
     $this->actingAs($studentUsr->user)
         ->withSession(['active_school_id' => $school->id])
-        ->delete("/my-access/parents/{$parentUsr->id}")
+        ->delete("/my-access/parents/{$link->id}")
         ->assertRedirect();
 
-    expect(UserSchoolRole::find($parentUsr->id))->toBeNull();
+    expect(\App\Models\ParentStudentLink::find($link->id))->toBeNull();
 });
 
 test('a parent role recovers from a previous soft-delete instead of erroring', function () {
@@ -180,7 +183,10 @@ test('a Directeur can revoke a linked parent at their school', function () {
     $parent = User::factory()->create();
     $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
-        'linked_student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $link = \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
     $directeur = User::factory()->create();
@@ -191,29 +197,57 @@ test('a Directeur can revoke a linked parent at their school', function () {
 
     $this->actingAs($directeur)
         ->withSession(['active_school_id' => $school->id])
-        ->delete("/my-access/parents/{$parentUsr->id}")
+        ->delete("/my-access/parents/{$link->id}")
         ->assertRedirect();
 
-    expect(UserSchoolRole::find($parentUsr->id))->toBeNull();
+    expect(\App\Models\ParentStudentLink::find($link->id))->toBeNull();
 });
 
-test('a Directeur cannot revoke a non-Parent user_school_role through this endpoint', function () {
+test('a Directeur from another school cannot revoke a parent link', function () {
     $school = makeSauSchool();
-    $professeur = User::factory()->create();
-    $professeurUsr = UserSchoolRole::create([
-        'user_id' => $professeur->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PROF', 'Professeur')->id,
+    $studentUsr = makeSauStudent($school);
+    $parent = User::factory()->create();
+    $parentUsr = UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
-    $directeur = User::factory()->create();
-    UserSchoolRole::create([
-        'user_id' => $directeur->id, 'school_id' => $school->id, 'role_id' => makeSauRole('DIR', 'Directeur')->id,
+    $link = \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
-    $this->actingAs($directeur)
-        ->withSession(['active_school_id' => $school->id])
-        ->delete("/my-access/parents/{$professeurUsr->id}")
+    $otherSchool = makeSauSchool();
+    $otherDirecteur = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $otherDirecteur->id, 'school_id' => $otherSchool->id, 'role_id' => makeSauRole('DIR', 'Directeur')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($otherDirecteur)
+        ->withSession(['active_school_id' => $otherSchool->id])
+        ->delete("/my-access/parents/{$link->id}")
         ->assertForbidden();
 
-    expect(UserSchoolRole::find($professeurUsr->id))->not->toBeNull();
+    expect(\App\Models\ParentStudentLink::find($link->id))->not->toBeNull();
+});
+
+test('revoking the last link of a parent also deactivates their Parent role', function () {
+    $school = makeSauSchool();
+    $studentUsr = makeSauStudent($school);
+    $parent = User::factory()->create();
+    $parentUsr = UserSchoolRole::create([
+        'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $link = \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($studentUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/my-access/parents/{$link->id}")
+        ->assertRedirect();
+
+    expect($parentUsr->fresh()->status)->toBe('R');
 });
