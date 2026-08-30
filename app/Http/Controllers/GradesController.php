@@ -32,6 +32,7 @@ class GradesController extends Controller
             ->orderByDesc('created_at');
 
         $asParent = $request->boolean('as_parent');
+        $viewingChild = null;
 
         if ($asParent || ! $this->canManage($request, $schoolId)) {
             // Rôle sans portée de gestion (Élève, Parent, Directeur…) : uniquement
@@ -41,6 +42,14 @@ class GradesController extends Controller
             $scopedUsr = $asParent
                 ? $request->user()->parentLinkedStudent($schoolId)
                 : $request->user()->scopedUserSchoolRole($schoolId);
+
+            // Nom de l'enfant consulté — sert au bandeau "vous consultez les
+            // informations de X" et à masquer les actions d'écriture côté Vue,
+            // que le rôle réel de l'appelant y donnerait sinon accès.
+            if ($asParent && $scopedUsr?->user) {
+                $viewingChild = "{$scopedUsr->user->firstname} {$scopedUsr->user->lastname}";
+            }
+
             $query->when(
                 $scopedUsr,
                 fn ($q) => $q->whereHas('sectionUser.userschoolrole', fn ($q2) => $q2->where('id', $scopedUsr->id)),
@@ -55,6 +64,7 @@ class GradesController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'subject_id' => $subjectId,
+            'viewing_child' => $viewingChild,
         ]);
     }
 

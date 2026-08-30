@@ -27,6 +27,7 @@ class DashboardController extends Controller
     {
         $schoolId = session('active_school_id');
         $user = $request->user();
+        $viewingChild = null;
 
         if ($request->boolean('as_parent')) {
             // Vue "Mes enfants" (double rôle) : force $usr vers l'enfant lié et
@@ -36,6 +37,13 @@ class DashboardController extends Controller
             // peine de mélanger ses propres données avec celles de l'enfant.
             $usr = $user->parentLinkedStudent($schoolId ?? 0);
             $currentRole = 'Élève';
+
+            // Nom de l'enfant consulté : la prop partagée currentRole reste
+            // celle du rôle réel de l'appelant, la vue a donc besoin de ce
+            // signal explicite pour annoncer de qui sont les données affichées.
+            if ($usr?->user) {
+                $viewingChild = "{$usr->user->firstname} {$usr->user->lastname}";
+            }
         } else {
             $usr = $user->scopedUserSchoolRole($schoolId ?? 0);
             // currentRole reste le rôle RÉEL de l'utilisateur (Parent), pas celui de
@@ -48,6 +56,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'week_schedule' => $this->weekSchedule($schoolId, $usr, $currentRole),
             'recent_activity' => $this->recentActivity($schoolId, $currentRole),
+            'viewing_child' => $viewingChild,
         ]);
     }
 

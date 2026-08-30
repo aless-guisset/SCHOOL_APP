@@ -33,6 +33,10 @@ class CantineController extends Controller
             'date' => $date,
             'is_past' => Carbon::parse($date)->lt(Carbon::today()),
             'menus' => $menus,
+            // Renseigné uniquement sous as_parent=1 : nom de l'enfant dont on
+            // affiche la commande (bandeau + neutralisation des actions
+            // d'écriture côté Vue, que le rôle réel autoriserait sinon).
+            'viewing_child' => null,
         ];
 
         $asParent = $request->boolean('as_parent');
@@ -57,11 +61,15 @@ class CantineController extends Controller
             // currentSectionUser() reste basé sur auth()->id() : c'est ce qui
             // garantit qu'un Parent n'a jamais de $sectionUser via ce chemin.
             // Pour l'AFFICHAGE (voir la commande de l'enfant), on résout
-            // séparément via scopedUserSchoolRole() ; can_order reste false
-            // pour un Parent quel que soit ce que cette résolution retourne.
-            // as_parent=1 force la résolution enfant (double rôle) : jamais la
-            // propre ligne section_user de l'appelant, même s'il en a une via
-            // son rôle principal (ex: Professeur qui consulte "Mes enfants").
+            // séparément l'élève à montrer, par l'un des deux chemins :
+            //  - scopedUserSchoolRole() en navigation normale (résout vers
+            //    l'enfant seulement si Parent est le rôle le plus privilégié) ;
+            //  - parentLinkedStudent() sous as_parent=1, qui force la
+            //    résolution enfant même pour un rôle plus privilégié (double
+            //    rôle), et ignore alors la propre ligne section_user de
+            //    l'appelant (ex: Professeur qui consulte "Mes enfants").
+            // can_order reste false dans les deux cas : consulter la commande
+            // de son enfant ne donne jamais le droit de commander pour lui.
             $ownSectionUser = $asParent ? null : $this->currentSectionUser($schoolId);
             $scopedUsr = $ownSectionUser
                 ? null
@@ -72,6 +80,9 @@ class CantineController extends Controller
                 ?? ($scopedUsr ? $scopedUsr->sectionUserRoles()->first() : null);
 
             $props['can_order'] = (bool) $ownSectionUser;
+            $props['viewing_child'] = $asParent && $scopedUsr?->user
+                ? "{$scopedUsr->user->firstname} {$scopedUsr->user->lastname}"
+                : null;
             $props['my_order'] = $displaySectionUser
                 ? CantineOrder::where('section_user_id', $displaySectionUser->id)
                     ->whereDate('date', $date)

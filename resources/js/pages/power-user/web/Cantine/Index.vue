@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { useSchool } from '@/composables/useSchool';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -27,16 +28,32 @@ const props = defineProps<{
     roster?: RosterEntry[];
     can_order?: boolean;
     my_order?: { id: number; cantine_menu_id: number } | null;
+    viewing_child?: string | null;
 }>();
+
+// as_parent=1 doit survivre aux navigations internes (changement de date) :
+// sans lui, l'appelant à double rôle retomberait silencieusement sur sa vue
+// de gestion sans que rien ne le signale.
+const page = usePage();
+const asParent = computed(() => new URLSearchParams(page.url.split('?')[1] ?? '').get('as_parent'));
+
+function withAsParent(params: Record<string, string>): Record<string, string> {
+    return asParent.value ? { ...params, as_parent: asParent.value } : params;
+}
+
+// Vue "Mes enfants" : on n'affiche jamais les outils de gestion (menus,
+// présences) sur la page consultée pour un enfant, même si le rôle réel de
+// l'appelant y donne droit en navigation normale.
+const canManageView = computed(() => canManage.value && !props.viewing_child);
 
 // ── Navigation par date ──────────────────────────────────────────────────────
 function shiftDate(days: number) {
     const d = new Date(`${props.date}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() + days);
-    router.get('/cantine', { date: d.toISOString().slice(0, 10) }, { preserveScroll: true });
+    router.get('/cantine', withAsParent({ date: d.toISOString().slice(0, 10) }), { preserveScroll: true });
 }
 function goToday() {
-    router.get('/cantine', {}, { preserveScroll: true });
+    router.get('/cantine', withAsParent({}), { preserveScroll: true });
 }
 const formattedDate = computed(() => {
     const d = new Date(`${props.date}T00:00:00Z`);
@@ -92,6 +109,7 @@ function cancelOrder() {
     <AppLayout>
         <div class="p-4 md:p-6 max-w-2xl">
             <FlashMessage />
+            <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
 
             <PageHeader title="Cantine" :description="formattedDate">
                 <template #actions>
@@ -110,7 +128,7 @@ function cancelOrder() {
                     <div v-if="!menus.length" class="text-sm text-muted-foreground">Aucun menu publié pour ce jour.</div>
 
                     <!-- Élève : commander -->
-                    <template v-if="!canManage && can_order">
+                    <template v-if="!canManageView && can_order">
                         <button
                             v-for="m in menus" :key="m.id"
                             type="button"
@@ -133,7 +151,7 @@ function cancelOrder() {
                     <!-- Lecture seule (Parent, Directeur, ou élève sans droit de commande) :
                          pas de bouton de commande, mais le menu commandé — celui de
                          l'enfant lié pour un Parent — reste identifié. -->
-                    <template v-else-if="!canManage">
+                    <template v-else-if="!canManageView">
                         <div
                             v-for="m in menus" :key="m.id"
                             class="flex items-center justify-between gap-3 rounded-md border p-3 text-sm"
@@ -177,7 +195,7 @@ function cancelOrder() {
             </Card>
 
             <!-- Staff : roster + présences -->
-            <Card v-if="canManage">
+            <Card v-if="canManageView">
                 <CardHeader><CardTitle class="text-base">Élèves ayant commandé</CardTitle></CardHeader>
                 <CardContent>
                     <div v-if="!roster || roster.length === 0" class="py-6 text-center text-sm text-muted-foreground">

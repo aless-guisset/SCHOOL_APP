@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Download, Paperclip, Plus, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { useSchool } from '@/composables/useSchool';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -30,12 +31,27 @@ const props = defineProps<{
     grades: GradeRow[];
     subjects: Array<{ id: number; name: string }>;
     subject_id: number | null;
+    viewing_child?: string | null;
 }>();
 
 const subjectFilter = ref(props.subject_id ? String(props.subject_id) : 'all');
 
+// as_parent=1 doit survivre aux navigations internes (filtre matière) : sans
+// lui, l'appelant à double rôle retomberait silencieusement sur sa vue
+// enseignante sans que rien ne le signale.
+const page = usePage();
+const asParent = computed(() => new URLSearchParams(page.url.split('?')[1] ?? '').get('as_parent'));
+
+function withAsParent(params: Record<string, string>): Record<string, string> {
+    return asParent.value ? { ...params, as_parent: asParent.value } : params;
+}
+
+// Les actions d'écriture n'ont aucun sens sur les notes d'un enfant consulté
+// via "Mes enfants", même si le rôle réel de l'appelant y donne droit ailleurs.
+const canWrite = computed(() => canManage.value && !props.viewing_child);
+
 function applySubjectFilter() {
-    router.get('/grades', subjectFilter.value === 'all' ? {} : { subject_id: subjectFilter.value }, { preserveScroll: true });
+    router.get('/grades', withAsParent(subjectFilter.value === 'all' ? {} : { subject_id: subjectFilter.value }), { preserveScroll: true });
 }
 
 const columns = [
@@ -55,7 +71,7 @@ function destroy(id: number) {
     if (!confirm('Supprimer cette note ?')) return;
     router.delete(`/grades/${id}`, {
         onSuccess: () => {
-            if (subjectFilter.value !== 'all') router.get('/grades', { subject_id: subjectFilter.value }, { preserveScroll: true });
+            if (subjectFilter.value !== 'all') router.get('/grades', withAsParent({ subject_id: subjectFilter.value }), { preserveScroll: true });
         },
     });
 }
@@ -66,6 +82,7 @@ function destroy(id: number) {
     <AppLayout>
         <div class="p-4 md:p-6">
             <FlashMessage />
+            <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
             <PageHeader title="Notes" :description="`${grades.length} note(s)`">
                 <template #actions>
                     <div class="flex items-center gap-2">
@@ -78,7 +95,7 @@ function destroy(id: number) {
                                 <SelectItem v-for="s in subjects" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
                             </SelectContent>
                         </Select>
-                        <Button v-if="canManage" size="sm" as-child>
+                        <Button v-if="canWrite" size="sm" as-child>
                             <Link href="/grades/create"><Plus class="size-4" />Saisir une note</Link>
                         </Button>
                     </div>
@@ -97,7 +114,7 @@ function destroy(id: number) {
                                 <Download class="size-4" />
                             </a>
                         </Button>
-                        <Button v-if="canManage" variant="ghost" size="icon" class="size-8" @click="destroy(row.id)">
+                        <Button v-if="canWrite" variant="ghost" size="icon" class="size-8" @click="destroy(row.id)">
                             <Trash2 class="size-4 text-destructive" />
                         </Button>
                     </div>

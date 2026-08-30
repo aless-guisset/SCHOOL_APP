@@ -19,6 +19,7 @@ import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
@@ -27,6 +28,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 const props = defineProps<{
     week_schedule: { week_start: string; slots: WeekScheduleSlot[] };
     recent_activity: ActivityEntry[] | null;
+    viewing_child?: string | null;
 }>();
 
 const { fullName } = useAuth();
@@ -34,6 +36,11 @@ const { activeSchool, currentRole, canManage, isAdmin } = useSchool();
 const { t } = useTranslation();
 
 const greeting = computed(() => t('dashboard.welcome', { name: fullName.value }));
+
+// Vue "Mes enfants" (?as_parent=1) : les données affichées sont celles de
+// l'enfant, pas celles de l'appelant — ses raccourcis et outils de gestion
+// n'ont donc rien à faire ici, même si son rôle réel y donne droit ailleurs.
+const canManageView = computed(() => canManage.value && !props.viewing_child);
 
 // Stat cards selon le rôle
 const statCards = computed(() => {
@@ -69,6 +76,7 @@ const statCards = computed(() => {
     <AppLayout>
         <div class="flex flex-col gap-6 p-4 md:p-6">
             <FlashMessage />
+            <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
 
             <PageHeader :title="t('dashboard.title')" :description="greeting" />
 
@@ -85,8 +93,12 @@ const statCards = computed(() => {
                     <p class="text-xs text-muted-foreground">{{ t('label.school') }}</p>
                     <p class="font-semibold">{{ activeSchool.name }}</p>
                 </div>
+                <!-- Sous ?as_parent=1, currentRole reste le rôle réel de
+                     l'appelant (ex: Professeur) alors que les données affichées
+                     sont celles de son enfant : afficher ce badge ici serait
+                     trompeur, le bandeau au-dessus dit déjà de qui il s'agit. -->
                 <span
-                    v-if="currentRole"
+                    v-if="currentRole && !viewing_child"
                     class="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
                 >
                     {{ currentRole }}
@@ -104,8 +116,10 @@ const statCards = computed(() => {
                 </Button>
             </div>
 
-            <!-- Raccourcis par rôle -->
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <!-- Raccourcis par rôle — masqués en vue "Mes enfants" : ce sont
+                 les raccourcis du rôle réel de l'appelant, pas ceux de la vue
+                 affichée (la section "Mes enfants" de la nav sert à ça). -->
+            <div v-if="!viewing_child" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <a
                     v-for="card in statCards"
                     :key="card.href"
@@ -127,7 +141,7 @@ const statCards = computed(() => {
                         <CardTitle class="text-base">{{ t('nav.schedules') }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <WeekSchedule :week-schedule="props.week_schedule" :can-manage="canManage" />
+                        <WeekSchedule :week-schedule="props.week_schedule" :can-manage="canManageView" />
                     </CardContent>
                 </Card>
 

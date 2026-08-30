@@ -475,15 +475,22 @@ test('a teacher with a Parent role also sees their child\'s grades via as_parent
     $this->actingAs($teacherParent)
         ->withSession(['active_school_id' => $school->id])
         ->get('/grades')
-        ->assertInertia(fn ($page) => $page->has('grades', 2)); // voit tout, rôle de gestion
+        ->assertInertia(fn ($page) => $page
+            ->has('grades', 2) // voit tout, rôle de gestion
+            ->where('viewing_child', null)
+        );
 
-    // Avec as_parent=1 : uniquement les notes de l'enfant lié.
+    // Avec as_parent=1 : uniquement les notes de l'enfant lié, et la page
+    // annonce explicitement de qui elle affiche les données (la prop partagée
+    // currentRole, elle, reste 'Professeur').
+    $childUser = $child->userschoolrole->user;
     $this->actingAs($teacherParent)
         ->withSession(['active_school_id' => $school->id])
         ->get('/grades?as_parent=1')
         ->assertInertia(fn ($page) => $page
             ->has('grades', 1)
             ->where('grades.0.grade', 14)
+            ->where('viewing_child', "{$childUser->firstname} {$childUser->lastname}")
         );
 });
 
@@ -510,5 +517,8 @@ test('a professeur with no Parent role at all gets an empty grades list via as_p
         ->withSession(['active_school_id' => $school->id])
         ->get('/grades?as_parent=1')
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->has('grades', 0));
+        ->assertInertia(fn ($page) => $page
+            ->has('grades', 0)
+            ->where('viewing_child', null) // aucun enfant résolu : pas de bandeau trompeur
+        );
 });
