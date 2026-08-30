@@ -334,7 +334,7 @@ test('a parent sees the week_schedule of their linked child\'s section, not the 
         );
 });
 
-test('a teacher with a Parent role sees their child\'s schedule via as_parent=1 on the dashboard', function () {
+test('a teacher with a Parent role sees their child\'s schedule via as_parent=1 on the dashboard, and only their own schedule without it', function () {
     $school = makeSchool();
     $profRole = makeRole('PROF', 'Professeur');
     $teacherUsr = makeUsr($school, $profRole);
@@ -347,9 +347,25 @@ test('a teacher with a Parent role sees their child\'s schedule via as_parent=1 
     $teacherParent = User::factory()->create();
     $profParentUsr = makeUsr($school, $profRole);
     $profParentUsr->update(['user_id' => $teacherParent->id]);
+    // Le double-rôle enseigne SA PROPRE classe (Classe B), distincte de celle de son enfant
+    // (Classe A) : sans ce créneau, le test ne peut pas prouver que ?as_parent=1 exclut les
+    // cours du prof, puisqu'il n'aurait rien à exclure (bug historique : horaire de l'enfant
+    // affiché à tort comme "les cours du prof").
+    makeScheduleFor($school, $profParentUsr, 'Classe B');
     $parentUsr = UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeRole('PARENT', 'Parent')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
     ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $eleveUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
 
+    // Sans as_parent : le prof voit UNIQUEMENT sa propre classe (Classe B), jamais celle de l'enfant.
+    $this->actingAs($teacherParent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('week_schedule.slots', 1)
+            ->where('week_schedule.slots.0.course_label', 'Maths Classe B')
+        );
+
+    // Avec as_parent=1 : UNIQUEMENT la classe de l'enfant (Classe A), jamais celle du prof (Classe B).
     $this->actingAs($teacherParent)
         ->withSession(['active_school_id' => $school->id])
         ->get('/dashboard?as_parent=1')

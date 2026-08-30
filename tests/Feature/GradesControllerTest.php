@@ -486,3 +486,29 @@ test('a teacher with a Parent role also sees their child\'s grades via as_parent
             ->where('grades.0.grade', 14)
         );
 });
+
+test('a professeur with no Parent role at all gets an empty grades list via as_parent=1, never the school-wide list nor an error', function () {
+    $school = makeGradesScaleSchool();
+    $subject = makeGradesSubject($school);
+    $student = makeGradesStudent($school);
+
+    \App\Models\Grade::create(['section_user_id' => $student->id, 'subject_id' => $subject->id, 'period' => 'T1', 'grade' => 11, 'max_grade' => 20, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $teacher = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $teacher->id, 'school_id' => $school->id, 'role_id' => makeGradesScaleRole('PROF', 'Professeur')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // Sans as_parent : le prof voit bien le rôle de gestion (l'école entière), pour contraste.
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/grades')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('grades', 1));
+
+    // Avec as_parent=1 mais SANS rôle Parent actif à cette école : liste vide, pas une erreur,
+    // et surtout jamais la liste complète de l'école (parentLinkedStudent() renvoie null).
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/grades?as_parent=1')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('grades', 0));
+});

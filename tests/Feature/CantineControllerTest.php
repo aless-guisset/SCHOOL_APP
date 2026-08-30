@@ -491,3 +491,25 @@ test('a teacher with a Parent role cannot place a cantine order via as_parent=1,
         ->post('/cantine/orders?as_parent=1', ['cantine_menu_id' => $menu->id, 'date' => $date])
         ->assertForbidden();
 });
+
+test('a teacher with a Parent role sees their child\'s order (not the roster) via as_parent=1 on GET /cantine', function () {
+    $school = makeCantineSchool();
+    $student = makeCantineStudent($school);
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $childOrder = CantineOrder::create(['section_user_id' => $student->id, 'cantine_menu_id' => $menu->id, 'date' => $date, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $teacherParent = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeCantineRole('PROF', 'Professeur')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parentUsr = UserSchoolRole::create(['user_id' => $teacherParent->id, 'school_id' => $school->id, 'role_id' => makeCantineRole('PARENT', 'Parent')->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $student->userschoolrole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($teacherParent)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/cantine?date='.$date.'&as_parent=1')
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('roster')
+            ->where('can_order', false)
+            ->where('my_order.cantine_menu_id', $childOrder->cantine_menu_id)
+        );
+});
