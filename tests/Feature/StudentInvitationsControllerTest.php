@@ -77,16 +77,19 @@ test('accepting an invitation creates an account and grants the Parent role', fu
         ->and(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $link->id)->where('student_user_school_role_id', $studentUsr->id)->exists())->toBeTrue();
 });
 
-test('accepting an invitation with an account already linked to another child fails as a field error, not a 422 page', function () {
+test('accepting an invitation with an account already linked to another child adds the second link instead of rejecting', function () {
     $school = makeSicSchool();
     $studentA = makeSicStudent($school);
     $studentB = makeSicStudent($school);
     $parentRole = makeSicRole('PARENT', 'Parent');
 
     $parent = User::factory()->create(['email' => 'deja-lie@example.com']);
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $studentA->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentA->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
@@ -96,11 +99,11 @@ test('accepting an invitation with an account already linked to another child fa
     ]);
 
     $this->post("/invitations/student/{$invitation->token}/accept")
-        ->assertSessionHasErrors('email');
+        ->assertRedirect(route('dashboard'));
 
     $invitation->refresh();
-    expect($invitation->accepted_at)->toBeNull()
-        ->and(UserSchoolRole::where('user_id', $parent->id)->where('linked_student_user_school_role_id', $studentB->id)->exists())->toBeFalse();
+    expect($invitation->accepted_at)->not->toBeNull()
+        ->and(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)->count())->toBe(2);
 });
 
 test('an expired invitation cannot be accepted', function () {

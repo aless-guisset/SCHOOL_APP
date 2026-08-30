@@ -43,8 +43,8 @@ test('an anonymous visitor can join with a valid student code and ends up authen
     $parent = User::where('email', 'jean.parent@example.com')->first();
     $link = UserSchoolRole::where('user_id', $parent->id)->where('school_id', $school->id)->first();
     expect($link->role->reference)->toBe('PARENT')
-        ->and($link->linked_student_user_school_role_id)->toBe($studentUsr->id)
-        ->and($link->status)->toBe('A');
+        ->and($link->status)->toBe('A')
+        ->and(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $link->id)->where('student_user_school_role_id', $studentUsr->id)->exists())->toBeTrue();
 });
 
 test('joining with an invalid student code fails with a generic error', function () {
@@ -60,7 +60,7 @@ test('joining with an invalid student code fails with a generic error', function
     $this->assertGuest();
 });
 
-test('a parent account already linked to a different child cannot join a second student', function () {
+test('a parent account already linked to one child can join a second, different child', function () {
     $school = makeSauSchool();
     $studentA = makeSauStudent($school);
     $studentB = UserSchoolRole::create([
@@ -69,16 +69,32 @@ test('a parent account already linked to a different child cannot join a second 
         'status' => 'A', 'is_active' => true, 'created_by' => 1, 'student_access_code' => 'STUCODE2',
     ]);
     $parent = User::factory()->create();
-    UserSchoolRole::create([
+    $parentUsr = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
-        'linked_student_user_school_role_id' => $studentA->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $studentA->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
     $response = $this->actingAs($parent)->post('/join/parent', ['access_code' => 'STUCODE2']);
 
-    $response->assertSessionHasErrors('access_code');
-    expect(UserSchoolRole::where('user_id', $parent->id)->where('linked_student_user_school_role_id', $studentB->id)->exists())->toBeFalse();
+    $response->assertRedirect(route('dashboard'));
+    expect(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)->count())->toBe(2);
+});
+
+test('joining with the same student twice stays idempotent, no duplicate link', function () {
+    $school = makeSauSchool();
+    $studentUsr = makeSauStudent($school);
+    makeSauRole('PARENT', 'Parent');
+    $parent = User::factory()->create();
+
+    $this->actingAs($parent)->post('/join/parent', ['access_code' => 'STUCODE1']);
+    $this->actingAs($parent)->post('/join/parent', ['access_code' => 'STUCODE1']);
+
+    $parentUsr = UserSchoolRole::where('user_id', $parent->id)->where('school_id', $school->id)->first();
+    expect(\App\Models\ParentStudentLink::where('parent_user_school_role_id', $parentUsr->id)->count())->toBe(1);
 });
 
 test('a student with a single school reaches /my-access on a fresh session with no active_school_id pre-set', function () {
@@ -147,7 +163,6 @@ test('a parent role recovers from a previous soft-delete instead of erroring', f
     $parent = User::factory()->create();
     $old = UserSchoolRole::create([
         'user_id' => $parent->id, 'school_id' => $school->id, 'role_id' => $parentRole->id,
-        'linked_student_user_school_role_id' => $studentUsr->id,
         'status' => 'A', 'is_active' => false, 'created_by' => 1,
     ]);
     $old->delete();

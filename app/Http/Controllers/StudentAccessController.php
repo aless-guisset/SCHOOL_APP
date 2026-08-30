@@ -89,11 +89,10 @@ class StudentAccessController extends Controller
         }
 
         $user = $this->resolveUser($request, $data);
-        $this->assertSingleChild($user, $studentUsr);
 
         $parentRole = Role::where('reference', 'PARENT')->firstOrFail();
         $parentUsr = $this->grantOrRestoreSchoolRole($user->id, $studentUsr->school_id, $parentRole->id, 'A', $user->id);
-        $parentUsr->update(['linked_student_user_school_role_id' => $studentUsr->id]);
+        $this->linkChild($parentUsr, $studentUsr, $user->id);
 
         session(['active_school_id' => $studentUsr->school_id]);
 
@@ -166,19 +165,24 @@ class StudentAccessController extends Controller
         return $user;
     }
 
-    /** Un compte parent = un enfant. Rejette si déjà lié à un ENFANT DIFFÉRENT. */
-    private function assertSingleChild(User $user, UserSchoolRole $studentUsr): void
+    /** Crée le lien parent↔enfant s'il n'existe pas déjà (idempotent). */
+    private function linkChild(UserSchoolRole $parentUsr, UserSchoolRole $studentUsr, int $actorId): void
     {
-        $existing = UserSchoolRole::where('user_id', $user->id)
-            ->whereHas('role', fn ($q) => $q->where('reference', 'PARENT'))
-            ->where('status', 'A')
-            ->first();
+        $existing = \App\Models\ParentStudentLink::withTrashed()->firstOrNew([
+            'parent_user_school_role_id' => $parentUsr->id,
+            'student_user_school_role_id' => $studentUsr->id,
+        ]);
 
-        if ($existing && $existing->linked_student_user_school_role_id !== $studentUsr->id) {
-            throw ValidationException::withMessages([
-                'access_code' => 'Ce compte est déjà lié à un autre élève. Un compte parent ne peut suivre qu\'un seul enfant.',
-            ]);
+        if ($existing->trashed()) {
+            $existing->restore();
         }
+
+        $existing->fill([
+            'status' => 'A',
+            'is_active' => true,
+            'created_by' => $existing->created_by ?? $actorId,
+            'updated_by' => $actorId,
+        ])->save();
     }
 
     private function requireOwnStudentRole(Request $request): UserSchoolRole

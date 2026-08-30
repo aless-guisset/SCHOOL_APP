@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -99,26 +98,24 @@ class StudentInvitationsController extends Controller
             ]);
         }
 
-        $existing = UserSchoolRole::where('user_id', $user->id)
-            ->whereHas('role', fn ($q) => $q->where('reference', 'PARENT'))
-            ->where('status', 'A')
-            ->first();
-
-        // Même canal d'erreur que StudentAccessController::assertSingleChild() :
-        // une ValidationException remonte dans le bag d'erreurs Inertia et
-        // s'affiche en ligne dans StudentInvitationAccept.vue, là où un
-        // abort_if(422) affichait une page d'erreur générique.
-        if ($existing && $existing->linked_student_user_school_role_id !== $invitation->student_user_school_role_id) {
-            throw ValidationException::withMessages([
-                'email' => 'Ce compte est déjà lié à un autre élève.',
-            ]);
-        }
-
         $parentRole = Role::where('reference', 'PARENT')->firstOrFail();
         $parentUsr = $this->grantOrRestoreSchoolRole(
             $user->id, $invitation->student->school_id, $parentRole->id, 'A', $invitation->created_by
         );
-        $parentUsr->update(['linked_student_user_school_role_id' => $invitation->student_user_school_role_id]);
+
+        $studentUsr = $invitation->student;
+        $existing = \App\Models\ParentStudentLink::withTrashed()->firstOrNew([
+            'parent_user_school_role_id' => $parentUsr->id,
+            'student_user_school_role_id' => $studentUsr->id,
+        ]);
+        if ($existing->trashed()) {
+            $existing->restore();
+        }
+        $existing->fill([
+            'status' => 'A', 'is_active' => true,
+            'created_by' => $existing->created_by ?? $invitation->created_by,
+            'updated_by' => $invitation->created_by,
+        ])->save();
 
         $invitation->update(['accepted_at' => now()]);
 
