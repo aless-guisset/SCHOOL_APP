@@ -203,6 +203,43 @@ test('a Directeur can revoke a linked parent at their school', function () {
     expect(\App\Models\ParentStudentLink::find($link->id))->toBeNull();
 });
 
+test('a student cannot revoke a parent link belonging to a different student', function () {
+    $school = makeSauSchool();
+
+    $studentA = makeSauStudent($school);
+    $parentA = User::factory()->create();
+    $parentUsrA = UserSchoolRole::create([
+        'user_id' => $parentA->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsrA->id, 'student_user_school_role_id' => $studentA->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $studentB = UserSchoolRole::create([
+        'user_id' => User::factory()->create()->id, 'school_id' => $school->id,
+        'role_id' => makeSauRole('ELEVE', 'Élève')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1, 'student_access_code' => 'STUCODE9',
+    ]);
+    $parentB = User::factory()->create();
+    $parentUsrB = UserSchoolRole::create([
+        'user_id' => $parentB->id, 'school_id' => $school->id, 'role_id' => makeSauRole('PARENT', 'Parent')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $linkB = \App\Models\ParentStudentLink::create([
+        'parent_user_school_role_id' => $parentUsrB->id, 'student_user_school_role_id' => $studentB->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($studentA->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->delete("/my-access/parents/{$linkB->id}")
+        ->assertForbidden();
+
+    expect(\App\Models\ParentStudentLink::find($linkB->id))->not->toBeNull();
+});
+
 test('a Directeur from another school cannot revoke a parent link', function () {
     $school = makeSauSchool();
     $studentUsr = makeSauStudent($school);
