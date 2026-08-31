@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Attendance;
 use App\Models\Classroom;
 use App\Models\Course;
 use App\Models\Grade;
@@ -17,6 +18,7 @@ use App\Models\Translation;
 use App\Models\User;
 use App\Models\UserSchoolRole;
 use App\Listeners\LogSuccessfulLogin;
+use App\Observers\AttendanceObserver;
 use App\Observers\ActivityObserver;
 use App\Observers\GradeObserver;
 use App\Observers\ScheduleObserver;
@@ -47,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerActivityObservers();
         Schedule::observe(ScheduleObserver::class);
         Grade::observe(GradeObserver::class);
+        Attendance::observe(AttendanceObserver::class);
     }
 
     /**
