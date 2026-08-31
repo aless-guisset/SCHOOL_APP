@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Classroom;
 use App\Models\Course;
+use App\Models\Grade;
 use App\Models\Lesson;
 use App\Models\Resource;
 use App\Models\Role;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Models\UserSchoolRole;
 use App\Listeners\LogSuccessfulLogin;
 use App\Observers\ActivityObserver;
+use App\Observers\GradeObserver;
 use App\Observers\ScheduleObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
@@ -44,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->registerActivityObservers();
         Schedule::observe(ScheduleObserver::class);
+        Grade::observe(GradeObserver::class);
     }
 
     /**
