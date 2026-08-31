@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Attendance;
 use App\Models\Classroom;
 use App\Models\Course;
 use App\Models\Role;
@@ -56,6 +55,18 @@ function makeAbsNotifSession(School $school, UserSchoolRole $teacherUsr): array
     $studentSectionUser = SectionUserSchoolRole::create(['section_id' => $section->id, 'user_school_role_id' => $studentUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
 
     return compact('timesheet', 'studentUsr', 'studentSectionUser');
+}
+
+/** Inscrit un élève supplémentaire dans la section d'une session existante. */
+function addAbsNotifStudent(School $school, array $session): array
+{
+    $studentUsr = makeAbsNotifUsr($school, makeAbsNotifRole('ELEVE', 'Élève'));
+    $studentSectionUser = SectionUserSchoolRole::create([
+        'section_id' => $session['studentSectionUser']->section_id, 'user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    return compact('studentUsr', 'studentSectionUser');
 }
 
 function linkAbsNotifParent(UserSchoolRole $student, User $parent, School $school): void
@@ -194,6 +205,102 @@ test('re-saving the same absence with only the note changed does not duplicate t
     ])->assertRedirect();
 
     Notification::assertSentToTimes($parent, AbsenceRecordedNotification::class, 1);
+});
+
+test('the absence notification contains the student name, the subject and the session date', function () {
+    Notification::fake();
+
+    $school = makeAbsNotifSchool();
+    $teacherUsr = makeAbsNotifUsr($school, makeAbsNotifRole('PROF', 'Professeur'));
+    $session = makeAbsNotifSession($school, $teacherUsr);
+    $parent = User::factory()->create();
+    linkAbsNotifParent($session['studentUsr'], $parent, $school);
+    $studentUser = $session['studentUsr']->user;
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$session['timesheet']->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+            ],
+        ])
+        ->assertRedirect();
+
+    // Le contenu est dérivé de chaînes de relations optionnelles avec repli
+    // silencieux ('votre enfant', 'un cours') : sans assertion sur le texte,
+    // un email vide de sens resterait "vert".
+    $expectedDate = \Carbon\Carbon::parse($session['timesheet']->date)->format('d/m/Y');
+
+    Notification::assertSentTo($parent, AbsenceRecordedNotification::class, function ($notification) use ($parent, $studentUser, $expectedDate) {
+        $data = $notification->toArray($parent);
+        $mail = $notification->toMail($parent);
+
+        expect($data['title'])->toBe('Absence enregistrée');
+        expect($data['body'])
+            ->toContain("{$studentUser->firstname} {$studentUser->lastname}")
+            ->toContain('Matière')
+            ->toContain($expectedDate);
+        expect($mail->subject)->toBe('[School App] Absence enregistrée');
+        expect($mail->introLines)->toContain($data['body']);
+
+        return true;
+    });
+});
+
+test('a roster saved in one request only notifies the parents of the absent students', function () {
+    Notification::fake();
+
+    $school = makeAbsNotifSchool();
+    $teacherUsr = makeAbsNotifUsr($school, makeAbsNotifRole('PROF', 'Professeur'));
+    $session = makeAbsNotifSession($school, $teacherUsr);
+    $second = addAbsNotifStudent($school, $session);
+
+    $absentParent = User::factory()->create();
+    $presentParent = User::factory()->create();
+    linkAbsNotifParent($session['studentUsr'], $absentParent, $school);
+    linkAbsNotifParent($second['studentUsr'], $presentParent, $school);
+
+    // Cas réel : le prof enregistre toute la feuille de présence en un seul
+    // POST, plusieurs élèves dans le même tableau `attendances`.
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$session['timesheet']->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+                ['section_user_id' => $second['studentSectionUser']->id, 'is_present' => true, 'note' => null],
+            ],
+        ])
+        ->assertRedirect();
+
+    Notification::assertSentToTimes($absentParent, AbsenceRecordedNotification::class, 1);
+    Notification::assertNotSentTo($presentParent, AbsenceRecordedNotification::class);
+});
+
+test('a failing notification send does not break the attendance save', function () {
+    // Régression : un échec d'envoi ne doit jamais transformer une prise de
+    // présence réussie en erreur 500.
+    Notification::shouldReceive('send')->andThrow(new RuntimeException('Resend indisponible'));
+
+    $school = makeAbsNotifSchool();
+    $teacherUsr = makeAbsNotifUsr($school, makeAbsNotifRole('PROF', 'Professeur'));
+    $session = makeAbsNotifSession($school, $teacherUsr);
+    $parent = User::factory()->create();
+    linkAbsNotifParent($session['studentUsr'], $parent, $school);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$session['timesheet']->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+            ],
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('attendances', [
+        'timesheet_id' => $session['timesheet']->id,
+        'section_user_id' => $session['studentSectionUser']->id,
+        'is_present' => false,
+    ]);
 });
 
 test('marking a student with no linked parent absent does not error', function () {

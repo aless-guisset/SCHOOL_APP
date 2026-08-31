@@ -136,6 +136,112 @@ test('creating a grade for a student with no linked parent does not error', func
     Notification::assertNothingSent();
 });
 
+test('the grade notification contains the student name, the subject and the grade', function () {
+    Notification::fake();
+
+    $school = makeGradeNotifSchool();
+    $subject = makeGradeNotifSubject($school);
+    $student = makeGradeNotifStudent($school);
+    $parent = User::factory()->create();
+    linkGradeNotifParent($student, $parent);
+
+    $powerUser = makeGradeNotifUsr($school, makeGradeNotifRole('POWER', 'Power User'))->user;
+    $studentUser = $student->userschoolrole->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/grades', [
+            'section_user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'period' => 'T1',
+            'max_grade' => 20,
+            'grade' => 15,
+        ])
+        ->assertRedirect();
+
+    // Le contenu est dérivé de chaînes de relations optionnelles avec repli
+    // silencieux ('votre enfant', 'une matière') : sans assertion sur le
+    // texte, un email vide de sens resterait "vert".
+    Notification::assertSentTo($parent, GradeAddedNotification::class, function ($notification) use ($parent, $studentUser) {
+        $data = $notification->toArray($parent);
+        $mail = $notification->toMail($parent);
+
+        expect($data['title'])->toBe('Nouvelle note');
+        expect($data['body'])
+            ->toContain("{$studentUser->firstname} {$studentUser->lastname}")
+            ->toContain('Maths')
+            ->toContain('15/20')
+            ->toContain('T1');
+        expect($mail->subject)->toBe('[School App] Nouvelle note');
+        expect($mail->introLines)->toContain($data['body']);
+
+        return true;
+    });
+});
+
+test('a grade creation notifies both parents linked to the same student', function () {
+    Notification::fake();
+
+    $school = makeGradeNotifSchool();
+    $subject = makeGradeNotifSubject($school);
+    $student = makeGradeNotifStudent($school);
+    $firstParent = User::factory()->create();
+    $secondParent = User::factory()->create();
+    linkGradeNotifParent($student, $firstParent);
+    linkGradeNotifParent($student, $secondParent);
+
+    $powerUser = makeGradeNotifUsr($school, makeGradeNotifRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/grades', [
+            'section_user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'period' => 'T1',
+            'max_grade' => 20,
+            'grade' => 15,
+        ])
+        ->assertRedirect();
+
+    // activeParentUsers() est testé unitairement côté modèle : ici on vérifie
+    // le flux complet HTTP → observer → envoi, les DEUX parents servis.
+    Notification::assertSentToTimes($firstParent, GradeAddedNotification::class, 1);
+    Notification::assertSentToTimes($secondParent, GradeAddedNotification::class, 1);
+});
+
+test('a failing notification send does not roll back the grade', function () {
+    // Régression : l'observer tourne dans la transaction de
+    // GradesController::store(). Une exception d'envoi (Resend indisponible)
+    // annulerait la note et renverrait un 500 au professeur.
+    Notification::shouldReceive('send')->andThrow(new RuntimeException('Resend indisponible'));
+
+    $school = makeGradeNotifSchool();
+    $subject = makeGradeNotifSubject($school);
+    $student = makeGradeNotifStudent($school);
+    $parent = User::factory()->create();
+    linkGradeNotifParent($student, $parent);
+
+    $powerUser = makeGradeNotifUsr($school, makeGradeNotifRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/grades', [
+            'section_user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'period' => 'T1',
+            'max_grade' => 20,
+            'grade' => 15,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('grades', [
+        'section_user_id' => $student->id,
+        'subject_id' => $subject->id,
+        'period' => 'T1',
+        'grade' => 15,
+    ]);
+});
+
 test('a parent linked to two children only gets notified for the child whose grade changed', function () {
     Notification::fake();
 
