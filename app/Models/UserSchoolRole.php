@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 #[UseFactory(UserSchoolRoleFactory::class)]
 class UserSchoolRole extends Model
@@ -62,5 +63,21 @@ class UserSchoolRole extends Model
     public function sectionUserRoles(): HasMany
     {
         return $this->hasMany(SectionUserSchoolRole::class, 'user_school_role_id');
+    }
+
+    /**
+     * Parents actifs liés à cette ligne de rôle (élève) — un par lien
+     * ParentStudentLink actif, jamais groupé par parent. Retourne une
+     * collection vide si aucun parent n'est lié, sans erreur.
+     */
+    public function activeParentUsers(): Collection
+    {
+        return $this->linkedAsChildIn()
+            ->where('status', 'A')->where('is_active', true)
+            ->with('parentUserSchoolRole.user')
+            ->get()
+            ->map(fn (ParentStudentLink $link) => $link->parentUserSchoolRole?->user)
+            ->filter()
+            ->values();
     }
 }
