@@ -280,6 +280,219 @@ test('show remains fully accessible to Power User regardless of section', functi
         ->assertOk();
 });
 
+/**
+ * Deuxième section/cours/créneau tenu par un AUTRE professeur dans la même
+ * école — le « créneau d'un collègue » que le professeur de la fixture ne doit
+ * jamais voir. Retourne [section, sectionCourse, schedule, usr du collègue].
+ */
+function makeColleagueSchedule(array $f, string $suffix = 'B'): array
+{
+    $profRole = Role::firstOrCreate(['reference' => 'PROF'], ['name' => 'Professeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $otherUsr = UserSchoolRole::create(['user_id' => User::factory()->create()->id, 'school_id' => $f['school']->id, 'role_id' => $profRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $otherSection = Section::create(['school_id' => $f['school']->id, 'name' => "Classe {$suffix}", 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $otherCourse = Course::create(['school_id' => $f['school']->id, 'name' => "Cours {$suffix}", 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $otherSectionUser = SectionUserSchoolRole::create(['section_id' => $otherSection->id, 'user_school_role_id' => $otherUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $otherSectionCourse = SectionCourse::create(['section_user_id' => $otherSectionUser->id, 'course_id' => $otherCourse->id, 'total_hours' => 60, 'hours_per_session' => 2, 'name' => "SC{$suffix}", 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $schedule = \App\Models\Schedule::create(['section_course_id' => $otherSectionCourse->id, 'name' => "Mardi {$suffix}", 'day_of_week' => 2, 'start_time' => '08:00:00', 'end_time' => '10:00:00', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    return [$otherSection, $otherSectionCourse, $schedule, $otherUsr];
+}
+
+test('index shows the whole schools schedules to a Secretariat', function () {
+    $f = makeSchedulesTestFixture();
+    makeColleagueSchedule($f);
+    \App\Models\Schedule::create(['section_course_id' => $f['sectionCourse']->id, 'name' => 'Lundi A', 'day_of_week' => 1, 'start_time' => '08:00:00', 'end_time' => '10:00:00', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $secRole = Role::firstOrCreate(['reference' => 'SEC'], ['name' => 'Secrétariat', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $secUser = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $secUser->id, 'school_id' => $f['school']->id, 'role_id' => $secRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($secUser)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get('/schedules')
+        ->assertInertia(fn ($page) => $page
+            ->has('schedules', 2)
+            ->has('sections', 2)
+        );
+});
+
+test('index shows the whole schools schedules to a Directeur', function () {
+    $f = makeSchedulesTestFixture();
+    makeColleagueSchedule($f);
+    \App\Models\Schedule::create(['section_course_id' => $f['sectionCourse']->id, 'name' => 'Lundi A', 'day_of_week' => 1, 'start_time' => '08:00:00', 'end_time' => '10:00:00', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $dirRole = Role::firstOrCreate(['reference' => 'DIR'], ['name' => 'Directeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $dirUser = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $dirUser->id, 'school_id' => $f['school']->id, 'role_id' => $dirRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($dirUser)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get('/schedules')
+        ->assertInertia(fn ($page) => $page
+            ->has('schedules', 2)
+            ->has('sections', 2)
+        );
+});
+
+test('a Secretariat who saves a schedule lands on its detail page, not a 404', function () {
+    $f = makeSchedulesTestFixture();
+    $secRole = Role::firstOrCreate(['reference' => 'SEC'], ['name' => 'Secrétariat', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $secUser = User::factory()->create();
+    UserSchoolRole::create(['user_id' => $secUser->id, 'school_id' => $f['school']->id, 'role_id' => $secRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($secUser)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->post('/schedules', [
+            'section_course_id' => $f['sectionCourse']->id,
+            'name' => 'Lundi',
+            'day_of_week' => 1,
+            'start_time' => '08:00',
+            'end_time' => '10:00',
+        ]);
+
+    $schedule = \App\Models\Schedule::where('section_course_id', $f['sectionCourse']->id)->firstOrFail();
+
+    $this->actingAs($secUser)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get("/schedules/{$schedule->id}")
+        ->assertOk();
+});
+
+test('store redirects a professor to the index when the created schedule is outside their sections', function () {
+    $f = makeSchedulesTestFixture();
+    [, $colleagueSectionCourse] = makeColleagueSchedule($f);
+
+    $this->actingAs($f['usr']->user)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->post('/schedules', [
+            'section_course_id' => $colleagueSectionCourse->id,
+            'name' => 'Créneau du collègue',
+            'day_of_week' => 3,
+            'start_time' => '08:00',
+            'end_time' => '10:00',
+        ])
+        ->assertRedirect('/schedules')
+        ->assertSessionHas('flash.type', 'success');
+
+    expect(\App\Models\Schedule::where('name', 'Créneau du collègue')->exists())->toBeTrue();
+});
+
+test('store still redirects a professor to the detail page for their own section', function () {
+    $f = makeSchedulesTestFixture();
+
+    $this->actingAs($f['usr']->user)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->post('/schedules', [
+            'section_course_id' => $f['sectionCourse']->id,
+            'name' => 'Mon créneau',
+            'day_of_week' => 3,
+            'start_time' => '08:00',
+            'end_time' => '10:00',
+        ])
+        ->assertRedirect('/schedules/'.\App\Models\Schedule::where('name', 'Mon créneau')->firstOrFail()->id);
+});
+
+test('update redirects a professor to the index when the schedule is outside their sections', function () {
+    $f = makeSchedulesTestFixture();
+    [, , $colleagueSchedule] = makeColleagueSchedule($f);
+
+    $this->actingAs($f['usr']->user)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->put("/schedules/{$colleagueSchedule->id}", ['name' => 'Renommé'])
+        ->assertRedirect('/schedules')
+        ->assertSessionHas('flash.type', 'success');
+
+    expect($colleagueSchedule->fresh()->name)->toBe('Renommé');
+});
+
+/**
+ * Professeur ET Parent dans la même école : sa ligne la plus privilégiée est
+ * Professeur, `?as_parent=1` doit donc explicitement basculer sur la section
+ * de l'enfant. Retourne [dualUser, childUser, childSchedule].
+ */
+function makeDualRoleParentTeacherFixture(array $f): array
+{
+    $eleveRole = Role::firstOrCreate(['reference' => 'ELEVE'], ['name' => 'Élève', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parentRole = Role::firstOrCreate(['reference' => 'PARENT'], ['name' => 'Parent', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $profRole = Role::firstOrCreate(['reference' => 'PROF'], ['name' => 'Professeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // L'enfant est dans une section tenue par un AUTRE professeur : son créneau
+    // est donc hors de portée du rôle enseignant de l'appelant.
+    [$childSection, , $childSchedule] = makeColleagueSchedule($f, 'Enfant');
+
+    $childUser = User::factory()->create();
+    $childUsr = UserSchoolRole::create(['user_id' => $childUser->id, 'school_id' => $f['school']->id, 'role_id' => $eleveRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    SectionUserSchoolRole::create(['section_id' => $childSection->id, 'user_school_role_id' => $childUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // Appelant : Professeur (section de la fixture) + Parent de l'enfant.
+    $dualUser = User::factory()->create();
+    $dualProfUsr = UserSchoolRole::create(['user_id' => $dualUser->id, 'school_id' => $f['school']->id, 'role_id' => $profRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    SectionUserSchoolRole::create(['section_id' => $f['section']->id, 'user_school_role_id' => $dualProfUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $dualParentUsr = UserSchoolRole::create(['user_id' => $dualUser->id, 'school_id' => $f['school']->id, 'role_id' => $parentRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\ParentStudentLink::create(['parent_user_school_role_id' => $dualParentUsr->id, 'student_user_school_role_id' => $childUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    return [$dualUser, $childUser, $childSchedule];
+}
+
+test('show as_parent=1 exposes the viewed childs name', function () {
+    $f = makeSchedulesTestFixture();
+    [$dualUser, $childUser, $childSchedule] = makeDualRoleParentTeacherFixture($f);
+
+    $this->actingAs($dualUser)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get("/schedules/{$childSchedule->id}?as_parent=1")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('viewing_child', "{$childUser->firstname} {$childUser->lastname}")
+        );
+});
+
+test('show resolves a different scope with and without as_parent=1 for the same dual-role user', function () {
+    $f = makeSchedulesTestFixture();
+    [$dualUser, , $childSchedule] = makeDualRoleParentTeacherFixture($f);
+
+    // Vue "Mes enfants" : le créneau de la section de l'enfant est visible.
+    $this->actingAs($dualUser)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get("/schedules/{$childSchedule->id}?as_parent=1")
+        ->assertOk();
+
+    // Même utilisateur, même créneau, mais en tant que lui-même (Professeur
+    // qui n'enseigne pas cette section) : 404.
+    $this->actingAs($dualUser)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get("/schedules/{$childSchedule->id}")
+        ->assertNotFound();
+});
+
+test('index without as_parent scopes a pure Parent to their childs section', function () {
+    $f = makeSchedulesTestFixture();
+    $eleveRole = Role::firstOrCreate(['reference' => 'ELEVE'], ['name' => 'Élève', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $parentRole = Role::firstOrCreate(['reference' => 'PARENT'], ['name' => 'Parent', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $childUser = User::factory()->create();
+    $childUsr = UserSchoolRole::create(['user_id' => $childUser->id, 'school_id' => $f['school']->id, 'role_id' => $eleveRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    SectionUserSchoolRole::create(['section_id' => $f['section']->id, 'user_school_role_id' => $childUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $parent = User::factory()->create();
+    $parentUsr = UserSchoolRole::create(['user_id' => $parent->id, 'school_id' => $f['school']->id, 'role_id' => $parentRole->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\ParentStudentLink::create(['parent_user_school_role_id' => $parentUsr->id, 'student_user_school_role_id' => $childUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    // Créneau de l'enfant + créneau d'une autre classe, qui doit rester invisible.
+    \App\Models\Schedule::create(['section_course_id' => $f['sectionCourse']->id, 'name' => 'Lundi A', 'day_of_week' => 1, 'start_time' => '08:00:00', 'end_time' => '10:00:00', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    makeColleagueSchedule($f);
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $f['school']->id])
+        ->get('/schedules')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('schedules', 1)
+            ->where('schedules.0.name', 'Lundi A')
+            ->where('viewing_child', null)
+        );
+});
+
 test('index as_parent=1 without an active Parent role returns an empty schedule list, not an error', function () {
     $f = makeSchedulesTestFixture();
     \App\Models\Schedule::create(['section_course_id' => $f['sectionCourse']->id, 'name' => 'Lundi A', 'day_of_week' => 1, 'start_time' => '08:00:00', 'end_time' => '10:00:00', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
