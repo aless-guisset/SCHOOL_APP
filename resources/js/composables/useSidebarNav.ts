@@ -173,11 +173,8 @@ const nav: NavMap = {
         {
             section: 'Suivi',
             items: [
-                // Pas d'entrée /schedules ici : SchedulesController::index() n'est
-                // pas scopé par rôle et exposerait l'horaire de TOUTE l'école. Le
-                // widget du dashboard affiche déjà l'horaire de la section de
-                // l'enfant lié, ce qui couvre le besoin.
                 { label: 'Accueil', icon: Home, route: '/dashboard', routeName: 'dashboard' },
+                { label: 'Horaire', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },

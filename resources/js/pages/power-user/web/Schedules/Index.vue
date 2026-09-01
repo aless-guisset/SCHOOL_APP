@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { CalendarDays, List, Plus, Save } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -31,12 +32,28 @@ const props = defineProps<{
     sections: Array<{ id: number; name: string }>;
     section_id: number | null;
     school: { id: number; year_end_date: string | null } | null;
+    viewing_child?: string | null;
 }>();
+
+// as_parent=1 doit survivre à la navigation interne (filtre section) : même
+// pattern que Grades/Index.vue — sans lui, l'appelant à double rôle
+// retomberait silencieusement sur sa vue enseignante sans que rien ne le
+// signale.
+const page = usePage();
+const asParent = computed(() => new URLSearchParams(page.url.split('?')[1] ?? '').get('as_parent'));
+
+function withAsParent(params: Record<string, string>): Record<string, string> {
+    return asParent.value ? { ...params, as_parent: asParent.value } : params;
+}
+
+// Les actions de gestion n'ont aucun sens sur l'horaire d'un enfant consulté
+// via "Mes enfants", même si le rôle réel de l'appelant y donne droit ailleurs.
+const canWrite = computed(() => canManage.value && !props.viewing_child);
 
 // ── Filtre par classe ────────────────────────────────────────────────────────
 const sectionFilter = ref(props.section_id ? String(props.section_id) : 'all');
 function applySectionFilter() {
-    router.get('/schedules', sectionFilter.value === 'all' ? {} : { section_id: sectionFilter.value }, {
+    router.get('/schedules', withAsParent(sectionFilter.value === 'all' ? {} : { section_id: sectionFilter.value }), {
         preserveScroll: true,
         preserveState: true,
     });
@@ -122,6 +139,7 @@ function saveYearEnd() {
     <AppLayout>
         <div class="p-4 md:p-6">
             <FlashMessage />
+            <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
 
             <PageHeader :title="t('nav.schedules')" :description="`${schedules.length} créneau(x)`">
                 <template #actions>
@@ -149,7 +167,7 @@ function saveYearEnd() {
                             title="Vue liste"
                         ><List class="size-4" /></button>
                     </div>
-                    <template v-if="canManage">
+                    <template v-if="canWrite">
                         <Button as-child size="sm">
                             <Link href="/schedules/create"><Plus class="size-4" />{{ t('action.create') }}</Link>
                         </Button>
@@ -157,7 +175,7 @@ function saveYearEnd() {
                 </template>
             </PageHeader>
 
-            <div v-if="canManage" class="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/20 p-3">
+            <div v-if="canWrite" class="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/20 p-3">
                 <div class="space-y-1.5">
                     <Label class="text-xs">Fin d'année scolaire</Label>
                     <Input v-model="yearEndForm" type="date" class="h-8 w-40" />
@@ -220,7 +238,7 @@ function saveYearEnd() {
                             <Link
                                 v-for="s in (byDay[day] ?? [])"
                                 :key="s.id"
-                                :href="`/schedules/${s.id}`"
+                                :href="asParent ? `/schedules/${s.id}?as_parent=${asParent}` : `/schedules/${s.id}`"
                                 class="absolute inset-x-1 overflow-hidden rounded border px-1.5 py-1 text-xs transition-opacity hover:opacity-80"
                                 :class="SLOT_COLORS[day]"
                                 :style="slotStyle(s)"
@@ -253,7 +271,7 @@ function saveYearEnd() {
                         <tr
                             v-for="s in schedules" :key="s.id"
                             class="cursor-pointer border-b hover:bg-muted/30"
-                            @click="router.visit(`/schedules/${s.id}`)"
+                            @click="router.visit(asParent ? `/schedules/${s.id}?as_parent=${asParent}` : `/schedules/${s.id}`)"
                         >
                             <td class="px-3 py-2">{{ DAY_LABELS[s.day_of_week - 1] }}</td>
                             <td class="px-3 py-2 tabular-nums">{{ fmt(s.start_time) }} – {{ fmt(s.end_time) }}</td>

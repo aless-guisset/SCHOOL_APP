@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Building2, ChevronsUpDown, Home, NotebookText, Star, UserRound, Utensils } from 'lucide-vue-next';
+import { Building2, Calendar, ChevronsUpDown, Home, NotebookText, Star, UserRound, Utensils } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -78,6 +78,7 @@ const navGroups = computed(() => {
                 section: 'Mes enfants',
                 items: [
                     { label: 'Accueil', icon: Home, route: '/dashboard?as_parent=1', routeName: 'dashboard' },
+                    { label: 'Horaire', icon: Calendar, route: '/schedules?as_parent=1', routeName: 'schedules.index' },
                     { label: 'Notes', icon: NotebookText, route: '/grades?as_parent=1', routeName: 'grades.index' },
                     ...(cantineEnabled
                         ? [{ label: 'Cantine', icon: Utensils, route: '/cantine?as_parent=1', routeName: 'cantine.index' }]
