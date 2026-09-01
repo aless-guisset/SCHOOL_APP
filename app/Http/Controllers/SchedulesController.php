@@ -123,8 +123,7 @@ class SchedulesController extends Controller
 
         $schedule = Schedule::create($data);
 
-        return redirect()->route('schedules.show', $schedule)
-            ->with('flash', ['type' => 'success', 'message' => 'Créneau créé.']);
+        return $this->redirectAfterWrite($request, $schedule, 'Créneau créé.');
     }
 
     public function show(Request $request, Schedule $schedule): Response
@@ -194,8 +193,39 @@ class SchedulesController extends Controller
         $data['updated_by'] = $request->user()->id;
         $schedule->update($data);
 
-        return redirect()->route('schedules.show', $schedule)
-            ->with('flash', ['type' => 'success', 'message' => 'Créneau mis à jour.']);
+        return $this->redirectAfterWrite($request, $schedule, 'Créneau mis à jour.');
+    }
+
+    /**
+     * Après une écriture, renvoie vers le détail du créneau — sauf si l'auteur
+     * n'a pas le droit de le voir (show() étant scopé par rôle), auquel cas il
+     * tomberait sur un 404 donnant l'illusion d'un échec alors que
+     * l'enregistrement a réussi. Cas concret : un Professeur qui choisit dans
+     * le formulaire le cours de section d'un collègue (create()/edit() les
+     * proposent tous). On le renvoie alors vers la liste, avec le même flash
+     * de succès.
+     *
+     * Pas de branche `as_parent` ici : ces routes sont gardées par `can-manage`,
+     * qu'un Parent ne franchit jamais.
+     */
+    private function redirectAfterWrite(Request $request, Schedule $schedule, string $message): \Illuminate\Http\RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+        $user = $request->user();
+
+        $allowedSectionUserIds = $this->resolveAllowedSectionUserIds(
+            $user->scopedUserSchoolRole($schoolId ?? 0),
+            $user->activeRoleAt($schoolId ?? 0),
+        );
+
+        $canSee = $allowedSectionUserIds === null
+            || $allowedSectionUserIds->contains($schedule->sectionCourse?->section_user_id);
+
+        $target = $canSee
+            ? redirect()->route('schedules.show', $schedule)
+            : redirect()->route('schedules.index');
+
+        return $target->with('flash', ['type' => 'success', 'message' => $message]);
     }
 
     public function destroy(Schedule $schedule)
