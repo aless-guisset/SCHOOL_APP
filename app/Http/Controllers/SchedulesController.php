@@ -130,10 +130,14 @@ class SchedulesController extends Controller
     {
         $schoolId = session('active_school_id');
         $user = $request->user();
+        $viewingChild = null;
 
         if ($request->boolean('as_parent')) {
             $usr = $user->parentLinkedStudent($schoolId ?? 0);
             $currentRole = 'Élève';
+            if ($usr?->user) {
+                $viewingChild = "{$usr->user->firstname} {$usr->user->lastname}";
+            }
         } else {
             $usr = $user->scopedUserSchoolRole($schoolId ?? 0);
             $currentRole = $user->activeRoleAt($schoolId ?? 0);
@@ -152,6 +156,7 @@ class SchedulesController extends Controller
 
         return Inertia::render('power-user/web/Schedules/Show', [
             'schedule' => $schedule,
+            'viewing_child' => $viewingChild,
         ]);
     }
 

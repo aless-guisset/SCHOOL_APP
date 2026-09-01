@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Edit, Trash2 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { useSchool } from '@/composables/useSchool';
 import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -26,12 +28,23 @@ const props = defineProps<{
         section_course: { name: string; course: { name: string } } | null;
         timesheets: Array<{ id: number; date: string; hours_done: number; user_school_role: { user: { lastname: string; firstname: string } } | null }>;
     };
+    viewing_child?: string | null;
 }>();
 
-const breadcrumbs = [
-    { label: t('nav.schedules'), href: '/schedules' },
+// as_parent=1 doit survivre au retour vers la liste : même pattern que
+// Schedules/Index.vue — sans lui, l'appelant à double rôle retomberait
+// silencieusement sur sa vue enseignante sans que rien ne le signale.
+const page = usePage();
+const asParent = computed(() => new URLSearchParams(page.url.split('?')[1] ?? '').get('as_parent'));
+
+// Les actions de gestion n'ont aucun sens sur l'horaire d'un enfant consulté
+// via "Mes enfants", même si le rôle réel de l'appelant y donne droit ailleurs.
+const canWrite = computed(() => canManage.value && !props.viewing_child);
+
+const breadcrumbs = computed(() => [
+    { label: t('nav.schedules'), href: asParent.value ? `/schedules?as_parent=${asParent.value}` : '/schedules' },
     { label: props.schedule.name },
-];
+]);
 
 function destroy() {
     if (confirm('Supprimer ce créneau ?')) router.delete(`/schedules/${props.schedule.id}`);
@@ -43,8 +56,9 @@ function destroy() {
     <AppLayout>
         <div class="p-4 md:p-6 max-w-2xl">
             <FlashMessage />
+            <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
             <PageHeader :title="schedule.name" :breadcrumbs="breadcrumbs">
-                <template v-if="canManage" #actions>
+                <template v-if="canWrite" #actions>
                     <Button variant="outline" size="sm" as-child>
                         <Link :href="`/schedules/${schedule.id}/edit`"><Edit class="size-4" />{{ t('action.edit') }}</Link>
                     </Button>
