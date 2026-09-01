@@ -6,6 +6,7 @@ use App\Models\Classroom;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\SectionCourse;
+use App\Models\SectionUserSchoolRole;
 use App\Models\Subject;
 use App\Models\UserSchoolRole;
 use Illuminate\Http\Request;
@@ -19,11 +20,33 @@ class SchedulesController extends Controller
     {
         $schoolId = session('active_school_id');
         $sectionId = $request->integer('section_id') ?: null;
+        $user = $request->user();
+        $viewingChild = null;
+
+        if ($request->boolean('as_parent')) {
+            // Vue "Mes enfants" (double rôle) : voir DashboardController::index()
+            // pour l'invariant de sécurité — ne jamais utiliser le rôle réel de
+            // l'appelant ici, sous peine de mélanger ses propres données avec
+            // celles de l'enfant.
+            $usr = $user->parentLinkedStudent($schoolId ?? 0);
+            $currentRole = 'Élève';
+            if ($usr?->user) {
+                $viewingChild = "{$usr->user->firstname} {$usr->user->lastname}";
+            }
+        } else {
+            $usr = $user->scopedUserSchoolRole($schoolId ?? 0);
+            $currentRole = $user->activeRoleAt($schoolId ?? 0);
+        }
+
+        $allowedSectionUserIds = $this->resolveAllowedSectionUserIds($usr, $currentRole);
 
         $schedules = Schedule::whereHas(
             'sectionCourse.course',
             fn ($q) => $q->where('school_id', $schoolId)
         )
+            ->when($allowedSectionUserIds !== null, fn ($q) => $q->whereHas(
+                'sectionCourse', fn ($q2) => $q2->whereIn('section_user_id', $allowedSectionUserIds)
+            ))
             ->when($sectionId, fn ($q) => $q->whereHas(
                 'sectionCourse.sectionUser',
                 fn ($q2) => $q2->where('section_id', $sectionId)
@@ -36,15 +59,22 @@ class SchedulesController extends Controller
 
         $school = \App\Models\School::find($schoolId);
 
+        $sectionsQuery = Section::where('school_id', $schoolId)->where('is_active', true);
+        if ($allowedSectionUserIds !== null) {
+            $allowedSectionIds = SectionUserSchoolRole::whereIn('id', $allowedSectionUserIds)
+                ->pluck('section_id')->unique();
+            $sectionsQuery->whereIn('id', $allowedSectionIds);
+        }
+
         return Inertia::render('power-user/web/Schedules/Index', [
             'schedules' => $schedules,
-            'sections' => Section::where('school_id', $schoolId)
-                ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'sections' => $sectionsQuery->orderBy('name')->get(['id', 'name']),
             'section_id' => $sectionId,
             'school' => $school ? [
                 'id' => $school->id,
                 'year_end_date' => $school->year_end_date?->toDateString(),
             ] : null,
+            'viewing_child' => $viewingChild,
         ]);
     }
 
@@ -97,8 +127,28 @@ class SchedulesController extends Controller
             ->with('flash', ['type' => 'success', 'message' => 'Créneau créé.']);
     }
 
-    public function show(Schedule $schedule): Response
+    public function show(Request $request, Schedule $schedule): Response
     {
+        $schoolId = session('active_school_id');
+        $user = $request->user();
+
+        if ($request->boolean('as_parent')) {
+            $usr = $user->parentLinkedStudent($schoolId ?? 0);
+            $currentRole = 'Élève';
+        } else {
+            $usr = $user->scopedUserSchoolRole($schoolId ?? 0);
+            $currentRole = $user->activeRoleAt($schoolId ?? 0);
+        }
+
+        $allowedSectionUserIds = $this->resolveAllowedSectionUserIds($usr, $currentRole);
+
+        if ($allowedSectionUserIds !== null) {
+            abort_unless(
+                $allowedSectionUserIds->contains($schedule->sectionCourse?->section_user_id),
+                404
+            );
+        }
+
         $schedule->load('sectionCourse.course', 'timesheets.userSchoolRole.user');
 
         return Inertia::render('power-user/web/Schedules/Show', [
@@ -183,5 +233,42 @@ class SchedulesController extends Controller
                 $fail('Cette matière n\'appartient pas à votre établissement.');
             }
         };
+    }
+
+    /**
+     * Rôles voyant l'horaire de toute l'école. Même liste que
+     * DashboardController::MANAGE_ROLES — à garder synchronisée si l'une
+     * des deux change (Administrateur volontairement exclu, cf. CLAUDE.md :
+     * pas d'autorité sur le contenu académique d'une école en particulier).
+     */
+    private const MANAGE_ROLES = ['Power User', 'Directeur'];
+
+    /**
+     * Ensemble des section_user_id auxquels $currentRole a droit de regard,
+     * ou null si aucune restriction ne s'applique (rôle de gestion : toute
+     * l'école). Même logique que DashboardController::weekSchedule() — à
+     * garder synchronisée si l'une des deux évolue.
+     */
+    private function resolveAllowedSectionUserIds(?UserSchoolRole $usr, ?string $currentRole): ?\Illuminate\Support\Collection
+    {
+        if (in_array($currentRole, self::MANAGE_ROLES, true)) {
+            return null;
+        }
+
+        if (! $usr) {
+            return collect();
+        }
+
+        if ($currentRole === 'Professeur') {
+            return SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
+        }
+
+        // Élève (et tout rôle sans portée de gestion connue, y compris l'enfant
+        // d'un Parent) : sections où $usr est inscrit, puis tous les
+        // section_user_id de ces sections (profs compris), pour que les
+        // créneaux des cours qu'il suit apparaissent.
+        $sectionIds = SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('section_id');
+
+        return SectionUserSchoolRole::whereIn('section_id', $sectionIds)->pluck('id');
     }
 }
