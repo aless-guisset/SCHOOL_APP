@@ -236,12 +236,17 @@ class SchedulesController extends Controller
     }
 
     /**
-     * Rôles voyant l'horaire de toute l'école. Même liste que
-     * DashboardController::MANAGE_ROLES — à garder synchronisée si l'une
-     * des deux change (Administrateur volontairement exclu, cf. CLAUDE.md :
-     * pas d'autorité sur le contenu académique d'une école en particulier).
+     * Rôles voyant l'horaire de toute l'école : union de « écrit largement le
+     * contenu académique » (Power User, Secrétariat) et « lit toute l'école »
+     * (Directeur). Diverge volontairement de DashboardController::MANAGE_ROLES,
+     * qui omet Secrétariat : celui-ci écrit les horaires via `can-manage`
+     * (EnsureCanManage::MANAGE_ROLES) et doit donc les voir tous, alors qu'il
+     * n'a pas d'équivalent côté widget lecture seule du dashboard. Professeur
+     * en est exclu à dessein — le limiter à ses propres sections est tout
+     * l'objet de ce scoping. Administrateur aussi (cf. CLAUDE.md : pas
+     * d'autorité sur le contenu académique d'une école en particulier).
      */
-    private const MANAGE_ROLES = ['Power User', 'Directeur'];
+    private const MANAGE_ROLES = ['Power User', 'Secrétariat', 'Directeur'];
 
     /**
      * Ensemble des section_user_id auxquels $currentRole a droit de regard,
