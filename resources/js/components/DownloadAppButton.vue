@@ -18,10 +18,17 @@ interface BeforeInstallPromptEvent extends Event {
     prompt(): Promise<void>;
 }
 
+declare global {
+    interface Window {
+        Capacitor?: { isNativePlatform?: () => boolean };
+    }
+}
+
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const isStandalone = ref(
     typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches,
 );
+const isNativePlatform = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
 const instructionsOpen = ref(false);
 
 function handleBeforeInstallPrompt(event: Event) {
@@ -49,7 +56,7 @@ async function handleClick() {
 </script>
 
 <template>
-    <Button v-if="!isStandalone" variant="ghost" size="icon" @click="handleClick">
+    <Button v-if="!isStandalone && !isNativePlatform" variant="ghost" size="icon" @click="handleClick">
         <Download class="size-5" />
         <span class="sr-only">Télécharger l'application</span>
     </Button>

@@ -78,11 +78,11 @@ export default defineConfig({
             base: '/',
             registerType: 'autoUpdate',
             injectRegister: false,
-            includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
             manifest: {
                 name: 'School App',
                 short_name: 'School App',
                 description: 'Gestion scolaire — notes, horaires, absences.',
+                lang: 'fr',
                 theme_color: '#171717',
                 background_color: '#ffffff',
                 display: 'standalone',
