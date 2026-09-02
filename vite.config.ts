@@ -13,6 +13,15 @@ import { VitePWA } from 'vite-plugin-pwa';
 // output dir (public/build/, set by laravel-vite-plugin), ignoring the
 // plugin's `outDir` option. Relocate it to the true site root after build
 // so it's reachable at /manifest.webmanifest instead of /build/manifest.webmanifest.
+//
+// `npm run build:ssr` runs `vite build && vite build --ssr` — this plugin's
+// writeBundle hook fires for both passes, but the SSR pass never emits its
+// own manifest.webmanifest (SSR output goes elsewhere), so `from` correctly
+// won't exist on that second pass; `to` will already exist from the first
+// pass. Only the combination of "neither file exists" means the relocation
+// genuinely failed — a future vite-plugin-pwa upgrade could change the
+// emitted path/filename and silently break this. Fail the build loudly in
+// that case instead of shipping a stale or missing manifest.
 function relocatePwaManifest(): Plugin {
     return {
         name: 'relocate-pwa-manifest',
@@ -22,6 +31,13 @@ function relocatePwaManifest(): Plugin {
             const to = path.resolve(__dirname, 'public/manifest.webmanifest');
             if (fs.existsSync(from)) {
                 fs.renameSync(from, to);
+            }
+            if (!fs.existsSync(to)) {
+                throw new Error(
+                    `[relocate-pwa-manifest] Expected ${to} to exist after build, but it doesn't. ` +
+                        `vite-plugin-pwa likely emitted manifest.webmanifest to a different path than ` +
+                        `${from} (check for an outDir/filename/version change) — update relocatePwaManifest() accordingly.`,
+                );
             }
         },
     };
