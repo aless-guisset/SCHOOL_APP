@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Download } from 'lucide-vue-next';
-import { onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -19,7 +19,9 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
-const isStandalone = ref(window.matchMedia('(display-mode: standalone)').matches);
+const isStandalone = ref(
+    typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches,
+);
 const instructionsOpen = ref(false);
 
 function handleBeforeInstallPrompt(event: Event) {
@@ -27,7 +29,9 @@ function handleBeforeInstallPrompt(event: Event) {
     deferredPrompt.value = event as BeforeInstallPromptEvent;
 }
 
-window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+onMounted(() => {
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+});
 
 onUnmounted(() => {
     window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
