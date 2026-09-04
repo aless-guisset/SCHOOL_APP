@@ -92,6 +92,13 @@ export default defineConfig({
                     { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
                     { src: '/maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
                 ],
+                // Auto-référence requise par navigator.getInstalledRelatedApps() pour
+                // détecter que CETTE PWA est déjà installée, même depuis un onglet
+                // classique (pas seulement en la consultant depuis l'app installée).
+                // prefer_related_applications reste à false (défaut) : on ne veut pas
+                // supprimer notre propre prompt d'installation, juste pouvoir détecter
+                // l'état déjà-installé en plus.
+                related_applications: [{ platform: 'webapp', url: '/manifest.webmanifest' }],
             },
             workbox: {
                 // Inertia sert chaque navigation via une vraie requête serveur

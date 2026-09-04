@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Download, Share } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -23,6 +23,11 @@ declare global {
     interface Window {
         Capacitor?: { isNativePlatform?: () => boolean };
     }
+    interface Navigator {
+        // API récente, absente des types DOM standard — cf. related_applications
+        // dans le manifest (vite.config.ts) pour la config qui la rend utilisable.
+        getInstalledRelatedApps?: () => Promise<unknown[]>;
+    }
 }
 
 // deferredPrompt vit au niveau du module (usePwaInstall), pas ici : chaque
@@ -36,6 +41,23 @@ const isStandalone = ref(
 );
 const isNativePlatform = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
 const instructionsOpen = ref(false);
+
+// Détecte une installation existante même consultée depuis un onglet normal
+// (pas seulement depuis l'app installée, contrairement à isStandalone) — le
+// menu ⋮ natif du navigateur peut proposer "Installer" tout en sachant très
+// bien, lui, que c'est déjà fait ; sans cette détection notre bouton n'avait
+// aucun moyen de le savoir et tombait sur des instructions qui n'ont pas de
+// sens dans ce cas. Async, seulement sur Chrome/Edge — pas de faux négatif
+// gênant sur Safari/Firefox, ils passent simplement par les branches
+// existantes du dialogue de repli.
+const isAlreadyInstalled = ref(false);
+onMounted(async () => {
+    if (typeof navigator === 'undefined' || !navigator.getInstalledRelatedApps) {
+        return;
+    }
+    const related = await navigator.getInstalledRelatedApps();
+    isAlreadyInstalled.value = related.length > 0;
+});
 
 // iPadOS 13+ se présente comme "MacIntel" dans l'UA — le tactile est le seul
 // signal fiable pour le distinguer d'un vrai Mac.
@@ -60,6 +82,11 @@ const isChromiumInstallable = typeof navigator !== 'undefined' && !isIOS && !isS
     /Chrome|Chromium|Edg|OPR|SamsungBrowser/i.test(navigator.userAgent);
 
 async function handleClick() {
+    if (isAlreadyInstalled.value) {
+        instructionsOpen.value = true;
+        return;
+    }
+
     if (deferredPrompt.value) {
         await deferredPrompt.value.prompt();
         deferredPrompt.value = null;
@@ -80,7 +107,10 @@ async function handleClick() {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Installer l'application</DialogTitle>
-                <DialogDescription v-if="isIOS" class="flex items-start gap-2">
+                <DialogDescription v-if="isAlreadyInstalled">
+                    L'application est déjà installée sur cet appareil.
+                </DialogDescription>
+                <DialogDescription v-else-if="isIOS" class="flex items-start gap-2">
                     <Share class="mt-0.5 size-4 shrink-0" />
                     <span>
                         Appuyez sur l'icône <strong>Partager</strong> en bas de l'écran (ou en haut,
