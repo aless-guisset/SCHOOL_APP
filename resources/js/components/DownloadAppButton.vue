@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download } from 'lucide-vue-next';
+import { Download, Share } from 'lucide-vue-next';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,10 +10,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 
-// Un seul mécanisme, pas de détection par OS : si beforeinstallprompt s'est
-// déclenché (Chrome/Edge, mobile et desktop), on propose le prompt natif.
-// Sinon (Safari iOS, Firefox desktop — l'événement n'existe pas), on affiche
-// des instructions manuelles génériques.
+// Mécanisme principal : si beforeinstallprompt s'est déclenché (Chrome/Edge,
+// mobile et desktop), on propose le prompt natif. Sinon (Safari iOS/macOS,
+// Firefox desktop — l'événement n'existe sur aucun de ces navigateurs, et
+// aucune API web ne permet de déclencher une installation programmatique sur
+// Safari : c'est une restriction volontaire d'Apple, pas quelque chose de
+// contournable côté code), on affiche des instructions manuelles — adaptées
+// à Safari iOS/macOS spécifiquement puisque ce sont nos deux cas connus les
+// plus fréquents, génériques sinon (Firefox desktop, etc.).
 interface BeforeInstallPromptEvent extends Event {
     prompt(): Promise<void>;
 }
@@ -30,6 +34,18 @@ const isStandalone = ref(
 );
 const isNativePlatform = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
 const instructionsOpen = ref(false);
+
+// iPadOS 13+ se présente comme "MacIntel" dans l'UA — le tactile est le seul
+// signal fiable pour le distinguer d'un vrai Mac.
+const isIOS = typeof navigator !== 'undefined' && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+);
+// Exclut les navigateurs basés sur Chromium/Gecko qui incluent "Safari" dans
+// leur UA par convention historique (Chrome, Edge, et sur iOS — Chrome/
+// Firefox y tournent tous sur le moteur WebKit de Safari, même limitation).
+const isSafari = typeof navigator !== 'undefined' &&
+    /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
 
 function handleBeforeInstallPrompt(event: Event) {
     event.preventDefault();
@@ -65,7 +81,21 @@ async function handleClick() {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Installer l'application</DialogTitle>
-                <DialogDescription>
+                <DialogDescription v-if="isIOS" class="flex items-start gap-2">
+                    <Share class="mt-0.5 size-4 shrink-0" />
+                    <span>
+                        Appuyez sur l'icône <strong>Partager</strong> en bas de l'écran (ou en haut,
+                        selon votre navigateur), puis choisissez « <strong>Sur l'écran d'accueil</strong> ».
+                    </span>
+                </DialogDescription>
+                <DialogDescription v-else-if="isSafari" class="flex items-start gap-2">
+                    <Share class="mt-0.5 size-4 shrink-0" />
+                    <span>
+                        Cliquez sur l'icône <strong>Partager</strong> dans la barre d'outils Safari,
+                        à côté de la barre d'adresse, puis choisissez « <strong>Ajouter au Dock</strong> ».
+                    </span>
+                </DialogDescription>
+                <DialogDescription v-else>
                     Ouvrez le menu de partage ou d'options de votre navigateur, puis choisissez
                     « Ajouter à l'écran d'accueil » (ou « Installer l'application »).
                 </DialogDescription>
