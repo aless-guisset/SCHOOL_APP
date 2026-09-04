@@ -37,6 +37,19 @@ test('un élève ne peut pas accéder au formulaire de soumission d\'école', fu
         ->assertForbidden();
 });
 
+test('un élève ne peut pas accéder au formulaire même sans active_school_id en session', function () {
+    // /school/create est volontairement exclu de CheckSchoolContext, donc
+    // active_school_id peut ne jamais avoir été écrit en session avant cette
+    // requête (ex: juste après connexion, sans être passé par /dashboard) —
+    // le blocage doit tenir même dans ce cas.
+    $school = makeSubmitSchoolSchool();
+    $student = makeSubmitSchoolUsr($school, makeSubmitSchoolRole('ELEVE', 'Élève'))->user;
+
+    $this->actingAs($student)
+        ->get('/school/create')
+        ->assertForbidden();
+});
+
 test('un élève ne peut pas soumettre une école', function () {
     $school = makeSubmitSchoolSchool();
     $student = makeSubmitSchoolUsr($school, makeSubmitSchoolRole('ELEVE', 'Élève'))->user;
