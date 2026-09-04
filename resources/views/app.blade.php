@@ -41,6 +41,22 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
+        {{--
+            Capture beforeinstallprompt ici, avant même que le bundle Vue (chargé en
+            <script type="module">, donc toujours différé) n'ait fini de s'exécuter —
+            Chrome peut déclencher cet événement très tôt pendant le chargement de la
+            page, et il ne se rejoue jamais si personne ne l'écoute encore à ce
+            moment-là. resources/js/composables/usePwaInstall.ts lit
+            window.__pwaInstallPrompt au démarrage pour récupérer une capture faite ici.
+        --}}
+        <script>
+            window.__pwaInstallPrompt = null;
+            window.addEventListener('beforeinstallprompt', function (event) {
+                event.preventDefault();
+                window.__pwaInstallPrompt = event;
+            });
+        </script>
+
         @vite(['resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         @inertiaHead
     </head>
