@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Download, Share } from 'lucide-vue-next';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -9,6 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { usePwaInstall } from '@/composables/usePwaInstall';
 
 // Mécanisme principal : si beforeinstallprompt s'est déclenché (Chrome/Edge,
 // mobile et desktop), on propose le prompt natif. Sinon (Safari iOS/macOS,
@@ -18,17 +19,18 @@ import {
 // contournable côté code), on affiche des instructions manuelles — adaptées
 // à Safari iOS/macOS spécifiquement puisque ce sont nos deux cas connus les
 // plus fréquents, génériques sinon (Firefox desktop, etc.).
-interface BeforeInstallPromptEvent extends Event {
-    prompt(): Promise<void>;
-}
-
 declare global {
     interface Window {
         Capacitor?: { isNativePlatform?: () => boolean };
     }
 }
 
-const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
+// deferredPrompt vit au niveau du module (usePwaInstall), pas ici : chaque
+// page enveloppe son propre <AppLayout> (pas de layout persistant Inertia),
+// donc ce composant est démonté/remonté à chaque navigation — un état local
+// perdait l'événement capturé dès la première navigation vers une autre
+// page, forçant le message de repli pour le reste de la session.
+const { deferredPrompt } = usePwaInstall();
 const isStandalone = ref(
     typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches,
 );
@@ -57,19 +59,6 @@ const isSafari = typeof navigator !== 'undefined' &&
 // instructions génériques (fausses ici : Chrome n'a pas de "menu de partage").
 const isChromiumInstallable = typeof navigator !== 'undefined' && !isIOS && !isSafari &&
     /Chrome|Chromium|Edg|OPR|SamsungBrowser/i.test(navigator.userAgent);
-
-function handleBeforeInstallPrompt(event: Event) {
-    event.preventDefault();
-    deferredPrompt.value = event as BeforeInstallPromptEvent;
-}
-
-onMounted(() => {
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-});
-
-onUnmounted(() => {
-    window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-});
 
 async function handleClick() {
     if (deferredPrompt.value) {
