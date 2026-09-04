@@ -101,6 +101,16 @@ export default defineConfig({
                 // installable, pas pour un mode hors-ligne.
                 globPatterns: [],
                 navigateFallback: null,
+                // Sans ça, le SW fraîchement enregistré au tout premier chargement
+                // n'active/ne contrôle la page qu'au rechargement suivant — et
+                // Chrome ne déclenche `beforeinstallprompt` qu'une fois le SW actif
+                // ET en contrôle. Résultat observé en prod : le bouton Télécharger
+                // tombe sur les instructions manuelles au premier clic, même sur
+                // Chrome, jusqu'à un F5. skipWaiting + clientsClaim font prendre le
+                // contrôle immédiatement, dès la toute première visite — sans risque
+                // ici puisqu'aucun contenu n'est mis en cache (globPatterns: []).
+                skipWaiting: true,
+                clientsClaim: true,
             },
         }),
         relocatePwaManifest(),

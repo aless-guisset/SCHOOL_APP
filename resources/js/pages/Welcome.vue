@@ -4,6 +4,8 @@ import { Download, Moon, Sun } from 'lucide-vue-next';
 import { onMounted, onUnmounted } from 'vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { login, register } from '@/routes';
+import { edit } from '@/routes/profile';
+import { create as createSchool } from '@/routes/school';
 
 const { resolvedAppearance, updateAppearance } = useAppearance();
 
@@ -15,10 +17,12 @@ withDefaults(
     defineProps<{
         canRegister: boolean;
         auth?: { user?: { roles?: string[] } };
+        currentRole?: string | null;
     }>(),
     {
         canRegister: true,
         auth: undefined,
+        currentRole: null,
     },
 );
 
@@ -111,7 +115,7 @@ onUnmounted(() => {
                     <Sun v-else :size="16" />
                 </button>
                 <template v-if="auth?.user">
-                    <button class="btn btn-sm off" disabled>Soumettre une école</button>
+                    <Link v-if="currentRole !== 'Élève'" :href="createSchool()" class="btn btn-sm btn-ghost">Soumettre une école</Link>
                     <button
                         v-if="auth?.user?.roles?.includes('super_admin')"
                         class="btn btn-sm off"
@@ -119,12 +123,12 @@ onUnmounted(() => {
                     >
                         Admin panel
                     </button>
-                    <button class="avatar off" disabled title="Profil">
+                    <Link :href="edit()" class="avatar" title="Profil">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <circle cx="12" cy="8" r="4" />
                             <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
                         </svg>
-                    </button>
+                    </Link>
                 </template>
                 <template v-else>
                     <Link :href="login()" class="btn btn-sm btn-ghost">Se connecter</Link>

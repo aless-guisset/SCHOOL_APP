@@ -99,10 +99,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/school/activate', [SchoolOnboardingController::class, 'activate'])
         ->name('school.activate');
 
-    // Demande de création d'école
+    // Demande de création d'école — un Élève appartient déjà à une école active
     Route::get('/school/create', [SchoolOnboardingController::class, 'create'])
+        ->middleware('can-submit-school')
         ->name('school.create');
     Route::post('/school/create', [SchoolOnboardingController::class, 'store'])
+        ->middleware('can-submit-school')
         ->name('school.store');
 
     // Définir l'école par défaut
