@@ -29,6 +29,9 @@ const props = defineProps<{
     can_order?: boolean;
     my_order?: { id: number; cantine_menu_id: number } | null;
     viewing_child?: string | null;
+    balance?: number | null;
+    meal_price?: number | null;
+    can_top_up?: boolean;
 }>();
 
 // as_parent=1 doit survivre aux navigations internes (changement de date) :
@@ -102,6 +105,12 @@ function cancelOrder() {
     if (!props.my_order) return;
     if (confirm('Annuler cette commande ?')) router.delete(`/cantine/orders/${props.my_order.id}`, { preserveScroll: true });
 }
+
+// ── Parent : recharger le solde de l'enfant ─────────────────────────────────
+const topUpForm = useForm({ amount: 10 });
+function topUp() {
+    topUpForm.post('/cantine/wallet/top-up', { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -110,6 +119,22 @@ function cancelOrder() {
         <div class="p-4 md:p-6 max-w-2xl">
             <FlashMessage />
             <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
+
+            <Card v-if="balance !== null && balance !== undefined" class="mb-4">
+                <CardHeader><CardTitle class="text-base">Solde cantine</CardTitle></CardHeader>
+                <CardContent class="space-y-3">
+                    <p class="text-2xl font-semibold">{{ balance.toFixed(2) }} €</p>
+                    <p v-if="meal_price" class="text-xs text-muted-foreground">Prix du repas : {{ meal_price.toFixed(2) }} €</p>
+                    <form v-if="can_top_up" class="flex items-end gap-2" @submit.prevent="topUp">
+                        <div class="space-y-1.5">
+                            <Label class="text-xs">Montant à recharger (€)</Label>
+                            <Input v-model.number="topUpForm.amount" type="number" min="5" max="500" step="0.01" class="h-8 w-32" />
+                        </div>
+                        <Button type="submit" size="sm" :disabled="topUpForm.processing || topUpForm.amount < 5">Recharger</Button>
+                    </form>
+                    <p v-if="topUpForm.errors.amount" class="text-xs text-destructive">{{ topUpForm.errors.amount }}</p>
+                </CardContent>
+            </Card>
 
             <PageHeader title="Cantine" :description="formattedDate">
                 <template #actions>

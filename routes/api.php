@@ -6,11 +6,14 @@ use App\Http\Controllers\ResourcesController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\SchoolsController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\SubjectsController;
 use App\Http\Controllers\TimesheetsController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])->name('webhooks.stripe');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn (Request $r) => $r->user());

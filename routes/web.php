@@ -4,6 +4,7 @@ use App\Http\Controllers\AccessRequestsController;
 use App\Http\Controllers\ActivityLogsController;
 use App\Http\Controllers\AttendancesController;
 use App\Http\Controllers\CantineController;
+use App\Http\Controllers\CantineWalletController;
 use App\Http\Controllers\ClassroomsController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
@@ -218,6 +219,9 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::get('/cantine', [CantineController::class, 'index'])->name('cantine.index');
     Route::post('/cantine/orders', [CantineController::class, 'storeOrder'])->name('cantine.orders.store');
     Route::delete('/cantine/orders/{cantineOrder}', [CantineController::class, 'destroyOrder'])->name('cantine.orders.destroy');
+    Route::post('/cantine/wallet/top-up', [CantineWalletController::class, 'topUp'])->name('cantine.wallet.top-up');
+    Route::get('/cantine/wallet/top-up/success', [CantineWalletController::class, 'topUpSuccess'])->name('cantine.wallet.top-up.success');
+    Route::get('/cantine/wallet/top-up/cancel', [CantineWalletController::class, 'topUpCancel'])->name('cantine.wallet.top-up.cancel');
 
     Route::get('/grades', [GradesController::class, 'index'])->name('grades.index');
     Route::get('/grades/bulletin/{sectionUser}', [GradesController::class, 'bulletin'])->name('grades.bulletin');

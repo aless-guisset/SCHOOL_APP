@@ -89,6 +89,9 @@ class CantineController extends Controller
                     ->where('is_active', true)
                     ->first(['id', 'cantine_menu_id'])
                 : null;
+            $props['balance'] = $displaySectionUser ? $displaySectionUser->cantineBalance() : null;
+            $props['meal_price'] = School::find($schoolId)?->cantine_meal_price;
+            $props['can_top_up'] = $asParent && (bool) $displaySectionUser;
         }
 
         return Inertia::render('power-user/web/Cantine/Index', $props);
