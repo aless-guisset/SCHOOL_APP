@@ -31,6 +31,7 @@ class School extends Model
         'access_code',
         'is_active',
         'cantine_enabled',
+        'cantine_meal_price',
         'year_end_date',
         'created_by',
         'updated_by',
@@ -40,6 +41,7 @@ class School extends Model
         'is_active' => 'boolean',
         'is_deleted' => 'boolean',
         'cantine_enabled' => 'boolean',
+        'cantine_meal_price' => 'float',
         'year_end_date' => 'date',
     ];
 }

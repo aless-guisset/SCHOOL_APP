@@ -53,4 +53,20 @@ class SectionUserSchoolRole extends Model
     {
         return $this->hasMany(SectionCourse::class, 'section_user_id');
     }
+
+    public function cantineTransactions()
+    {
+        return $this->hasMany(CantineTransaction::class, 'section_user_id');
+    }
+
+    /**
+     * Le solde n'est jamais stocké comme compteur à part — toujours recalculé
+     * depuis le registre de transactions, pour éliminer tout risque de
+     * désynchronisation. Le volume par élève reste trop faible pour que ça
+     * coûte en performance.
+     */
+    public function cantineBalance(): float
+    {
+        return (float) $this->cantineTransactions()->where('is_active', true)->sum('amount');
+    }
 }
