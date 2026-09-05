@@ -11,12 +11,23 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SchoolOnboardingController extends Controller
 {
     use PasswordValidationRules, ProfileValidationRules;
+
+    /**
+     * Rôles invitables dès la création d'un établissement — inclut Directeur
+     * (un co-directeur, en plus du fondateur qui reçoit déjà automatiquement
+     * ce rôle à l'approbation). Volontairement séparée de
+     * SchoolAccessController::JOINABLE_ROLES, utilisée par le rejoindre-par-code
+     * et les invitations post-approbation, où Directeur ne doit pas être aussi
+     * facilement accessible.
+     */
+    public const CREATION_INVITABLE_ROLES = ['PROF', 'SEC', 'POWER', 'DIR'];
 
     /**
      * Formulaire de création de compte fondateur d'établissement.
@@ -130,11 +141,19 @@ class SchoolOnboardingController extends Controller
             'phone_number' => 'nullable|string|max:20',
             'address'      => 'nullable|string|max:255',
             'description'  => 'nullable|string',
+            'cantine_enabled' => 'boolean',
+            'cantine_meal_price' => 'required_if:cantine_enabled,true|nullable|numeric|min:0',
+            'invites' => 'array',
+            'invites.*.email' => 'required|email|max:191',
+            'invites.*.role_reference' => ['required', 'string', Rule::in(self::CREATION_INVITABLE_ROLES)],
         ]);
 
         $data['status'] = 'P'; // P = Pending (en attente d'approbation admin)
         $data['is_active'] = false;
         $data['created_by'] = $request->user()->id;
+        $data['cantine_enabled'] = $data['cantine_enabled'] ?? false;
+        $data['pending_invites'] = ! empty($data['invites']) ? $data['invites'] : null;
+        unset($data['invites']);
 
         $school = School::create($data);
 

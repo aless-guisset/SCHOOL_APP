@@ -32,6 +32,7 @@ class School extends Model
         'is_active',
         'cantine_enabled',
         'cantine_meal_price',
+        'pending_invites',
         'year_end_date',
         'created_by',
         'updated_by',
@@ -42,6 +43,7 @@ class School extends Model
         'is_deleted' => 'boolean',
         'cantine_enabled' => 'boolean',
         'cantine_meal_price' => 'float',
+        'pending_invites' => 'array',
         'year_end_date' => 'date',
     ];
 }
