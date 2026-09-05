@@ -2,26 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\CreatesSchoolInvitations;
 use App\Concerns\GrantsSchoolRoles;
 use App\Concerns\PasswordValidationRules;
-use App\Models\Role;
 use App\Models\School;
 use App\Models\SchoolInvitation;
 use App\Models\User;
-use App\Notifications\SchoolInvitationNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SchoolInvitationsController extends Controller
 {
-    use GrantsSchoolRoles, PasswordValidationRules;
+    use CreatesSchoolInvitations, GrantsSchoolRoles, PasswordValidationRules;
 
     public function store(Request $request): RedirectResponse
     {
@@ -31,33 +28,8 @@ class SchoolInvitationsController extends Controller
         ]);
 
         $school = School::findOrFail(session('active_school_id'));
-        $role = Role::where('reference', $data['role_reference'])->firstOrFail();
 
-        // Une nouvelle invitation remplace toute invitation encore active pour
-        // la même adresse dans cette école — évite d'avoir plusieurs liens
-        // valides en même temps pour la même personne (peu importe le rôle
-        // proposé la première fois).
-        SchoolInvitation::where('school_id', $school->id)
-            ->where('email', $data['email'])
-            ->where('is_active', true)
-            ->whereNull('accepted_at')
-            ->get()
-            ->each(function (SchoolInvitation $old) use ($request) {
-                $old->update(['is_active' => false, 'updated_by' => $request->user()->id]);
-                $old->delete();
-            });
-
-        $invitation = SchoolInvitation::create([
-            'school_id' => $school->id,
-            'email' => $data['email'],
-            'role_id' => $role->id,
-            'token' => Str::random(48),
-            'expires_at' => now()->addDays(7),
-            'is_active' => true,
-            'created_by' => $request->user()->id,
-        ]);
-
-        Notification::route('mail', $data['email'])->notify(new SchoolInvitationNotification($invitation));
+        $this->createSchoolInvitation($school, $data['email'], $data['role_reference'], $request->user()->id);
 
         return back()->with('flash', ['type' => 'success', 'message' => "Invitation envoyée à {$data['email']}."]);
     }

@@ -2,8 +2,11 @@
 
 use App\Models\Role;
 use App\Models\School;
+use App\Models\SchoolInvitation;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use App\Notifications\SchoolInvitationNotification;
+use Illuminate\Support\Facades\Notification;
 
 function makeSchoolsCtrlAdmin(): User
 {
@@ -88,4 +91,66 @@ test('approving a school recovers a previously soft-deleted Directeur role inste
         ->and($directeurRole->trashed())->toBeFalse()
         ->and($directeurRole->status)->toBe('A')
         ->and($directeurRole->is_active)->toBeTrue();
+});
+
+test('approving a school converts pending invitation drafts into real invitations and sends emails', function () {
+    Notification::fake();
+    Role::firstOrCreate(['reference' => 'DIR'], ['name' => 'Directeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    Role::firstOrCreate(['reference' => 'PROF'], ['name' => 'Professeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $founder = User::factory()->create();
+    $school = School::create([
+        'name' => 'École Avec Invites', 'status' => 'P', 'is_active' => false, 'created_by' => $founder->id,
+        'pending_invites' => [
+            ['email' => 'prof@example.com', 'role_reference' => 'PROF'],
+        ],
+    ]);
+    $admin = makeSchoolsCtrlAdmin();
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => UserSchoolRole::where('user_id', $admin->id)->first()->school_id])
+        ->post("/schools/{$school->id}/approve")
+        ->assertRedirect();
+
+    $invitation = SchoolInvitation::where('email', 'prof@example.com')->first();
+    expect($invitation)->not->toBeNull()
+        ->and($invitation->role->reference)->toBe('PROF')
+        ->and($invitation->school_id)->toBe($school->id);
+
+    Notification::assertSentOnDemand(SchoolInvitationNotification::class);
+
+    expect($school->fresh()->pending_invites)->toBeNull();
+});
+
+test('approving a school with no pending invites does not create any invitation', function () {
+    Role::firstOrCreate(['reference' => 'DIR'], ['name' => 'Directeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $founder = User::factory()->create();
+    $school = School::create([
+        'name' => 'École Sans Invites Approve', 'status' => 'P', 'is_active' => false, 'created_by' => $founder->id,
+    ]);
+    $admin = makeSchoolsCtrlAdmin();
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => UserSchoolRole::where('user_id', $admin->id)->first()->school_id])
+        ->post("/schools/{$school->id}/approve")
+        ->assertRedirect();
+
+    expect(SchoolInvitation::count())->toBe(0);
+});
+
+test('rejecting a school with pending invitation drafts never converts them', function () {
+    $founder = User::factory()->create();
+    $school = School::create([
+        'name' => 'École Refusée Avec Invites', 'status' => 'P', 'is_active' => false, 'created_by' => $founder->id,
+        'pending_invites' => [
+            ['email' => 'prof@example.com', 'role_reference' => 'PROF'],
+        ],
+    ]);
+    $admin = makeSchoolsCtrlAdmin();
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => UserSchoolRole::where('user_id', $admin->id)->first()->school_id])
+        ->post("/schools/{$school->id}/reject")
+        ->assertRedirect();
+
+    expect(SchoolInvitation::count())->toBe(0);
 });

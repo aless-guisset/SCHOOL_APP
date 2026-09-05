@@ -221,3 +221,15 @@ test('a non-Directeur cannot cancel an invitation', function () {
 
     expect(SchoolInvitation::find($invitation->id))->not->toBeNull();
 });
+
+test('the post-approval invitation flow still refuses Directeur as an invitable role', function () {
+    $school = makeInvSchool();
+    $directeur = makeInvDirecteur($school);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/invitations', ['email' => 'wouldbecodir@example.com', 'role_reference' => 'DIR'])
+        ->assertSessionHasErrors('role_reference');
+
+    expect(SchoolInvitation::where('email', 'wouldbecodir@example.com')->count())->toBe(0);
+});

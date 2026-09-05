@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\CreatesSchoolInvitations;
 use App\Concerns\GrantsSchoolRoles;
 use App\Models\Role;
 use App\Models\School;
@@ -11,7 +12,7 @@ use Inertia\Response;
 
 class SchoolsController extends Controller
 {
-    use GrantsSchoolRoles;
+    use CreatesSchoolInvitations, GrantsSchoolRoles;
 
     public function index(): Response
     {
@@ -53,10 +54,13 @@ class SchoolsController extends Controller
     {
         abort_if($school->status !== 'P', 422, 'Cette école n\'est plus en attente d\'approbation.');
 
+        $pendingInvites = $school->pending_invites ?? [];
+
         $school->update([
             'status'      => 'A',
             'is_active'   => true,
             'access_code' => $school->access_code ?? $this->generateAccessCode(),
+            'pending_invites' => null,
             'updated_by'  => $request->user()->id,
         ]);
 
@@ -65,6 +69,10 @@ class SchoolsController extends Controller
             $this->grantOrRestoreSchoolRole(
                 $school->created_by, $school->id, $directeurRole->id, 'A', $request->user()->id
             );
+        }
+
+        foreach ($pendingInvites as $invite) {
+            $this->createSchoolInvitation($school, $invite['email'], $invite['role_reference'], $request->user()->id);
         }
 
         return redirect()->route('schools.pending')
