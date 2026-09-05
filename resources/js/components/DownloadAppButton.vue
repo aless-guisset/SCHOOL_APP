@@ -36,23 +36,24 @@ declare global {
 // perdait l'événement capturé dès la première navigation vers une autre
 // page, forçant le message de repli pour le reste de la session.
 const { deferredPrompt } = usePwaInstall();
-const isStandalone = ref(
-    typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches,
-);
+const isStandalone = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
 const isNativePlatform = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
 const instructionsOpen = ref(false);
 
-// Détecte une installation existante même consultée depuis un onglet normal
-// (pas seulement depuis l'app installée, contrairement à isStandalone) — le
-// menu ⋮ natif du navigateur peut proposer "Installer" tout en sachant très
-// bien, lui, que c'est déjà fait ; sans cette détection notre bouton n'avait
-// aucun moyen de le savoir et tombait sur des instructions qui n'ont pas de
-// sens dans ce cas. Async, seulement sur Chrome/Edge — pas de faux négatif
-// gênant sur Safari/Firefox, ils passent simplement par les branches
-// existantes du dialogue de repli.
-const isAlreadyInstalled = ref(false);
+// Détecte une installation existante — soit synchronement (isStandalone :
+// on tourne littéralement DANS l'app installée en ce moment, pas besoin
+// d'attendre l'API async pour le savoir), soit via
+// navigator.getInstalledRelatedApps() pour le cas moins évident, consulté
+// depuis un onglet normal alors que l'app est installée ailleurs sur
+// l'appareil : le menu ⋮ du navigateur peut le savoir sans que notre JS le
+// sache par défaut. Le bouton reste affiché dans les deux cas (pas caché) —
+// cliquer dessus affiche l'alerte "déjà installée" au lieu du dialogue
+// d'instructions habituel. Async, seulement sur Chrome/Edge — pas de faux
+// négatif gênant sur Safari/Firefox, ils passent simplement par les
+// branches existantes du dialogue de repli.
+const isAlreadyInstalled = ref(isStandalone);
 onMounted(async () => {
-    if (typeof navigator === 'undefined' || !navigator.getInstalledRelatedApps) {
+    if (isAlreadyInstalled.value || typeof navigator === 'undefined' || !navigator.getInstalledRelatedApps) {
         return;
     }
     const related = await navigator.getInstalledRelatedApps();
@@ -98,7 +99,7 @@ async function handleClick() {
 </script>
 
 <template>
-    <Button v-if="!isStandalone && !isNativePlatform" variant="ghost" size="icon" @click="handleClick">
+    <Button v-if="!isNativePlatform" variant="ghost" size="icon" @click="handleClick">
         <Download class="size-5" />
         <span class="sr-only">Télécharger l'application</span>
     </Button>
