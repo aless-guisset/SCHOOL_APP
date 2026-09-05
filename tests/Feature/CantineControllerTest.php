@@ -93,6 +93,19 @@ test('index shows the roster (not my_order) for a power user, on the given date 
         );
 });
 
+test('index gives a power user the configured meal_price alongside the roster', function () {
+    $school = makeCantinePricedSchool(price: 4.5);
+    $powerUser = makeCantineUsr($school, makeCantineRole('POWER', 'Power User'))->user;
+    $date = Carbon::today()->toDateString();
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/cantine?date='.$date)
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('meal_price', 4.5)
+        );
+});
+
 test('index shows my_order (not roster) for a student', function () {
     $school = makeCantineSchool();
     $student = makeCantineStudent($school);

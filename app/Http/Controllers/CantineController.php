@@ -59,6 +59,8 @@ class CantineController extends Controller
                 'is_present' => $o->is_present,
                 'note' => $o->note,
             ])->sortBy('name')->values();
+
+            $props['meal_price'] = School::find($schoolId)?->cantine_meal_price;
         } else {
             // currentSectionUser() reste basé sur auth()->id() : c'est ce qui
             // garantit qu'un Parent n'a jamais de $sectionUser via ce chemin.
