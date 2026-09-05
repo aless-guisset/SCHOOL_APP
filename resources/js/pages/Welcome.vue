@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Download, Moon, Sun } from 'lucide-vue-next';
+import { Download, Home, Moon, Sun } from 'lucide-vue-next';
 import { onMounted, onUnmounted } from 'vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { login, register } from '@/routes';
-import { edit } from '@/routes/profile';
 import { create as createSchool } from '@/routes/school';
 
 const { resolvedAppearance, updateAppearance } = useAppearance();
@@ -123,11 +122,8 @@ onUnmounted(() => {
                     >
                         Admin panel
                     </button>
-                    <Link :href="edit()" class="avatar" title="Profil">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <circle cx="12" cy="8" r="4" />
-                            <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-                        </svg>
+                    <Link href="/dashboard" class="avatar" title="Accéder à l'application">
+                        <Home :size="16" />
                     </Link>
                 </template>
                 <template v-else>
