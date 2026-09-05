@@ -209,6 +209,9 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::post('/cantine/menus', [CantineController::class, 'storeMenu'])->name('cantine.menus.store');
         Route::delete('/cantine/menus/{cantineMenu}', [CantineController::class, 'destroyMenu'])->name('cantine.menus.destroy');
         Route::post('/cantine/presence', [CantineController::class, 'storePresences'])->name('cantine.presence.store');
+        Route::put('/cantine/price', [CantineController::class, 'updatePrice'])->name('cantine.price.update');
+        Route::post('/cantine/wallet/{sectionUser}/manual-credit', [CantineWalletController::class, 'manualCredit'])->name('cantine.wallet.manual-credit');
+        Route::delete('/cantine/wallet/manual-credit/{cantineTransaction}', [CantineWalletController::class, 'voidManualCredit'])->name('cantine.wallet.manual-credit.void');
 
         // ── Notes / bulletins ────────────────────────────────────────────────
         Route::get('/grades/create', [GradesController::class, 'create'])->name('grades.create');
@@ -222,6 +225,8 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::post('/cantine/wallet/top-up', [CantineWalletController::class, 'topUp'])->name('cantine.wallet.top-up');
     Route::get('/cantine/wallet/top-up/success', [CantineWalletController::class, 'topUpSuccess'])->name('cantine.wallet.top-up.success');
     Route::get('/cantine/wallet/top-up/cancel', [CantineWalletController::class, 'topUpCancel'])->name('cantine.wallet.top-up.cancel');
+    Route::get('/cantine/wallet', [CantineWalletController::class, 'index'])->name('cantine.wallet.index');
+    Route::get('/cantine/wallet/{sectionUser}', [CantineWalletController::class, 'show'])->name('cantine.wallet.show');
 
     Route::get('/grades', [GradesController::class, 'index'])->name('grades.index');
     Route::get('/grades/bulletin/{sectionUser}', [GradesController::class, 'bulletin'])->name('grades.bulletin');

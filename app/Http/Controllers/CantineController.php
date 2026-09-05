@@ -139,6 +139,21 @@ class CantineController extends Controller
         return back()->with('flash', ['type' => 'success', 'message' => 'Option de menu ajoutée.']);
     }
 
+    public function updatePrice(Request $request): RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+        $this->abortUnlessCantineEnabled($schoolId);
+
+        $data = $request->validate(['cantine_meal_price' => 'required|numeric|min:0|max:9999.99']);
+
+        School::whereKey($schoolId)->update([
+            'cantine_meal_price' => $data['cantine_meal_price'],
+            'updated_by' => $request->user()->id,
+        ]);
+
+        return back()->with('flash', ['type' => 'success', 'message' => 'Prix du repas mis à jour.']);
+    }
+
     public function destroyMenu(CantineMenu $cantineMenu): RedirectResponse
     {
         abort_unless($cantineMenu->school_id == session('active_school_id'), 404);

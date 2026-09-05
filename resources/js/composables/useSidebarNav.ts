@@ -79,6 +79,7 @@ const nav: NavMap = {
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
+                { label: 'Soldes cantine', icon: Utensils, route: '/cantine/wallet', routeName: 'cantine.wallet.index' },
             ],
         },
     ],
@@ -95,6 +96,7 @@ const nav: NavMap = {
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
+                { label: 'Soldes cantine', icon: Utensils, route: '/cantine/wallet', routeName: 'cantine.wallet.index' },
                 { label: 'Gestion des accès', icon: KeyRound, route: '/access-requests', routeName: 'access-requests.index' },
                 { label: 'Soumettre une école', icon: Building2, route: '/school/create', routeName: 'school.create' },
                 { label: 'Liens parent-élève', icon: UserRound, route: '/parent-links', routeName: 'director.parent-links.index' },
@@ -124,6 +126,7 @@ const nav: NavMap = {
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
+                { label: 'Soldes cantine', icon: Utensils, route: '/cantine/wallet', routeName: 'cantine.wallet.index' },
             ],
         },
     ],

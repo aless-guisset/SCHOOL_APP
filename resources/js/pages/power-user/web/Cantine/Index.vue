@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Plus, Settings, Trash2 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -90,6 +90,12 @@ watch(() => props.roster, (newRoster) => {
 function savePresences() {
     presenceForm.date = props.date;
     presenceForm.post('/cantine/presence', { preserveScroll: true });
+}
+
+// ── Staff : prix du repas ────────────────────────────────────────────────────
+const priceForm = useForm({ cantine_meal_price: props.meal_price ?? 0 });
+function updatePrice() {
+    priceForm.put('/cantine/price', { preserveScroll: true });
 }
 
 // ── Élève : commander ────────────────────────────────────────────────────────
@@ -217,6 +223,20 @@ function topUp() {
                         </form>
                         <p v-if="menuForm.errors.label" class="text-xs text-destructive">{{ menuForm.errors.label }}</p>
                     </template>
+                </CardContent>
+            </Card>
+
+            <Card v-if="canManageView" class="mb-4">
+                <CardHeader><CardTitle class="text-base flex items-center gap-2"><Settings class="size-4" />Prix du repas</CardTitle></CardHeader>
+                <CardContent>
+                    <form class="flex items-end gap-2" @submit.prevent="updatePrice">
+                        <div class="space-y-1.5">
+                            <Label class="text-xs">Prix (€)</Label>
+                            <Input v-model.number="priceForm.cantine_meal_price" type="number" min="0" step="0.01" class="h-8 w-32" />
+                        </div>
+                        <Button type="submit" size="sm" :disabled="priceForm.processing">Enregistrer</Button>
+                        <a href="/cantine/wallet" class="text-xs text-muted-foreground underline ml-auto">Voir les soldes des élèves →</a>
+                    </form>
                 </CardContent>
             </Card>
 
