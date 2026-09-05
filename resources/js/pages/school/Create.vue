@@ -24,18 +24,7 @@ const INVITABLE_ROLES: { reference: string; label: string }[] = [
     { reference: 'DIR', label: 'Directeur' },
 ];
 
-type SchoolFormData = {
-    name: string;
-    email: string;
-    phone_number: string;
-    address: string;
-    description: string;
-    cantine_enabled: boolean;
-    cantine_meal_price: string | number;
-    invites: Array<{ email: string; role_reference: string }>;
-};
-
-const form = useForm<SchoolFormData>({
+const form = useForm({
     name: '',
     email: '',
     phone_number: '',
@@ -43,7 +32,7 @@ const form = useForm<SchoolFormData>({
     description: '',
     cantine_enabled: false,
     cantine_meal_price: '',
-    invites: [],
+    invites: [] as { email: string; role_reference: string }[],
 });
 
 // ── Étape 3 : ajout d'une ligne d'invitation ────────────────────────────────
@@ -230,13 +219,13 @@ function submit() {
                         </div>
                         <div v-if="form.cantine_enabled" class="space-y-1.5">
                             <Label for="cantine_meal_price">Prix du repas (€) <span class="text-destructive">*</span></Label>
-                            <input
+                            <Input
                                 id="cantine_meal_price"
                                 v-model="form.cantine_meal_price"
-                                type="text"
-                                inputmode="decimal"
+                                type="number"
+                                min="0"
+                                step="0.01"
                                 placeholder="3.50"
-                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                                 :class="{ 'border-destructive': form.errors.cantine_meal_price }"
                             />
                             <p v-if="form.errors.cantine_meal_price" class="text-xs text-destructive">{{ form.errors.cantine_meal_price }}</p>
