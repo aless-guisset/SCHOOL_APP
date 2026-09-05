@@ -12,6 +12,8 @@
         Instrument Sans, ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
+    --font-serif:
+        Georgia, 'Times New Roman', ui-serif, serif;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -90,82 +92,79 @@
 }
 
 :root {
-    --background: hsl(0 0% 100%);
-    --foreground: hsl(0 0% 3.9%);
-    --card: hsl(0 0% 100%);
-    --card-foreground: hsl(0 0% 3.9%);
-    --popover: hsl(0 0% 100%);
-    --popover-foreground: hsl(0 0% 3.9%);
-    --primary: hsl(0 0% 9%);
-    --primary-foreground: hsl(0 0% 98%);
-    --secondary: hsl(0 0% 92.1%);
-    --secondary-foreground: hsl(0 0% 9%);
-    --muted: hsl(0 0% 96.1%);
-    --muted-foreground: hsl(0 0% 45.1%);
-    --accent: hsl(0 0% 96.1%);
-    --accent-foreground: hsl(0 0% 9%);
+    --background: hsl(45 27% 94%);
+    --foreground: hsl(90 14% 14%);
+    --card: hsl(48 38% 97%);
+    --card-foreground: hsl(90 14% 14%);
+    --popover: hsl(48 38% 97%);
+    --popover-foreground: hsl(90 14% 14%);
+    --primary: hsl(136 25% 23%);
+    --primary-foreground: hsl(45 27% 94%);
+    --secondary: hsl(49 24% 91%);
+    --secondary-foreground: hsl(90 14% 14%);
+    --muted: hsl(49 24% 91%);
+    --muted-foreground: hsl(80 8% 35%);
+    --accent: hsl(49 24% 91%);
+    --accent-foreground: hsl(90 14% 14%);
     --destructive: hsl(0 84.2% 60.2%);
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 92.8%);
-    --input: hsl(0 0% 89.8%);
-    --ring: hsl(0 0% 3.9%);
+    --border: hsl(48 23% 83%);
+    --input: hsl(48 23% 83%);
+    --ring: hsl(136 25% 23%);
     --chart-1: hsl(12 76% 61%);
     --chart-2: hsl(173 58% 39%);
     --chart-3: hsl(197 37% 24%);
     --chart-4: hsl(43 74% 66%);
     --chart-5: hsl(27 87% 67%);
-    --radius: 0.5rem;
-    --sidebar-background: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    /* Palette verte de la page d'accueil (#1a3d2b) — reprise ici sur les items
-       actifs/survolés de la sidebar pour une identité visuelle cohérente,
-       sans toucher au --primary global (qui pilote tous les boutons de
-       l'app hors sidebar/pages d'accès). */
-    --sidebar-primary: hsl(149 40% 17%);
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(152 45% 94%);
-    --sidebar-accent-foreground: hsl(149 40% 17%);
-    --sidebar-border: hsl(60 8% 90%);
-    --sidebar-ring: hsl(149 40% 17%);
-    --sidebar: hsl(0 0% 98%);
+    --radius: 0.1875rem;
+    --sidebar-background: hsl(49 24% 91%);
+    --sidebar-foreground: hsl(80 8% 35%);
+    /* Palette institutionnelle : vert profond sur les items actifs/survolés de
+       la sidebar, cohérent avec --primary (contrairement à l'ancienne palette
+       qui gardait --primary neutre et ne teintait que la sidebar). */
+    --sidebar-primary: hsl(136 25% 23%);
+    --sidebar-primary-foreground: hsl(45 27% 94%);
+    --sidebar-accent: hsl(48 22% 88%);
+    --sidebar-accent-foreground: hsl(90 14% 14%);
+    --sidebar-border: hsl(48 23% 83%);
+    --sidebar-ring: hsl(136 25% 23%);
+    --sidebar: hsl(49 24% 91%);
 }
 
 .dark {
-    --background: hsl(0 0% 3.9%);
-    --foreground: hsl(0 0% 98%);
-    --card: hsl(0 0% 3.9%);
-    --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(0 0% 3.9%);
-    --popover-foreground: hsl(0 0% 98%);
-    --primary: hsl(0 0% 98%);
-    --primary-foreground: hsl(0 0% 9%);
-    --secondary: hsl(0 0% 14.9%);
-    --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(0 0% 16.08%);
-    --muted-foreground: hsl(0 0% 63.9%);
-    --accent: hsl(0 0% 14.9%);
-    --accent-foreground: hsl(0 0% 98%);
+    --background: hsl(45 17% 9%);
+    --foreground: hsl(46 31% 89%);
+    --card: hsl(45 19% 12%);
+    --card-foreground: hsl(46 31% 89%);
+    --popover: hsl(45 19% 12%);
+    --popover-foreground: hsl(46 31% 89%);
+    --primary: hsl(149 26% 54%);
+    --primary-foreground: hsl(45 17% 9%);
+    --secondary: hsl(46 17% 19%);
+    --secondary-foreground: hsl(46 31% 89%);
+    --muted: hsl(46 17% 19%);
+    --muted-foreground: hsl(47 13% 59%);
+    --accent: hsl(46 17% 19%);
+    --accent-foreground: hsl(46 31% 89%);
     --destructive: hsl(0 84% 60%);
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 14.9%);
-    --input: hsl(0 0% 14.9%);
-    --ring: hsl(0 0% 83.1%);
+    --border: hsl(46 17% 19%);
+    --input: hsl(46 17% 19%);
+    --ring: hsl(149 26% 54%);
     --chart-1: hsl(220 70% 50%);
     --chart-2: hsl(160 60% 45%);
     --chart-3: hsl(30 80% 55%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(0 0% 7%);
-    --sidebar-foreground: hsl(0 0% 95.9%);
-    --sidebar-primary: hsl(360, 100%, 100%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    /* Même teinte verte qu'en clair, adaptée au fond sombre (accent plus
-       sombre, texte/ring plus clair pour rester lisible). */
-    --sidebar-accent: hsl(150 25% 16%);
-    --sidebar-accent-foreground: hsl(150 40% 85%);
-    --sidebar-border: hsl(0 0% 15.9%);
-    --sidebar-ring: hsl(150 40% 55%);
-    --sidebar: hsl(240 5.9% 10%);
+    --sidebar-background: hsl(43 18% 8%);
+    --sidebar-foreground: hsl(47 13% 59%);
+    --sidebar-primary: hsl(149 26% 54%);
+    --sidebar-primary-foreground: hsl(45 17% 9%);
+    --sidebar-accent: hsl(45 19% 15%);
+    --sidebar-accent-foreground: hsl(46 31% 89%);
+    --sidebar-border: hsl(46 17% 19%);
+    --sidebar-ring: hsl(149 26% 54%);
+    --sidebar: hsl(43 18% 8%);
 }
 
 @layer base {
