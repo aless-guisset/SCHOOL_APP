@@ -23,8 +23,8 @@ import { store } from '@/routes/register';
         >
             <div class="grid gap-6">
                 <div class="info-box">
-                    Ce formulaire crée un compte fondateur d'établissement — votre
-                    demande sera examinée par un administrateur.
+                    Compte fondateur d'établissement — votre demande sera
+                    examinée par un administrateur.
                     <a href="/join/role" class="join-link">Vous rejoignez une école existante ?</a>
                 </div>
 
