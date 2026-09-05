@@ -25,6 +25,7 @@ class CantineWalletController extends Controller
     {
         $schoolId = session('active_school_id');
         $this->abortUnlessCantineEnabled($schoolId);
+        abort_unless(config('services.stripe.secret'), 503, 'Le paiement en ligne n\'est pas encore configuré pour cette école.');
 
         $child = $request->user()->parentLinkedStudent($schoolId);
         $sectionUser = $child ? $child->sectionUserRoles()->first() : null;

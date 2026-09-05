@@ -95,7 +95,7 @@ class CantineController extends Controller
                 : null;
             $props['balance'] = $displaySectionUser ? $displaySectionUser->cantineBalance() : null;
             $props['meal_price'] = School::find($schoolId)?->cantine_meal_price;
-            $props['can_top_up'] = $asParent && (bool) $displaySectionUser;
+            $props['can_top_up'] = $asParent && (bool) $displaySectionUser && (bool) config('services.stripe.secret');
         }
 
         return Inertia::render('power-user/web/Cantine/Index', $props);
@@ -146,7 +146,7 @@ class CantineController extends Controller
         $schoolId = session('active_school_id');
         $this->abortUnlessCantineEnabled($schoolId);
 
-        $data = $request->validate(['cantine_meal_price' => 'required|numeric|min:0|max:9999.99']);
+        $data = $request->validate(['cantine_meal_price' => 'required|numeric|min:0.01|max:9999.99']);
 
         School::whereKey($schoolId)->update([
             'cantine_meal_price' => $data['cantine_meal_price'],

@@ -9,6 +9,10 @@ use App\Models\User;
 use App\Models\UserSchoolRole;
 use App\Services\CantineStripeService;
 
+beforeEach(function () {
+    config(['services.stripe.secret' => 'sk_test_fake']);
+});
+
 function makeTopUpSchool(): School
 {
     return School::create(['name' => 'École TopUp', 'status' => 'A', 'is_active' => true, 'cantine_enabled' => true, 'created_by' => 1]);
@@ -101,4 +105,17 @@ test('top-up amount below the 5€ minimum is rejected', function () {
         ->withSession(['active_school_id' => $school->id])
         ->post('/cantine/wallet/top-up', ['amount' => 2])
         ->assertSessionHasErrors('amount');
+});
+
+test('top-up is refused with a clean 503 when Stripe is not configured', function () {
+    config(['services.stripe.secret' => null]);
+
+    $school = makeTopUpSchool();
+    $student = makeTopUpStudent($school);
+    $parent = makeTopUpParent($school, $student);
+
+    $this->actingAs($parent)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/wallet/top-up', ['amount' => 20])
+        ->assertStatus(503);
 });

@@ -63,7 +63,7 @@ const navGroups = computed(() => {
     if (!cantineEnabled) {
         groups = groups.map((group) => ({
             ...group,
-            items: group.items.filter((item) => item.routeName !== 'cantine.index'),
+            items: group.items.filter((item) => item.routeName !== 'cantine.index' && item.routeName !== 'cantine.wallet.index'),
         }));
     }
 
