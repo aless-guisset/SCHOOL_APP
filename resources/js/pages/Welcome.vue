@@ -129,7 +129,7 @@ onUnmounted(() => {
                 </template>
                 <template v-else>
                     <Link :href="login()" class="btn btn-sm btn-ghost">Se connecter</Link>
-                    <Link v-if="canRegister" :href="register()" class="btn btn-sm btn-green">S'inscrire</Link>
+                    <Link v-if="canRegister" :href="register()" class="btn btn-sm btn-green">Créer un établissement</Link>
                 </template>
             </div>
         </header>
@@ -144,8 +144,9 @@ onUnmounted(() => {
             </p>
             <div class="hero-cta">
                 <Link v-if="canRegister" :href="register()" class="btn btn-green btn-lg">
-                    Commencer gratuitement
+                    Créer un établissement
                 </Link>
+                <Link href="/join/role" class="btn btn-lg">Créer un compte</Link>
                 <a href="#modules" class="btn btn-lg">Voir les modules</a>
             </div>
         </section>
@@ -202,9 +203,12 @@ onUnmounted(() => {
             <div class="cta-block" data-sr="up">
                 <h2>Prêt à moderniser votre école ?</h2>
                 <p>Rejoignez les écoles qui font confiance à SchoolApp.</p>
-                <Link v-if="canRegister" :href="register()" class="btn btn-white btn-lg">
-                    Créer un compte gratuit
-                </Link>
+                <div class="hero-cta">
+                    <Link v-if="canRegister" :href="register()" class="btn btn-white btn-lg">
+                        Créer un établissement
+                    </Link>
+                    <Link href="/join/role" class="btn btn-lg">Créer un compte</Link>
+                </div>
             </div>
         </div>
 
