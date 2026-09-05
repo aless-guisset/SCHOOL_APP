@@ -60,7 +60,6 @@ class SchoolsController extends Controller
             'status'      => 'A',
             'is_active'   => true,
             'access_code' => $school->access_code ?? $this->generateAccessCode(),
-            'pending_invites' => null,
             'updated_by'  => $request->user()->id,
         ]);
 
@@ -78,6 +77,8 @@ class SchoolsController extends Controller
             }
             $this->createSchoolInvitation($school, $invite['email'], $invite['role_reference'], $request->user()->id);
         }
+
+        $school->update(['pending_invites' => null]);
 
         return redirect()->route('schools.pending')
             ->with('flash', ['type' => 'success', 'message' => "L'école \"{$school->name}\" a été approuvée."]);

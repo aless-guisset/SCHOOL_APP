@@ -54,6 +54,12 @@ function roleLabel(reference: string): string {
     return INVITABLE_ROLES.find(r => r.reference === reference)?.label ?? reference;
 }
 
+const inviteErrors = computed(() =>
+    Object.entries(form.errors)
+        .filter(([key]) => key === 'invites' || key.startsWith('invites.'))
+        .map(([, message]) => message)
+);
+
 // ── Navigation étapes ────────────────────────────────────────────────────────
 const canGoNext = computed(() => {
     if (step.value === 1) return !!form.name.trim();
@@ -276,9 +282,9 @@ function submit() {
                                 Ajouter
                             </Button>
                         </div>
-                        <p v-if="form.errors['invites.0.email'] || form.errors['invites.0.role_reference']" class="text-xs text-destructive">
-                            Une des invitations ajoutées n'est pas valide — vérifiez les adresses et rôles ci-dessus.
-                        </p>
+                        <div v-if="inviteErrors.length" class="space-y-1">
+                            <p v-for="(msg, idx) in inviteErrors" :key="idx" class="text-xs text-destructive">{{ msg }}</p>
+                        </div>
                     </div>
 
                     <!-- Navigation boutons -->

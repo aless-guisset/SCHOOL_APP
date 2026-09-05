@@ -189,3 +189,28 @@ test('rejecting a school with pending invitation drafts never converts them', fu
 
     expect(SchoolInvitation::count())->toBe(0);
 });
+
+test('GET /schools/pending exposes cantine module fields and pending invitation drafts to the admin', function () {
+    $founder = User::factory()->create();
+    School::create([
+        'name' => 'École Cantine Attente', 'status' => 'P', 'is_active' => false, 'created_by' => $founder->id,
+        'cantine_enabled' => true,
+        'cantine_meal_price' => 4.25,
+        'pending_invites' => [
+            ['email' => 'prof@example.com', 'role_reference' => 'PROF'],
+        ],
+    ]);
+    $admin = makeSchoolsCtrlAdmin();
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => UserSchoolRole::where('user_id', $admin->id)->first()->school_id])
+        ->get('/schools/pending')
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/web/Schools/Pending')
+            ->where('schools.data.0.cantine_enabled', true)
+            ->where('schools.data.0.cantine_meal_price', 4.25)
+            ->where('schools.data.0.pending_invites', [
+                ['email' => 'prof@example.com', 'role_reference' => 'PROF'],
+            ])
+        );
+});

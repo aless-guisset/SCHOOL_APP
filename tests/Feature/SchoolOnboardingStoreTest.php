@@ -82,3 +82,34 @@ test('submitting the wizard with no invites leaves pending_invites null', functi
     $school = School::where('name', 'École Sans Invites')->firstOrFail();
     expect($school->pending_invites)->toBeNull();
 });
+
+test('submitting more than 20 invites is rejected', function () {
+    $founder = User::factory()->create();
+
+    $invites = collect(range(1, 21))
+        ->map(fn ($i) => ['email' => "invite{$i}@example.com", 'role_reference' => 'PROF'])
+        ->all();
+
+    $this->actingAs($founder)->post('/school/create', [
+        'name' => 'École Trop Invites',
+        'invites' => $invites,
+    ])->assertSessionHasErrors('invites');
+
+    expect(School::where('name', 'École Trop Invites')->exists())->toBeFalse();
+});
+
+test('submitting exactly 20 invites succeeds', function () {
+    $founder = User::factory()->create();
+
+    $invites = collect(range(1, 20))
+        ->map(fn ($i) => ['email' => "invite{$i}@example.com", 'role_reference' => 'PROF'])
+        ->all();
+
+    $this->actingAs($founder)->post('/school/create', [
+        'name' => 'École Vingt Invites',
+        'invites' => $invites,
+    ])->assertRedirect();
+
+    $school = School::where('name', 'École Vingt Invites')->firstOrFail();
+    expect($school->pending_invites)->toHaveCount(20);
+});

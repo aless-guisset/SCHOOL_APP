@@ -28,6 +28,9 @@ interface PendingSchool {
     description: string | null;
     created_at: string;
     has_conflict: boolean;
+    cantine_enabled: boolean;
+    cantine_meal_price: number | null;
+    pending_invites: { email: string; role_reference: string }[] | null;
 }
 
 const props = defineProps<{
@@ -103,6 +106,16 @@ function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('fr-BE', {
         day: '2-digit', month: 'short', year: 'numeric',
     });
+}
+
+const INVITE_ROLE_LABELS: Record<string, string> = {
+    PROF: 'Professeur',
+    SEC: 'Secrétariat',
+    POWER: 'Power User',
+    DIR: 'Directeur',
+};
+function inviteRoleLabel(reference: string): string {
+    return INVITE_ROLE_LABELS[reference] ?? reference;
 }
 </script>
 
@@ -203,6 +216,18 @@ function formatDate(dateStr: string) {
                         </div>
                         <div v-if="school.description" class="rounded-lg bg-muted p-2 text-xs text-muted-foreground">
                             {{ school.description }}
+                        </div>
+                        <div v-if="school.cantine_enabled" class="flex items-center gap-2 text-muted-foreground">
+                            <span class="w-16 shrink-0 font-medium text-foreground">Cantine</span>
+                            <span>Activée{{ school.cantine_meal_price != null ? ` — ${school.cantine_meal_price.toFixed(2)} €/repas` : '' }}</span>
+                        </div>
+                        <div v-if="school.pending_invites?.length" class="rounded-lg border border-border bg-muted/40 p-2 text-xs">
+                            <p class="mb-1 font-medium text-foreground">{{ school.pending_invites.length }} invitation(s) prévue(s) à l'approbation</p>
+                            <ul class="space-y-0.5 text-muted-foreground">
+                                <li v-for="(invite, i) in school.pending_invites" :key="i">
+                                    {{ invite.email }} — {{ inviteRoleLabel(invite.role_reference) }}
+                                </li>
+                            </ul>
                         </div>
                         <p class="pt-1 text-xs text-muted-foreground">
                             Soumis le {{ formatDate(school.created_at) }}
