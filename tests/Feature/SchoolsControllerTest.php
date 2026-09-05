@@ -121,6 +121,41 @@ test('approving a school converts pending invitation drafts into real invitation
     expect($school->fresh()->pending_invites)->toBeNull();
 });
 
+test('approving a school silently skips a pending invite draft whose role no longer exists', function () {
+    // Un rôle référencé dans pending_invites a pu être soft-deleted/renommé
+    // entre la création de l'école et son approbation. createSchoolInvitation()
+    // fait un firstOrFail() sur le rôle : sans garde, ça lève une
+    // ModelNotFoundException non catchée en plein milieu de la boucle, alors
+    // que l'école est déjà marquée approuvée (pending_invites déjà à null).
+    Notification::fake();
+    Role::firstOrCreate(['reference' => 'DIR'], ['name' => 'Directeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    Role::firstOrCreate(['reference' => 'PROF'], ['name' => 'Professeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $founder = User::factory()->create();
+    $school = School::create([
+        'name' => 'École Invites Mixtes', 'status' => 'P', 'is_active' => false, 'created_by' => $founder->id,
+        'pending_invites' => [
+            ['email' => 'prof@example.com', 'role_reference' => 'PROF'],
+            ['email' => 'fantome@example.com', 'role_reference' => 'ROLE_INEXISTANT'],
+        ],
+    ]);
+    $admin = makeSchoolsCtrlAdmin();
+
+    $this->actingAs($admin)
+        ->withSession(['active_school_id' => UserSchoolRole::where('user_id', $admin->id)->first()->school_id])
+        ->post("/schools/{$school->id}/approve")
+        ->assertRedirect();
+
+    $invitation = SchoolInvitation::where('email', 'prof@example.com')->first();
+    expect($invitation)->not->toBeNull()
+        ->and($invitation->role->reference)->toBe('PROF');
+
+    expect(SchoolInvitation::where('email', 'fantome@example.com')->exists())->toBeFalse();
+
+    $school->refresh();
+    expect($school->status)->toBe('A')
+        ->and($school->pending_invites)->toBeNull();
+});
+
 test('approving a school with no pending invites does not create any invitation', function () {
     Role::firstOrCreate(['reference' => 'DIR'], ['name' => 'Directeur', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
     $founder = User::factory()->create();

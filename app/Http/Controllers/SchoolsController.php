@@ -72,6 +72,10 @@ class SchoolsController extends Controller
         }
 
         foreach ($pendingInvites as $invite) {
+            $inviteRole = Role::where('reference', $invite['role_reference'])->first();
+            if (! $inviteRole) {
+                continue;
+            }
             $this->createSchoolInvitation($school, $invite['email'], $invite['role_reference'], $request->user()->id);
         }
 
