@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { Download, Home, Moon, Sun } from 'lucide-vue-next';
 import { onMounted, onUnmounted } from 'vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { login, register } from '@/routes';
 import { create as createSchool } from '@/routes/school';
@@ -104,7 +105,7 @@ onUnmounted(() => {
     <div class="page">
         <!-- NAV -->
         <header class="nav">
-            <span class="nav-logo">school<b>app</b></span>
+            <span class="nav-logo"><AppLogoIcon class="nav-logo-icon" />school<b>app</b></span>
             <div class="nav-right">
                 <button class="icon-btn off" disabled title="Télécharger l'application — pas disponible pour le moment">
                     <Download :size="16" />
@@ -209,7 +210,7 @@ onUnmounted(() => {
 
         <!-- FOOTER -->
         <footer class="footer">
-            <span class="nav-logo">school<b>app</b></span>
+            <span class="nav-logo"><AppLogoIcon class="nav-logo-icon" />school<b>app</b></span>
             <span>© 2025 SchoolApp</span>
         </footer>
     </div>
@@ -265,8 +266,9 @@ onUnmounted(() => {
     align-items: center;
     justify-content: space-between;
 }
-.nav-logo { font-size: 17px; color: var(--green); }
+.nav-logo { display: inline-flex; align-items: center; gap: 6px; font-size: 17px; color: var(--green); }
 .nav-logo b { color: var(--fg); font-weight: 700; }
+.nav-logo-icon { width: 22px; height: 22px; flex-shrink: 0; }
 .nav-right { display: flex; align-items: center; gap: 8px; }
 
 /* BUTTONS */
