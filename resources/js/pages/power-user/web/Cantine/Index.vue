@@ -154,6 +154,7 @@ function topUp() {
 
                     <!-- Élève : commander -->
                     <template v-if="!canManageView && can_order">
+                        <p v-if="meal_price" class="text-xs text-muted-foreground">Prix du repas : {{ meal_price.toFixed(2) }} €</p>
                         <button
                             v-for="m in menus" :key="m.id"
                             type="button"

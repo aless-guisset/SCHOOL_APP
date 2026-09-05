@@ -37,6 +37,14 @@ function makeCantineUsr(School $school, Role $role): UserSchoolRole
     ]);
 }
 
+function makeCantinePricedSchool(float $price = 4.5): School
+{
+    return School::create([
+        'name' => 'École Cantine '.uniqid(), 'status' => 'A', 'is_active' => true,
+        'cantine_enabled' => true, 'cantine_meal_price' => $price, 'created_by' => 1,
+    ]);
+}
+
 /** Crée un élève (section_users) rattaché à l'école. */
 function makeCantineStudent(School $school): SectionUserSchoolRole
 {
@@ -213,11 +221,12 @@ test('destroyMenu rejects a menu belonging to another school', function () {
 });
 
 test('a student can order a menu option for themselves', function () {
-    $school = makeCantineSchool();
+    $school = makeCantinePricedSchool();
     $student = makeCantineStudent($school);
     $studentUser = User::find($student->userschoolrole->user_id);
     $date = Carbon::today()->toDateString();
     $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\CantineTransaction::create(['section_user_id' => $student->id, 'type' => 'manual_credit', 'amount' => 20, 'is_active' => true, 'created_by' => 1]);
 
     $this->actingAs($studentUser)
         ->withSession(['active_school_id' => $school->id])
@@ -228,12 +237,13 @@ test('a student can order a menu option for themselves', function () {
 });
 
 test('ordering again the same day replaces the previous choice instead of failing', function () {
-    $school = makeCantineSchool();
+    $school = makeCantinePricedSchool();
     $student = makeCantineStudent($school);
     $studentUser = User::find($student->userschoolrole->user_id);
     $date = Carbon::today()->toDateString();
     $menuA = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
     $menuB = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat B', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\CantineTransaction::create(['section_user_id' => $student->id, 'type' => 'manual_credit', 'amount' => 20, 'is_active' => true, 'created_by' => 1]);
 
     $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
         ->post('/cantine/orders', ['cantine_menu_id' => $menuA->id, 'date' => $date]);
@@ -243,6 +253,8 @@ test('ordering again the same day replaces the previous choice instead of failin
 
     expect(CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->count())->toBe(1);
     expect(CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->first()->cantine_menu_id)->toBe($menuB->id);
+    // Le swap le même jour ne redébite pas : un seul débit malgré 2 commandes.
+    expect($student->cantineBalance())->toBe(15.5);
 });
 
 test('a student cannot order for a past date', function () {
@@ -359,12 +371,13 @@ test('storePresences rejects a cantine_order_id from another school', function (
 });
 
 test('cancelling an order then re-ordering the same day succeeds instead of hitting the unique constraint', function () {
-    $school = makeCantineSchool();
+    $school = makeCantinePricedSchool();
     $student = makeCantineStudent($school);
     $studentUser = User::find($student->userschoolrole->user_id);
     $date = Carbon::today()->toDateString();
     $menuA = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
     $menuB = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat B', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\CantineTransaction::create(['section_user_id' => $student->id, 'type' => 'manual_credit', 'amount' => 20, 'is_active' => true, 'created_by' => 1]);
 
     // Commande initiale.
     $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
@@ -512,4 +525,98 @@ test('a teacher with a Parent role sees their child\'s order (not the roster) vi
             ->where('can_order', false)
             ->where('my_order.cantine_menu_id', $childOrder->cantine_menu_id)
         );
+});
+
+test('ordering is refused with a flash error when the meal price is not configured', function () {
+    $school = makeCantineSchool(); // cantine_meal_price reste null
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertSessionHas('flash.type', 'error');
+
+    expect(\App\Models\CantineOrder::where('section_user_id', $student->id)->exists())->toBeFalse();
+});
+
+test('ordering is refused with a flash error when the balance is insufficient', function () {
+    $school = makeCantinePricedSchool(price: 10);
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\CantineTransaction::create(['section_user_id' => $student->id, 'type' => 'manual_credit', 'amount' => 5, 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertSessionHas('flash.type', 'error');
+
+    expect(\App\Models\CantineOrder::where('section_user_id', $student->id)->exists())->toBeFalse();
+});
+
+test('ordering with sufficient balance creates the order and debits the exact price', function () {
+    $school = makeCantinePricedSchool(price: 4.5);
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::today()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\CantineTransaction::create(['section_user_id' => $student->id, 'type' => 'manual_credit', 'amount' => 20, 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertRedirect();
+
+    $order = \App\Models\CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->first();
+    expect($order)->not->toBeNull();
+
+    $debit = \App\Models\CantineTransaction::where('cantine_order_id', $order->id)->where('type', 'order_debit')->first();
+    expect($debit)->not->toBeNull();
+    expect($debit->amount)->toBe(-4.5);
+    expect($student->cantineBalance())->toBe(15.5);
+});
+
+test('cancelling an order refunds exactly what was debited, even if the school price changed since', function () {
+    $school = makeCantinePricedSchool(price: 4.5);
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::tomorrow()->toDateString();
+    $menu = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\CantineTransaction::create(['section_user_id' => $student->id, 'type' => 'manual_credit', 'amount' => 20, 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menu->id, 'date' => $date])
+        ->assertRedirect();
+    $order = \App\Models\CantineOrder::where('section_user_id', $student->id)->whereDate('date', $date)->first();
+
+    // Le prix change APRÈS la commande.
+    $school->update(['cantine_meal_price' => 8.0]);
+
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->delete("/cantine/orders/{$order->id}")
+        ->assertRedirect();
+
+    // Remboursé 4.5 (le prix au moment de la commande), pas 8.0 (le nouveau prix).
+    expect($student->cantineBalance())->toBe(20.0);
+});
+
+test('changing the chosen menu the same day does not debit twice', function () {
+    $school = makeCantinePricedSchool(price: 4.5);
+    $student = makeCantineStudent($school);
+    $studentUser = User::find($student->userschoolrole->user_id);
+    $date = Carbon::today()->toDateString();
+    $menuA = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $menuB = CantineMenu::create(['school_id' => $school->id, 'date' => $date, 'label' => 'Plat B', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    \App\Models\CantineTransaction::create(['section_user_id' => $student->id, 'type' => 'manual_credit', 'amount' => 20, 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menuA->id, 'date' => $date]);
+    $this->actingAs($studentUser)->withSession(['active_school_id' => $school->id])
+        ->post('/cantine/orders', ['cantine_menu_id' => $menuB->id, 'date' => $date]);
+
+    expect($student->cantineBalance())->toBe(15.5); // un seul débit malgré 2 commandes
 });

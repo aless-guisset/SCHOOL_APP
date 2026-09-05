@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Middleware\EnsureCanManage;
 use App\Models\CantineMenu;
 use App\Models\CantineOrder;
+use App\Models\CantineTransaction;
 use App\Models\School;
 use App\Models\SectionUserSchoolRole;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -169,25 +171,62 @@ class CantineController extends Controller
             ->whereDate('date', $date)
             ->first();
 
-        if ($existingOrder) {
-            if ($existingOrder->trashed()) {
-                $existingOrder->restore();
-            }
+        // Changer de choix le même jour, sur une commande déjà active, ne
+        // redébite pas : le repas du jour est déjà payé, seul le menu change.
+        if ($existingOrder && ! $existingOrder->trashed()) {
             $existingOrder->update([
                 'cantine_menu_id' => $menu->id,
-                'is_active' => true,
                 'updated_by' => $request->user()->id,
             ]);
-        } else {
-            CantineOrder::create([
+
+            return back()->with('flash', ['type' => 'success', 'message' => 'Commande enregistrée.']);
+        }
+
+        $price = School::find($schoolId)?->cantine_meal_price;
+        if ($price === null) {
+            return back()->with('flash', [
+                'type' => 'error',
+                'message' => "Le prix du repas n'a pas encore été configuré par l'établissement.",
+            ]);
+        }
+
+        if ($sectionUser->cantineBalance() < $price) {
+            return back()->with('flash', [
+                'type' => 'error',
+                'message' => 'Solde insuffisant pour commander ce repas — demandez une recharge à votre parent.',
+            ]);
+        }
+
+        DB::transaction(function () use ($existingOrder, $sectionUser, $menu, $date, $price, $request) {
+            if ($existingOrder && $existingOrder->trashed()) {
+                $existingOrder->restore();
+                $existingOrder->update([
+                    'cantine_menu_id' => $menu->id,
+                    'is_active' => true,
+                    'updated_by' => $request->user()->id,
+                ]);
+                $order = $existingOrder;
+            } else {
+                $order = CantineOrder::create([
+                    'section_user_id' => $sectionUser->id,
+                    'cantine_menu_id' => $menu->id,
+                    'date' => $date,
+                    'is_active' => true,
+                    'created_by' => $request->user()->id,
+                    'updated_by' => $request->user()->id,
+                ]);
+            }
+
+            CantineTransaction::create([
                 'section_user_id' => $sectionUser->id,
-                'cantine_menu_id' => $menu->id,
-                'date' => $date,
+                'type' => 'order_debit',
+                'amount' => -$price,
+                'cantine_order_id' => $order->id,
                 'is_active' => true,
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
             ]);
-        }
+        });
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Commande enregistrée.']);
     }
@@ -200,7 +239,31 @@ class CantineController extends Controller
         abort_unless($sectionUser && $cantineOrder->section_user_id === $sectionUser->id, 403);
         abort_if(Carbon::parse($cantineOrder->date)->lt(Carbon::today()), 422);
 
-        $cantineOrder->delete();
+        DB::transaction(function () use ($cantineOrder, $sectionUser) {
+            $cantineOrder->delete();
+
+            // Rembourse EXACTEMENT ce qui a été débité pour cette commande —
+            // jamais le prix actuel de l'école, qui a pu changer entre-temps
+            // (sinon un changement de tarif corromprait silencieusement le
+            // registre en sur- ou sous-remboursant).
+            $debited = CantineTransaction::where('cantine_order_id', $cantineOrder->id)
+                ->where('type', 'order_debit')
+                ->where('is_active', true)
+                ->latest('id')
+                ->value('amount');
+
+            if ($debited !== null) {
+                CantineTransaction::create([
+                    'section_user_id' => $sectionUser->id,
+                    'type' => 'order_refund',
+                    'amount' => -$debited,
+                    'cantine_order_id' => $cantineOrder->id,
+                    'is_active' => true,
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
+        });
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Commande annulée.']);
     }
