@@ -46,26 +46,26 @@ const canManageView = computed(() => canManage.value && !props.viewing_child);
 const statCards = computed(() => {
     if (isAdmin.value) {
         return [
-            { label: t('nav.schools'),   icon: Building2,    href: '/schools',    color: 'text-blue-500' },
-            { label: t('nav.users'),     icon: Users,        href: '/users',      color: 'text-purple-500' },
-            { label: t('nav.roles'),     icon: GraduationCap, href: '/roles',     color: 'text-green-500' },
+            { label: t('nav.schools'),   icon: Building2,     href: '/schools' },
+            { label: t('nav.users'),     icon: Users,         href: '/users' },
+            { label: t('nav.roles'),     icon: GraduationCap, href: '/roles' },
         ];
     }
 
     if (canManage.value) {
         return [
-            { label: t('nav.sections'),  icon: GraduationCap, href: '/sections',  color: 'text-blue-500' },
-            { label: t('nav.courses'),   icon: BookOpen,      href: '/courses',   color: 'text-purple-500' },
-            { label: t('nav.schedules'), icon: Calendar,      href: '/schedules', color: 'text-green-500' },
-            { label: t('nav.timesheets'),icon: Clock,         href: '/timesheets',color: 'text-orange-500' },
+            { label: t('nav.sections'),  icon: GraduationCap, href: '/sections' },
+            { label: t('nav.courses'),   icon: BookOpen,      href: '/courses' },
+            { label: t('nav.schedules'), icon: Calendar,      href: '/schedules' },
+            { label: t('nav.timesheets'),icon: Clock,         href: '/timesheets' },
         ];
     }
 
     // Professeur / Élève
     return [
-        { label: t('nav.schedules'),  icon: Calendar,  href: '/schedules',  color: 'text-blue-500' },
-        { label: t('nav.subjects'),   icon: BookOpen,  href: '/subjects',   color: 'text-purple-500' },
-        { label: t('nav.resources'),  icon: BookOpen,  href: '/resources',  color: 'text-green-500' },
+        { label: t('nav.schedules'),  icon: Calendar,  href: '/schedules' },
+        { label: t('nav.subjects'),   icon: BookOpen,  href: '/subjects' },
+        { label: t('nav.resources'),  icon: BookOpen,  href: '/resources' },
     ];
 });
 </script>
@@ -86,7 +86,7 @@ const statCards = computed(() => {
                  rattachée à une school_id précise, ce n'est pas une école qu'il gère. -->
             <div
                 v-if="activeSchool && !isAdmin"
-                class="flex items-center gap-3 rounded-xl border border-border bg-card px-5 py-4"
+                class="flex items-center gap-3 rounded-lg border border-border bg-card px-5 py-4"
             >
                 <Building2 class="size-8 shrink-0 text-primary" />
                 <div>
@@ -124,10 +124,10 @@ const statCards = computed(() => {
                     v-for="card in statCards"
                     :key="card.href"
                     :href="card.href"
-                    class="group flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-sm transition hover:border-primary hover:shadow-md"
+                    class="group flex flex-col gap-3 rounded-lg border border-border bg-card p-5 shadow-sm transition hover:border-primary hover:shadow-md"
                 >
                     <div class="flex items-center justify-between">
-                        <component :is="card.icon" class="size-6" :class="card.color" />
+                        <component :is="card.icon" class="size-6 text-primary" />
                         <span class="text-xs text-muted-foreground opacity-0 transition group-hover:opacity-100">→</span>
                     </div>
                     <p class="text-sm font-semibold">{{ card.label }}</p>
