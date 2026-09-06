@@ -4,32 +4,33 @@ use App\Models\School;
 use App\Models\SchoolInvitation;
 use App\Models\User;
 
-test('submitting the wizard saves the cantine module fields on the school', function () {
+test('submitting the wizard saves the cantine toggle on the school, with no price at creation time', function () {
     $founder = User::factory()->create();
 
     $this->actingAs($founder)->post('/school/create', [
         'name' => 'École Cantine',
         'cantine_enabled' => true,
-        'cantine_meal_price' => '3.50',
     ])->assertRedirect();
 
     $school = School::where('name', 'École Cantine')->firstOrFail();
     expect($school->cantine_enabled)->toBeTrue()
-        ->and($school->cantine_meal_price)->toBe(3.5);
+        ->and($school->cantine_meal_price)->toBeNull();
 });
 
-test('cantine_meal_price is required when cantine_enabled is true', function () {
+test('a cantine_meal_price sent by a tampered request is ignored, never mass-assigned', function () {
     $founder = User::factory()->create();
 
     $this->actingAs($founder)->post('/school/create', [
-        'name' => 'École Sans Prix',
+        'name' => 'École Prix Ignoré',
         'cantine_enabled' => true,
-    ])->assertSessionHasErrors('cantine_meal_price');
+        'cantine_meal_price' => '3.50',
+    ])->assertRedirect();
 
-    expect(School::where('name', 'École Sans Prix')->exists())->toBeFalse();
+    $school = School::where('name', 'École Prix Ignoré')->firstOrFail();
+    expect($school->cantine_meal_price)->toBeNull();
 });
 
-test('cantine_meal_price is not required when cantine_enabled is false', function () {
+test('cantine can be left disabled', function () {
     $founder = User::factory()->create();
 
     $this->actingAs($founder)->post('/school/create', [

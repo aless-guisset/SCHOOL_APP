@@ -31,7 +31,6 @@ const form = useForm({
     address: '',
     description: '',
     cantine_enabled: false,
-    cantine_meal_price: '',
     invites: [] as { email: string; role_reference: string }[],
 });
 
@@ -63,7 +62,6 @@ const inviteErrors = computed(() =>
 // ── Navigation étapes ────────────────────────────────────────────────────────
 const canGoNext = computed(() => {
     if (step.value === 1) return !!form.name.trim();
-    if (step.value === 2) return !form.cantine_enabled || !!String(form.cantine_meal_price).trim();
     return true;
 });
 
@@ -80,7 +78,7 @@ function back() {
 // sur l'étape 3 sans rien voir.
 function fieldStep(field: string): number {
     if (field.startsWith('invites.')) return 3;
-    if (field === 'cantine_enabled' || field === 'cantine_meal_price') return 2;
+    if (field === 'cantine_enabled') return 2;
     return 1;
 }
 
@@ -223,19 +221,9 @@ function submit() {
                             <Checkbox id="cantine_enabled" v-model="form.cantine_enabled" />
                             <Label for="cantine_enabled">Activer la cantine</Label>
                         </div>
-                        <div v-if="form.cantine_enabled" class="space-y-1.5">
-                            <Label for="cantine_meal_price">Prix du repas (€) <span class="text-destructive">*</span></Label>
-                            <Input
-                                id="cantine_meal_price"
-                                v-model="form.cantine_meal_price"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="3.50"
-                                :class="{ 'border-destructive': form.errors.cantine_meal_price }"
-                            />
-                            <p v-if="form.errors.cantine_meal_price" class="text-xs text-destructive">{{ form.errors.cantine_meal_price }}</p>
-                        </div>
+                        <p v-if="form.cantine_enabled" class="text-xs text-muted-foreground">
+                            Les prix des repas se règlent dans l'application une fois l'établissement approuvé.
+                        </p>
                     </div>
 
                     <!-- Étape 3 : Inviter des gens -->

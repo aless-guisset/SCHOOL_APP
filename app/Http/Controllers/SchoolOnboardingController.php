@@ -142,7 +142,6 @@ class SchoolOnboardingController extends Controller
             'address'      => 'nullable|string|max:255',
             'description'  => 'nullable|string',
             'cantine_enabled' => 'boolean',
-            'cantine_meal_price' => 'required_if:cantine_enabled,true|nullable|numeric|min:0',
             'invites' => 'array|max:20',
             'invites.*.email' => 'required|email|max:191',
             'invites.*.role_reference' => ['required', 'string', Rule::in(self::CREATION_INVITABLE_ROLES)],
