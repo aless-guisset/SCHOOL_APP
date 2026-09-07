@@ -151,6 +151,69 @@ test('index lists certificates for the active school, scoped to staff view', fun
         );
 });
 
+test('a student sees only their own certificate in the index, not another student\'s', function () {
+    $school = makeMcSchool();
+    $student1 = makeMcStudent($school);
+    $student2 = makeMcStudent($school);
+    $secretariat = makeMcUsr($school, makeMcRole('SEC', 'Secrétariat'))->user;
+
+    MedicalCertificate::create([
+        'school_id' => $school->id, 'section_user_id' => $student1->id,
+        'starts_at' => '2026-01-05', 'ends_at' => '2026-01-08',
+        'status' => 'A', 'submitted_by' => $secretariat->id, 'reviewed_by' => $secretariat->id, 'reviewed_at' => now(),
+        'is_active' => true, 'created_by' => $secretariat->id,
+    ]);
+    MedicalCertificate::create([
+        'school_id' => $school->id, 'section_user_id' => $student2->id,
+        'starts_at' => '2026-01-05', 'ends_at' => '2026-01-08',
+        'status' => 'A', 'submitted_by' => $secretariat->id, 'reviewed_by' => $secretariat->id, 'reviewed_at' => now(),
+        'is_active' => true, 'created_by' => $secretariat->id,
+    ]);
+
+    $studentUser1 = $student1->userschoolrole->user;
+
+    $this->actingAs($studentUser1)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/medical-certificates')
+        ->assertInertia(fn ($page) => $page
+            ->component('power-user/web/MedicalCertificates/Index')
+            ->has('certificates', 1)
+            ->where('certificates.0.student_name', "{$studentUser1->lastname} {$studentUser1->firstname}")
+        );
+});
+
+test('a student can download their own certificate attachment but gets 403 on another student\'s', function () {
+    Storage::fake('local');
+    $school = makeMcSchool();
+    $student1 = makeMcStudent($school);
+    $student2 = makeMcStudent($school);
+    $powerUser = makeMcUsr($school, makeMcRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/medical-certificates', [
+            'section_user_id' => $student1->id,
+            'starts_at' => '2026-01-05',
+            'ends_at' => '2026-01-08',
+            'attachment' => UploadedFile::fake()->create('certificat.pdf', 100, 'application/pdf'),
+        ]);
+
+    $certificate = MedicalCertificate::where('section_user_id', $student1->id)->first();
+
+    $studentUser1 = $student1->userschoolrole->user;
+    $studentUser2 = $student2->userschoolrole->user;
+
+    $this->actingAs($studentUser1)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/medical-certificates/{$certificate->id}/attachment")
+        ->assertOk();
+
+    $this->actingAs($studentUser2)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/medical-certificates/{$certificate->id}/attachment")
+        ->assertForbidden();
+});
+
 test('a certificate attachment can be downloaded by staff', function () {
     Storage::fake('local');
     $school = makeMcSchool();
