@@ -486,7 +486,8 @@ class DemoSchoolSeeder extends Seeder
                 $rows[] = [
                     'timesheet_id' => $timesheet->id,
                     'section_user_id' => $student->id,
-                    'is_present' => $isPresent,
+                    'presence_status' => $isPresent ? 'P' : 'A',
+                    'justification_status' => $isPresent ? null : 'I',
                     'note' => $isPresent ? null : fake()->randomElement(['Malade', 'Justifié', 'Absence non justifiée']),
                     'status' => 'A', 'is_active' => true,
                     'created_by' => 1, 'updated_by' => 1,
