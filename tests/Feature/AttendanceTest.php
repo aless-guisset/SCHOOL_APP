@@ -14,6 +14,7 @@ use App\Models\Subject;
 use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use Illuminate\Support\Facades\Schema;
 
 function makeAttendanceSchool(): School
 {
@@ -436,6 +437,34 @@ test('storing attendance for a session that has not happened yet is rejected', f
         ->assertSessionHasErrors('attendances');
 
     expect(Attendance::count())->toBe(0);
+});
+
+test('migration backfills attendance_submitted_at for timesheets that already have attendance rows', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $otherSection = makeAttendanceSection($school, 'Classe B');
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+
+    $timesheetWithAttendance = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+    Attendance::create([
+        'timesheet_id' => $timesheetWithAttendance->id, 'section_user_id' => $student->id,
+        'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Absence non justifiée',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $timesheetWithoutAttendance = makeAttendanceSessionFor($school, $otherSection, $teacherUsr);
+
+    // Simule des données antérieures à cette migration : la colonne existe déjà
+    // (la suite complète de migrations a tourné pour le setup de ce test), on
+    // la supprime pour reproduire l'état pré-migration.
+    Schema::table('timesheets', fn ($table) => $table->dropColumn('attendance_submitted_at'));
+
+    (require database_path('migrations/2026_09_07_000004_add_attendance_submitted_at_to_timesheets_table.php'))->up();
+
+    expect($timesheetWithAttendance->fresh()->attendance_submitted_at)->not->toBeNull();
+    expect($timesheetWithoutAttendance->fresh()->attendance_submitted_at)->toBeNull();
 });
 
 test('storing attendance for a session happening today is accepted', function () {
