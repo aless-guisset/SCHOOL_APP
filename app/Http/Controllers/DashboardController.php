@@ -75,12 +75,11 @@ class DashboardController extends Controller
         }
 
         $todayIso = now()->dayOfWeekIso;
-        $sectionUserIds = SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
 
         $schedules = Schedule::with('sectionCourse.course')
             ->where('is_active', true)
             ->where('day_of_week', $todayIso)
-            ->whereHas('sectionCourse', fn ($q) => $q->whereIn('section_user_id', $sectionUserIds))
+            ->where('user_school_role_id', $usr->id)
             ->orderBy('start_time')
             ->get();
 
@@ -120,8 +119,7 @@ class DashboardController extends Controller
         if (in_array($currentRole, self::MANAGE_ROLES, true)) {
             $query->whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId));
         } elseif ($currentRole === 'Professeur' && $usr) {
-            $sectionUserIds = SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
-            $query->whereHas('sectionCourse', fn ($q) => $q->whereIn('section_user_id', $sectionUserIds));
+            $query->where('user_school_role_id', $usr->id);
         } elseif ($usr) {
             // Élève (et tout rôle sans portée de gestion connue) : créneaux de sa/ses section(s),
             // retrouvés via les section_users des professeurs qui partagent le même section_id.

@@ -40,7 +40,11 @@ function makeUsr(School $school, Role $role): UserSchoolRole
     ]);
 }
 
-/** Crée section + section_user (prof) + section_course + schedule, retourne le Schedule. */
+/**
+ * Crée section + section_user (élève placeholder, comme en vrai — voir
+ * DemoSchoolSeeder::makeSectionCourses()) + section_course + schedule
+ * assigné au professeur via Schedule.user_school_role_id. Retourne le Schedule.
+ */
 function makeScheduleFor(School $school, UserSchoolRole $teacherUsr, string $sectionName = 'Classe A'): Schedule
 {
     $course = Course::create([
@@ -51,8 +55,9 @@ function makeScheduleFor(School $school, UserSchoolRole $teacherUsr, string $sec
         'school_id' => $school->id, 'name' => $sectionName,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
+    $placeholderStudentUsr = makeUsr($school, makeRole('ELEVE', 'Élève'));
     $sectionUser = SectionUserSchoolRole::create([
-        'section_id' => $section->id, 'user_school_role_id' => $teacherUsr->id,
+        'section_id' => $section->id, 'user_school_role_id' => $placeholderStudentUsr->id,
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
     $sectionCourse = SectionCourse::create([
@@ -62,8 +67,8 @@ function makeScheduleFor(School $school, UserSchoolRole $teacherUsr, string $sec
     ]);
 
     return Schedule::create([
-        'section_course_id' => $sectionCourse->id, 'name' => 'Lundi',
-        'day_of_week' => 1, 'start_time' => '10:00:00', 'end_time' => '12:00:00',
+        'section_course_id' => $sectionCourse->id, 'user_school_role_id' => $teacherUsr->id,
+        'name' => 'Lundi', 'day_of_week' => 1, 'start_time' => '10:00:00', 'end_time' => '12:00:00',
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 }
