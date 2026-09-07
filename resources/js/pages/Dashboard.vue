@@ -11,6 +11,8 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import CurrentCourse from '@/components/dashboard/CurrentCourse.vue';
+import type {CurrentCourse as CurrentCourseType} from '@/components/dashboard/CurrentCourse.vue';
 import RecentActivity from '@/components/dashboard/RecentActivity.vue';
 import type {ActivityEntry} from '@/components/dashboard/RecentActivity.vue';
 import WeekSchedule from '@/components/dashboard/WeekSchedule.vue';
@@ -28,6 +30,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 const props = defineProps<{
     week_schedule: { week_start: string; slots: WeekScheduleSlot[] };
     recent_activity: ActivityEntry[] | null;
+    current_course: CurrentCourseType | null;
     viewing_child?: string | null;
 }>();
 
@@ -133,6 +136,8 @@ const statCards = computed(() => {
                     <p class="text-sm font-semibold">{{ card.label }}</p>
                 </a>
             </div>
+
+            <CurrentCourse v-if="currentRole === 'Professeur'" :current-course="props.current_course" />
 
             <!-- Widgets dashboard -->
             <div class="grid gap-4" :class="props.recent_activity ? 'lg:grid-cols-2' : ''">
