@@ -15,10 +15,14 @@ import AppLayout from '@/layouts/AppLayout.vue';
 const { t } = useTranslation();
 const { canManage } = useSchool();
 
+type PresenceStatus = 'P' | 'A' | 'R';
+type JustificationStatus = 'J' | 'I' | null;
+
 type RosterEntry = {
     section_user_id: number;
     name: string;
-    is_present: boolean;
+    presence_status: PresenceStatus;
+    justification_status: JustificationStatus;
     note: string | null;
 };
 
@@ -48,13 +52,25 @@ function destroy() {
     }
 }
 
+const PRESENCE_LABELS: Record<PresenceStatus, string> = { P: 'Présent', A: 'Absent', R: 'Retard' };
+
 const attendanceForm = useForm({
     attendances: props.roster.map(r => ({
         section_user_id: r.section_user_id,
-        is_present: r.is_present,
+        presence_status: r.presence_status,
+        justification_status: r.justification_status,
         note: r.note ?? '',
     })),
 });
+
+// En cyclant P → A → R → P, on repart toujours d'Injustifié par défaut pour
+// un nouvel état Absent/Retard — cohérent avec le défaut serveur.
+function cyclePresence(entry: (typeof attendanceForm.attendances)[number]) {
+    const next: Record<PresenceStatus, PresenceStatus> = { P: 'A', A: 'R', R: 'P' };
+    entry.presence_status = next[entry.presence_status];
+    entry.justification_status = entry.presence_status === 'P' ? null : 'I';
+    if (entry.presence_status === 'P') entry.note = '';
+}
 
 function saveAttendance() {
     attendanceForm.post(`/timesheets/${props.timesheet.id}/attendance`, { preserveScroll: true });
@@ -65,6 +81,10 @@ function saveAttendance() {
 // requête, ceci évite en plus d'afficher des contrôles inutilisables.
 const isFutureSession = computed(() => new Date(`${props.timesheet.date}T00:00:00`) > new Date(new Date().toDateString()));
 const canEditAttendance = computed(() => canManage.value && !isFutureSession.value);
+
+const PRESENCE_VARIANT: Record<PresenceStatus, 'outline' | 'destructive' | 'secondary'> = {
+    P: 'outline', A: 'destructive', R: 'secondary',
+};
 </script>
 
 <template>
@@ -131,21 +151,34 @@ const canEditAttendance = computed(() => canManage.value && !isFutureSession.val
                             <span class="text-sm font-medium">{{ roster[i].name }}</span>
                             <div class="flex items-center gap-2">
                                 <template v-if="canEditAttendance">
+                                    <select
+                                        v-if="entry.presence_status !== 'P'"
+                                        v-model="entry.justification_status"
+                                        class="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                                    >
+                                        <option value="I">Injustifié</option>
+                                        <option value="J">Justifié</option>
+                                    </select>
                                     <Input
-                                        v-if="!entry.is_present"
+                                        v-if="entry.presence_status !== 'P' && entry.justification_status === 'J'"
                                         v-model="entry.note"
                                         placeholder="Note (optionnel)"
-                                        class="h-8 w-48 text-xs"
+                                        class="h-8 w-40 text-xs"
                                     />
                                     <Button
-                                        :variant="entry.is_present ? 'outline' : 'destructive'"
+                                        :variant="PRESENCE_VARIANT[entry.presence_status]"
                                         size="sm"
-                                        @click="entry.is_present = !entry.is_present"
-                                    >{{ entry.is_present ? 'Présent' : 'Absent' }}</Button>
+                                        @click="cyclePresence(entry)"
+                                    >{{ PRESENCE_LABELS[entry.presence_status] }}</Button>
                                 </template>
-                                <Badge v-else :variant="entry.is_present ? 'default' : 'destructive'">
-                                    {{ entry.is_present ? 'Présent' : 'Absent' }}
-                                </Badge>
+                                <template v-else>
+                                    <Badge :variant="PRESENCE_VARIANT[entry.presence_status]">
+                                        {{ PRESENCE_LABELS[entry.presence_status] }}
+                                    </Badge>
+                                    <Badge v-if="entry.presence_status !== 'P'" variant="outline">
+                                        {{ entry.justification_status === 'J' ? 'Justifié' : 'Injustifié' }}
+                                    </Badge>
+                                </template>
                             </div>
                         </div>
                         <Button v-if="canEditAttendance" class="mt-2" :disabled="attendanceForm.processing" @click="saveAttendance">
