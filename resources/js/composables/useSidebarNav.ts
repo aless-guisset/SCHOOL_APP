@@ -16,6 +16,7 @@ import {
     ScrollText,
     Settings,
     ShieldCheck,
+    Stethoscope,
     UserRound,
     Users,
     Utensils,
@@ -68,6 +69,7 @@ const nav: NavMap = {
                 { label: 'Cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Matières', icon: Library, route: '/subjects', routeName: 'subjects.index' },
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+                { label: 'Certificats médicaux', icon: Stethoscope, route: '/medical-certificates', routeName: 'medical-certificates.index' },
             ],
         },
         {
@@ -94,6 +96,7 @@ const nav: NavMap = {
                 { label: 'Cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Horaires', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+                { label: 'Certificats médicaux', icon: Stethoscope, route: '/medical-certificates', routeName: 'medical-certificates.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
                 { label: 'Soldes cantine', icon: Utensils, route: '/cantine/wallet', routeName: 'cantine.wallet.index' },
@@ -115,6 +118,7 @@ const nav: NavMap = {
                 { label: 'Cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Matières', icon: Library, route: '/subjects', routeName: 'subjects.index' },
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+                { label: 'Certificats médicaux', icon: Stethoscope, route: '/medical-certificates', routeName: 'medical-certificates.index' },
             ],
         },
         {
@@ -163,6 +167,7 @@ const nav: NavMap = {
                 { label: 'Feuilles de temps', icon: Clock, route: '/timesheets', routeName: 'timesheets.index' },
                 { label: 'Mes cours', icon: BookOpen, route: '/courses', routeName: 'courses.index' },
                 { label: 'Mes notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+                { label: 'Certificats médicaux', icon: Stethoscope, route: '/medical-certificates', routeName: 'medical-certificates.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
                 { label: 'Ressources', icon: FileText, route: '/resources', routeName: 'resources.index' },
@@ -179,6 +184,7 @@ const nav: NavMap = {
                 { label: 'Accueil', icon: Home, route: '/dashboard', routeName: 'dashboard' },
                 { label: 'Horaire', icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
                 { label: 'Notes', icon: NotebookText, route: '/grades', routeName: 'grades.index' },
+                { label: 'Certificats médicaux', icon: Stethoscope, route: '/medical-certificates', routeName: 'medical-certificates.index' },
                 // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
                 { label: 'Cantine', icon: Utensils, route: '/cantine', routeName: 'cantine.index' },
             ],

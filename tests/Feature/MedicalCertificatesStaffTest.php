@@ -214,6 +214,29 @@ test('a student can download their own certificate attachment but gets 403 on an
         ->assertForbidden();
 });
 
+test('Directeur sees all certificates in the school, read-only', function () {
+    $school = makeMcSchool();
+    $student = makeMcStudent($school);
+    $directeur = makeMcUsr($school, makeMcRole('DIR', 'Directeur'))->user;
+    $secretariat = makeMcUsr($school, makeMcRole('SEC', 'Secrétariat'))->user;
+
+    MedicalCertificate::create([
+        'school_id' => $school->id, 'section_user_id' => $student->id,
+        'starts_at' => '2026-01-05', 'ends_at' => '2026-01-08',
+        'status' => 'A', 'submitted_by' => $secretariat->id, 'reviewed_by' => $secretariat->id, 'reviewed_at' => now(),
+        'is_active' => true, 'created_by' => $secretariat->id,
+    ]);
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/medical-certificates')
+        ->assertInertia(fn ($page) => $page
+            ->component('power-user/web/MedicalCertificates/Index')
+            ->has('certificates', 1)
+            ->where('is_certificate_staff', false)
+        );
+});
+
 test('a certificate attachment can be downloaded by staff', function () {
     Storage::fake('local');
     $school = makeMcSchool();

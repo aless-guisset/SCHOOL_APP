@@ -29,18 +29,28 @@ class MedicalCertificatesController extends Controller
     public function index(Request $request): Response
     {
         $schoolId = session('active_school_id');
+        $asParent = $request->boolean('as_parent');
 
         $query = MedicalCertificate::where('school_id', $schoolId)
             ->with(['sectionUser.userschoolrole.user'])
             ->orderByDesc('created_at');
 
-        if (! $this->isCertificateStaff($request, $schoolId)) {
+        $viewingChild = null;
+
+        if ($asParent || ! $this->canViewAllCertificates($request, $schoolId)) {
             // `section_user_id` référence section_users.id (SectionUserSchoolRole),
-            // alors que scopedUserSchoolRole() renvoie un UserSchoolRole (PK
-            // distincte, users_schools_roles.id) : on ne peut pas comparer les deux
-            // id directement, il faut traverser la relation — même pattern que
-            // GradesController::index()/downloadAttachment().
-            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            // alors que scopedUserSchoolRole()/parentLinkedStudent() renvoient un
+            // UserSchoolRole (PK distincte, users_schools_roles.id) : on ne peut
+            // pas comparer les deux id directement, il faut traverser la relation
+            // — même pattern que GradesController::index()/downloadAttachment().
+            $scopedUsr = $asParent
+                ? $request->user()->parentLinkedStudent($schoolId)
+                : $request->user()->scopedUserSchoolRole($schoolId);
+
+            if ($asParent && $scopedUsr?->user) {
+                $viewingChild = "{$scopedUsr->user->firstname} {$scopedUsr->user->lastname}";
+            }
+
             $query->when(
                 $scopedUsr,
                 fn ($q) => $q->whereHas('sectionUser.userschoolrole', fn ($q2) => $q2->where('id', $scopedUsr->id)),
@@ -61,8 +71,9 @@ class MedicalCertificatesController extends Controller
                 'has_attachment' => $c->has_attachment,
                 'rejection_reason' => $c->rejection_reason,
             ]),
-            'is_certificate_staff' => $this->isCertificateStaff($request, $schoolId),
-            'is_certificate_submitter' => $this->isCertificateSubmitter($request, $schoolId),
+            'is_certificate_staff' => ! $asParent && $this->isCertificateStaff($request, $schoolId),
+            'is_certificate_submitter' => $this->isCertificateSubmitter($request, $schoolId, $asParent),
+            'viewing_child' => $viewingChild,
         ]);
     }
 
@@ -123,25 +134,32 @@ class MedicalCertificatesController extends Controller
     public function submitPage(Request $request): Response
     {
         $schoolId = session('active_school_id');
-        abort_unless($this->isCertificateSubmitter($request, $schoolId), 403);
+        $asParent = $request->boolean('as_parent');
+        abort_unless($this->isCertificateSubmitter($request, $schoolId, $asParent), 403);
 
-        return Inertia::render('power-user/web/MedicalCertificates/Submit');
+        return Inertia::render('power-user/web/MedicalCertificates/Submit', [
+            'as_parent' => $asParent,
+        ]);
     }
 
     /** Soumission par l'élève lui-même, ou par son parent pour l'enfant lié. */
     public function submit(Request $request): RedirectResponse
     {
         $schoolId = session('active_school_id');
-        abort_unless($this->isCertificateSubmitter($request, $schoolId), 403);
+        $asParent = $request->boolean('as_parent');
+        abort_unless($this->isCertificateSubmitter($request, $schoolId, $asParent), 403);
 
         // `section_user_id` référence section_users.id (SectionUserSchoolRole),
-        // alors que scopedUserSchoolRole() renvoie un UserSchoolRole (PK
-        // distincte, users_schools_roles.id) : on résout d'abord la ligne
-        // UserSchoolRole de l'appelant (l'élève lui-même, ou l'enfant lié si
-        // Parent), puis on retrouve SA propre inscription active (section_users)
-        // via cette ligne — jamais l'id UserSchoolRole directement. Même pattern
-        // que index()/downloadAttachment().
-        $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+        // alors que scopedUserSchoolRole()/parentLinkedStudent() renvoient un
+        // UserSchoolRole (PK distincte, users_schools_roles.id) : on résout
+        // d'abord la ligne UserSchoolRole de l'appelant (l'élève lui-même, son
+        // enfant si Parent sans ?as_parent=1, ou explicitement l'enfant lié si
+        // ?as_parent=1 pour un double rôle staff+parent), puis on retrouve SA
+        // propre inscription active (section_users) via cette ligne — jamais
+        // l'id UserSchoolRole directement. Même pattern que index()/downloadAttachment().
+        $scopedUsr = $asParent
+            ? $request->user()->parentLinkedStudent($schoolId)
+            : $request->user()->scopedUserSchoolRole($schoolId);
         abort_unless($scopedUsr, 403);
 
         $sectionUser = SectionUserSchoolRole::where('user_school_role_id', $scopedUsr->id)
@@ -230,12 +248,15 @@ class MedicalCertificatesController extends Controller
     public function downloadAttachment(Request $request, MedicalCertificate $medicalCertificate): StreamedResponse
     {
         $schoolId = session('active_school_id');
+        $asParent = $request->boolean('as_parent');
         abort_unless($medicalCertificate->attachment_path && Storage::disk('local')->exists($medicalCertificate->attachment_path), 404);
 
-        if (! $this->isCertificateStaff($request, $schoolId)) {
+        if ($asParent || ! $this->canViewAllCertificates($request, $schoolId)) {
             // Même remarque que index() : comparaison via la relation, pas par id direct.
             $medicalCertificate->loadMissing('sectionUser.userschoolrole');
-            $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+            $scopedUsr = $asParent
+                ? $request->user()->parentLinkedStudent($schoolId)
+                : $request->user()->scopedUserSchoolRole($schoolId);
             abort_unless($scopedUsr && $medicalCertificate->sectionUser?->userschoolrole?->id === $scopedUsr->id, 403);
         }
 
@@ -268,6 +289,24 @@ class MedicalCertificatesController extends Controller
     }
 
     /**
+     * Secrétariat/Power User (gestion) + Directeur (lecture seule, jamais
+     * create/approve/reject — is_certificate_staff reste réservé aux deux
+     * premiers). Utilisé uniquement pour élargir la PORTÉE de ce qui est vu
+     * dans index()/downloadAttachment(), jamais pour autoriser une action
+     * d'écriture.
+     */
+    private function canViewAllCertificates(Request $request, ?int $schoolId): bool
+    {
+        if (! $schoolId) {
+            return false;
+        }
+
+        $role = $request->user()->activeRoleAt($schoolId);
+
+        return in_array($role, [...self::CERTIFICATE_STAFF_ROLES, 'Directeur'], true);
+    }
+
+    /**
      * Vrai si le rôle PROPRE de l'appelant à cette école est Élève ou Parent.
      * Contrairement à scopedUserSchoolRole() (qui, pour un Parent, résout déjà
      * vers la ligne UserSchoolRole de l'enfant, donc toujours ELEVE), ceci lit
@@ -275,10 +314,14 @@ class MedicalCertificatesController extends Controller
      * une ligne section_users (pour sa propre affectation d'enseignement) et
      * passerait sinon le seul check abort_unless($scopedUsr, 403).
      */
-    private function isCertificateSubmitter(Request $request, ?int $schoolId): bool
+    private function isCertificateSubmitter(Request $request, ?int $schoolId, bool $asParent = false): bool
     {
         if (! $schoolId) {
             return false;
+        }
+
+        if ($asParent) {
+            return $request->user()->parentLinkedStudent($schoolId) !== null;
         }
 
         $role = $request->user()->activeRoleAt($schoolId);

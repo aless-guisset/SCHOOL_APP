@@ -216,6 +216,42 @@ test('a student cannot submit a certificate for another student', function () {
     expect($certificate->section_user_id)->not->toBe($sectionUser->id);
 });
 
+test('a Power User who is also a Parent can submit for their linked child via as_parent=1', function () {
+    Storage::fake('local');
+    $school = makeMcsSchool();
+    [$studentUsr, $sectionUser] = makeMcsStudent($school);
+
+    $powerUserRole = makeMcsRole('POWER', 'Power User');
+    $dualUser = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $dualUser->id, 'school_id' => $school->id, 'role_id' => $powerUserRole->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    linkMcsParent($studentUsr, $dualUser, $school);
+
+    // Sans as_parent=1 : le rôle le plus privilégié (Power User) est utilisé, refusé.
+    $this->actingAs($dualUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/medical-certificates/submit', [
+            'starts_at' => '2026-01-05',
+            'ends_at' => '2026-01-08',
+            'attachment' => UploadedFile::fake()->create('certificat.pdf', 100, 'application/pdf'),
+        ])
+        ->assertForbidden();
+
+    // Avec as_parent=1 : résout vers l'enfant lié, accepté.
+    $this->actingAs($dualUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/medical-certificates/submit?as_parent=1', [
+            'starts_at' => '2026-01-05',
+            'ends_at' => '2026-01-08',
+            'attachment' => UploadedFile::fake()->create('certificat.pdf', 100, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    expect(MedicalCertificate::where('section_user_id', $sectionUser->id)->exists())->toBeTrue();
+});
+
 test('a Professeur cannot submit a certificate even with their own section_users row', function () {
     Storage::fake('local');
     $school = makeMcsSchool();

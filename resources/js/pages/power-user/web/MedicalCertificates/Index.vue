@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,7 +27,12 @@ const props = defineProps<{
     certificates: Certificate[];
     is_certificate_staff: boolean;
     is_certificate_submitter: boolean;
+    viewing_child?: string | null;
 }>();
+
+function attachmentHref(id: number): string {
+    return props.viewing_child ? `/medical-certificates/${id}/attachment?as_parent=1` : `/medical-certificates/${id}/attachment`;
+}
 
 const STATUS_LABEL: Record<Certificate['status'], string> = { P: 'En attente', A: 'Actif', R: 'Rejeté' };
 const STATUS_VARIANT: Record<Certificate['status'], 'secondary' | 'default' | 'destructive'> = { P: 'secondary', A: 'default', R: 'destructive' };
@@ -64,6 +70,7 @@ const breadcrumbs = [{ label: 'Certificats médicaux' }];
     <AppLayout>
         <div class="p-4 md:p-6">
             <FlashMessage />
+            <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
             <PageHeader title="Certificats médicaux" :breadcrumbs="breadcrumbs">
                 <template #actions>
                     <Button v-if="props.is_certificate_submitter" size="sm" as-child>
@@ -75,7 +82,7 @@ const breadcrumbs = [{ label: 'Certificats médicaux' }];
                 </template>
             </PageHeader>
 
-            <div v-if="props.is_certificate_staff && pending.length" class="mb-6">
+            <div v-if="pending.length" class="mb-6">
                 <h2 class="mb-2 text-sm font-semibold">En attente de validation</h2>
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Card v-for="c in pending" :key="c.id">
@@ -86,10 +93,10 @@ const breadcrumbs = [{ label: 'Certificats médicaux' }];
                             </div>
                             <p class="text-muted-foreground">Du {{ c.starts_at }} au {{ c.ends_at }}</p>
                             <p v-if="c.reason" class="text-xs text-muted-foreground">{{ c.reason }}</p>
-                            <a v-if="c.has_attachment" :href="`/medical-certificates/${c.id}/attachment`" class="block text-xs text-primary underline">
+                            <a v-if="c.has_attachment" :href="attachmentHref(c.id)" class="block text-xs text-primary underline">
                                 Voir le justificatif
                             </a>
-                            <div class="flex gap-2 pt-1">
+                            <div v-if="props.is_certificate_staff" class="flex gap-2 pt-1">
                                 <Button size="sm" @click="approve(c.id)">Approuver</Button>
                                 <Button size="sm" variant="destructive" @click="openReject(c.id)">Rejeter</Button>
                             </div>
@@ -111,7 +118,7 @@ const breadcrumbs = [{ label: 'Certificats médicaux' }];
                         <p class="text-muted-foreground">Du {{ c.starts_at }} au {{ c.ends_at }}</p>
                         <p v-if="c.reason" class="text-xs text-muted-foreground">{{ c.reason }}</p>
                         <p v-if="c.status === 'R' && c.rejection_reason" class="text-xs text-destructive">Motif de refus : {{ c.rejection_reason }}</p>
-                        <a v-if="c.has_attachment" :href="`/medical-certificates/${c.id}/attachment`" class="text-xs text-primary underline">
+                        <a v-if="c.has_attachment" :href="attachmentHref(c.id)" class="text-xs text-primary underline">
                             Voir le justificatif
                         </a>
                     </CardContent>

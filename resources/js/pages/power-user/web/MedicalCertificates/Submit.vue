@@ -9,6 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 
+const props = defineProps<{
+    as_parent?: boolean;
+}>();
+
 const form = useForm({
     starts_at: '',
     ends_at: '',
@@ -22,7 +26,7 @@ function onFileChange(event: Event) {
 }
 
 function submit() {
-    form.post('/medical-certificates/submit', { forceFormData: true });
+    form.post(`/medical-certificates/submit${props.as_parent ? '?as_parent=1' : ''}`, { forceFormData: true });
 }
 
 const breadcrumbs = [
