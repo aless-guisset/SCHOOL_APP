@@ -241,6 +241,10 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::get('/medical-certificates/create', [MedicalCertificatesController::class, 'create'])->name('medical-certificates.create');
     Route::post('/medical-certificates', [MedicalCertificatesController::class, 'store'])->name('medical-certificates.store');
     Route::get('/medical-certificates/{medicalCertificate}/attachment', [MedicalCertificatesController::class, 'downloadAttachment'])->name('medical-certificates.attachment');
+    Route::get('/medical-certificates/submit', [MedicalCertificatesController::class, 'submitPage'])->name('medical-certificates.submit-page');
+    Route::post('/medical-certificates/submit', [MedicalCertificatesController::class, 'submit'])->name('medical-certificates.submit');
+    Route::post('/medical-certificates/{medicalCertificate}/approve', [MedicalCertificatesController::class, 'approve'])->name('medical-certificates.approve');
+    Route::post('/medical-certificates/{medicalCertificate}/reject', [MedicalCertificatesController::class, 'reject'])->name('medical-certificates.reject');
 
     Route::resource('courses', CoursesController::class)->only(['index', 'show']);
     Route::resource('sections', SectionsController::class)->only(['index', 'show']);

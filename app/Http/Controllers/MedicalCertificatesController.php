@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Concerns\ReconcilesAttendanceCertificates;
 use App\Models\MedicalCertificate;
 use App\Models\SectionUserSchoolRole;
+use App\Models\User;
+use App\Notifications\MedicalCertificateRejectedNotification;
+use App\Notifications\MedicalCertificateSubmittedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -104,6 +108,115 @@ class MedicalCertificatesController extends Controller
 
         return redirect()->route('medical-certificates.index')
             ->with('flash', ['type' => 'success', 'message' => 'Certificat enregistré et présences justifiées.']);
+    }
+
+    /**
+     * Formulaire de soumission élève/parent. Pas de gate staff ici — même
+     * philosophie que submit() : l'accès réel est déterminé par la présence
+     * d'une inscription active (section_users) pour l'appelant, vérifiée au
+     * moment du POST, pas par un contrôle de rôle explicite sur la page.
+     */
+    public function submitPage(Request $request): Response
+    {
+        return Inertia::render('power-user/web/MedicalCertificates/Submit');
+    }
+
+    /** Soumission par l'élève lui-même, ou par son parent pour l'enfant lié. */
+    public function submit(Request $request): RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+
+        // `section_user_id` référence section_users.id (SectionUserSchoolRole),
+        // alors que scopedUserSchoolRole() renvoie un UserSchoolRole (PK
+        // distincte, users_schools_roles.id) : on résout d'abord la ligne
+        // UserSchoolRole de l'appelant (l'élève lui-même, ou l'enfant lié si
+        // Parent), puis on retrouve SA propre inscription active (section_users)
+        // via cette ligne — jamais l'id UserSchoolRole directement. Même pattern
+        // que index()/downloadAttachment().
+        $scopedUsr = $request->user()->scopedUserSchoolRole($schoolId);
+        abort_unless($scopedUsr, 403);
+
+        $sectionUser = SectionUserSchoolRole::where('user_school_role_id', $scopedUsr->id)
+            ->where('is_active', true)
+            ->first();
+        abort_unless($sectionUser, 403);
+
+        $data = $request->validate([
+            'starts_at' => 'required|date',
+            'ends_at' => 'required|date|after_or_equal:starts_at',
+            'reason' => 'nullable|string|max:1000',
+            'attachment' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        $certificate = MedicalCertificate::create([
+            'school_id' => $schoolId,
+            'section_user_id' => $sectionUser->id,
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'],
+            'reason' => $data['reason'] ?? null,
+            'attachment_path' => $request->file('attachment')->store('medical-certificates', 'local'),
+            'attachment_original_name' => $request->file('attachment')->getClientOriginalName(),
+            'status' => 'P',
+            'submitted_by' => $request->user()->id,
+            'is_active' => true,
+            'created_by' => $request->user()->id,
+        ]);
+
+        $staff = User::whereHas('schoolRoles', fn ($q) => $q
+            ->where('school_id', $schoolId)->where('status', 'A')->where('is_active', true)
+            ->whereHas('role', fn ($q2) => $q2->whereIn('name', self::CERTIFICATE_STAFF_ROLES)))
+            ->get();
+
+        Notification::send($staff, new MedicalCertificateSubmittedNotification($certificate));
+
+        return redirect()->route('medical-certificates.index')
+            ->with('flash', ['type' => 'success', 'message' => 'Certificat soumis, en attente de validation.']);
+    }
+
+    public function approve(Request $request, MedicalCertificate $medicalCertificate): RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+        abort_unless($this->isCertificateStaff($request, $schoolId), 403);
+        abort_if($medicalCertificate->status !== 'P', 422, 'Ce certificat n\'est plus en attente.');
+
+        $medicalCertificate->update([
+            'status' => 'A',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $this->reconcileCertificate($medicalCertificate);
+
+        return redirect()->route('medical-certificates.index')
+            ->with('flash', ['type' => 'success', 'message' => 'Certificat approuvé, présences justifiées.']);
+    }
+
+    public function reject(Request $request, MedicalCertificate $medicalCertificate): RedirectResponse
+    {
+        $schoolId = session('active_school_id');
+        abort_unless($this->isCertificateStaff($request, $schoolId), 403);
+        abort_if($medicalCertificate->status !== 'P', 422, 'Ce certificat n\'est plus en attente.');
+
+        $data = $request->validate([
+            'rejection_reason' => 'nullable|string|max:1000',
+        ]);
+
+        $medicalCertificate->update([
+            'status' => 'R',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $submitter = User::find($medicalCertificate->submitted_by);
+        if ($submitter) {
+            Notification::send($submitter, new MedicalCertificateRejectedNotification($medicalCertificate));
+        }
+
+        return redirect()->route('medical-certificates.index')
+            ->with('flash', ['type' => 'warning', 'message' => 'Certificat rejeté.']);
     }
 
     public function downloadAttachment(Request $request, MedicalCertificate $medicalCertificate): StreamedResponse
