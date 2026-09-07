@@ -145,35 +145,7 @@ test('marking a student retard does not notify the parent', function () {
     Notification::assertNothingSent();
 });
 
-test('correcting a student from present to absent notifies the parent', function () {
-    Notification::fake();
-
-    $school = makeAbsNotifSchool();
-    $teacherUsr = makeAbsNotifUsr($school, makeAbsNotifRole('PROF', 'Professeur'));
-    $session = makeAbsNotifSession($school, $teacherUsr);
-    $parent = User::factory()->create();
-    linkAbsNotifParent($session['studentUsr'], $parent, $school);
-
-    $jar = $this->actingAs($teacherUsr->user)->withSession(['active_school_id' => $school->id]);
-
-    $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
-        'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'P', 'note' => null],
-        ],
-    ])->assertRedirect();
-
-    Notification::assertNothingSent();
-
-    $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
-        'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
-        ],
-    ])->assertRedirect();
-
-    Notification::assertSentTo($parent, AbsenceRecordedNotification::class);
-});
-
-test('correcting a student from absent to present does not notify the parent', function () {
+test('attempting to resubmit a locked timesheet does not send a duplicate notification', function () {
     Notification::fake();
 
     $school = makeAbsNotifSchool();
@@ -190,40 +162,13 @@ test('correcting a student from absent to present does not notify the parent', f
         ],
     ])->assertRedirect();
 
-    Notification::assertSentTo($parent, AbsenceRecordedNotification::class);
-    Notification::fake();
-
-    $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
-        'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'P', 'note' => null],
-        ],
-    ])->assertRedirect();
-
-    Notification::assertNothingSent();
-});
-
-test('re-saving the same absence with only the note changed does not duplicate the notification', function () {
-    Notification::fake();
-
-    $school = makeAbsNotifSchool();
-    $teacherUsr = makeAbsNotifUsr($school, makeAbsNotifRole('PROF', 'Professeur'));
-    $session = makeAbsNotifSession($school, $teacherUsr);
-    $parent = User::factory()->create();
-    linkAbsNotifParent($session['studentUsr'], $parent, $school);
-
-    $jar = $this->actingAs($teacherUsr->user)->withSession(['active_school_id' => $school->id]);
-
-    $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
-        'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
-        ],
-    ])->assertRedirect();
+    Notification::assertSentToTimes($parent, AbsenceRecordedNotification::class, 1);
 
     $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
         'attendances' => [
             ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'J', 'note' => 'Justifiée'],
         ],
-    ])->assertRedirect();
+    ])->assertSessionHasErrors('attendances');
 
     Notification::assertSentToTimes($parent, AbsenceRecordedNotification::class, 1);
 });

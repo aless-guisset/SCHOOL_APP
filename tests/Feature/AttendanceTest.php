@@ -170,7 +170,36 @@ test('roster reflects an already-recorded absence', function () {
         );
 });
 
-test('storing attendance creates one row per student and upserts on resubmit', function () {
+test('storing attendance creates one row per student and locks the timesheet', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student1 = enrollAttendanceStudent($section, $eleveRole, $school);
+    $student2 = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    expect($timesheet->attendance_submitted_at)->toBeNull();
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student1->id, 'presence_status' => 'P', 'note' => null],
+                ['section_user_id' => $student2->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Absent non justifié'],
+            ],
+        ])
+        ->assertRedirect();
+
+    expect(Attendance::count())->toBe(2);
+    expect(Attendance::where('section_user_id', $student2->id)->first()->presence_status)->toBe('A');
+    expect(Attendance::where('section_user_id', $student2->id)->first()->note)->toBe('Absent non justifié');
+    expect($timesheet->fresh()->attendance_submitted_at)->not->toBeNull();
+});
+
+test('resubmitting attendance after it was already submitted is rejected and changes nothing', function () {
     $school = makeAttendanceSchool();
     $section = makeAttendanceSection($school);
     $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
@@ -188,14 +217,11 @@ test('storing attendance creates one row per student and upserts on resubmit', f
                 ['section_user_id' => $student1->id, 'presence_status' => 'P', 'note' => null],
                 ['section_user_id' => $student2->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Absent non justifié'],
             ],
-        ])
-        ->assertRedirect();
+        ])->assertRedirect();
 
-    expect(Attendance::count())->toBe(2);
-    expect(Attendance::where('section_user_id', $student2->id)->first()->presence_status)->toBe('A');
-    expect(Attendance::where('section_user_id', $student2->id)->first()->note)->toBe('Absent non justifié');
+    $submittedAt = $timesheet->fresh()->attendance_submitted_at;
 
-    // Ré-envoi : met à jour, ne duplique pas
+    // Tentative de resoumission — rejetée, rien ne change.
     $this->actingAs($powerUser)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
@@ -203,11 +229,11 @@ test('storing attendance creates one row per student and upserts on resubmit', f
                 ['section_user_id' => $student1->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Rentré chez lui malade'],
                 ['section_user_id' => $student2->id, 'presence_status' => 'P', 'note' => null],
             ],
-        ]);
+        ])->assertSessionHasErrors('attendances');
 
-    expect(Attendance::count())->toBe(2);
-    expect(Attendance::where('section_user_id', $student1->id)->first()->presence_status)->toBe('A');
-    expect(Attendance::where('section_user_id', $student2->id)->first()->presence_status)->toBe('P');
+    expect(Attendance::where('section_user_id', $student1->id)->first()->presence_status)->toBe('P');
+    expect(Attendance::where('section_user_id', $student2->id)->first()->presence_status)->toBe('A');
+    expect($timesheet->fresh()->attendance_submitted_at->toDateTimeString())->toBe($submittedAt->toDateTimeString());
 });
 
 test('a retard is stored distinctly from an absence', function () {
@@ -366,7 +392,7 @@ test('storing attendance on a timesheet belonging to another school is rejected'
     expect(Attendance::count())->toBe(0);
 });
 
-test('created_by is preserved and updated_by changes when a different user resubmits', function () {
+test('created_by and updated_by are both set to the submitting user on first submission', function () {
     $school = makeAttendanceSchool();
     $section = makeAttendanceSection($school);
     $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
@@ -374,11 +400,9 @@ test('created_by is preserved and updated_by changes when a different user resub
     $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
     $student = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerRole = makeAttendanceRole('POWER', 'Power User');
-    $powerUserA = makeAttendanceUsr($school, $powerRole)->user;
-    $powerUserB = makeAttendanceUsr($school, $powerRole)->user;
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
 
-    $this->actingAs($powerUserA)
+    $this->actingAs($powerUser)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -387,20 +411,8 @@ test('created_by is preserved and updated_by changes when a different user resub
         ]);
 
     $attendance = Attendance::where('section_user_id', $student->id)->first();
-    expect($attendance->created_by)->toBe($powerUserA->id);
-    expect($attendance->updated_by)->toBe($powerUserA->id);
-
-    $this->actingAs($powerUserB)
-        ->withSession(['active_school_id' => $school->id])
-        ->post("/timesheets/{$timesheet->id}/attendance", [
-            'attendances' => [
-                ['section_user_id' => $student->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Retard'],
-            ],
-        ]);
-
-    $attendance->refresh();
-    expect($attendance->created_by)->toBe($powerUserA->id);
-    expect($attendance->updated_by)->toBe($powerUserB->id);
+    expect($attendance->created_by)->toBe($powerUser->id);
+    expect($attendance->updated_by)->toBe($powerUser->id);
 });
 
 test('storing attendance for a session that has not happened yet is rejected', function () {

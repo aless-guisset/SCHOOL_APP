@@ -22,14 +22,11 @@ class AttendanceObserver
         $this->notify($attendance);
     }
 
-    public function updated(Attendance $attendance): void
-    {
-        if (! $attendance->wasChanged('presence_status') || $attendance->presence_status !== 'A') {
-            return;
-        }
-
-        $this->notify($attendance);
-    }
+    // Pas de méthode updated() : depuis le verrouillage définitif des présences
+    // (AttendancesController::store()), une ligne Attendance n'est plus jamais
+    // modifiée après sa création — seule reconcileCertificate() y touche
+    // ensuite, via une mise à jour en masse par le query builder qui ne
+    // déclenche jamais les événements Eloquent.
 
     private function notify(Attendance $attendance): void
     {

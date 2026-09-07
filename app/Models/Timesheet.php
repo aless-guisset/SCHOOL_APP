@@ -24,6 +24,7 @@ class Timesheet extends Model
         'classroom_id',
         'date',
         'hours_done',
+        'attendance_submitted_at',
         'reference',
         'description',
         'status',
@@ -39,6 +40,7 @@ class Timesheet extends Model
         'is_deleted' => 'boolean',
         'is_customized' => 'boolean',
         'is_generated' => 'boolean',
+        'attendance_submitted_at' => 'datetime',
     ];
 
     // ---- Relations ----

@@ -19,6 +19,13 @@ class AttendancesController extends Controller
     {
         abort_unless($timesheet->userSchoolRole?->school_id == session('active_school_id'), 404);
 
+        // Verrou définitif : une fois les présences soumises pour ce cours,
+        // plus personne ne peut les modifier — décision explicite (voir spec),
+        // aucun mécanisme de déverrouillage prévu, même pour le staff.
+        if ($timesheet->attendance_submitted_at !== null) {
+            return back()->withErrors(['attendances' => 'Les présences de ce cours ont déjà été soumises et ne peuvent plus être modifiées.']);
+        }
+
         // On ne peut pas prendre les présences d'un cours qui n'a pas encore eu lieu.
         if (Carbon::parse($timesheet->date)->gt(Carbon::today())) {
             return back()->withErrors(['attendances' => 'Ce cours n\'a pas encore eu lieu, impossible de prendre les présences à l\'avance.']);
@@ -65,6 +72,8 @@ class AttendancesController extends Controller
             }
             $attendance->save();
         }
+
+        $timesheet->update(['attendance_submitted_at' => now()]);
 
         return back()->with('flash', ['type' => 'success', 'message' => 'Présences enregistrées.']);
     }

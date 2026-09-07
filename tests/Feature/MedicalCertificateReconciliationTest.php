@@ -194,3 +194,23 @@ test('storing a new absence within an active certificate range is forced to just
     expect($attendance->justification_status)->toBe('J');
     expect($attendance->medical_certificate_id)->not->toBeNull();
 });
+
+test('reconciliation still justifies attendance on a timesheet whose presences are already locked', function () {
+    $school = makeCertSchool();
+    $teacherUsr = makeCertUsr($school, makeCertRole('PROF', 'Professeur'));
+    $session = makeCertSession($school, $teacherUsr, '2026-01-06');
+
+    $attendance = Attendance::create([
+        'timesheet_id' => $session['timesheet']->id, 'section_user_id' => $session['studentSectionUser']->id,
+        'presence_status' => 'A', 'justification_status' => 'I',
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+    $session['timesheet']->update(['attendance_submitted_at' => now()]);
+
+    $certificate = makeCertificate($school, $session['studentSectionUser'], '2026-01-05', '2026-01-08');
+    $this->reconcileCertificate($certificate);
+
+    $attendance->refresh();
+    expect($attendance->justification_status)->toBe('J');
+    expect($attendance->medical_certificate_id)->toBe($certificate->id);
+});
