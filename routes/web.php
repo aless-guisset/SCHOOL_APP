@@ -10,6 +10,7 @@ use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GradesController;
 use App\Http\Controllers\LessonsController;
+use App\Http\Controllers\MedicalCertificatesController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ParentAccessController;
 use App\Http\Controllers\ParentLinksController;
@@ -231,6 +232,15 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::get('/grades', [GradesController::class, 'index'])->name('grades.index');
     Route::get('/grades/bulletin/{sectionUser}', [GradesController::class, 'bulletin'])->name('grades.bulletin');
     Route::get('/grades/{grade}/attachment', [GradesController::class, 'downloadAttachment'])->name('grades.attachment');
+
+    // ── Certificats médicaux ────────────────────────────────────────────────
+    // Pas de middleware can-manage : la restriction Secrétariat/Power User
+    // (Professeur exclu, contrairement à can-manage) est vérifiée dans le
+    // contrôleur via isCertificateStaff(), même pattern que GradesController.
+    Route::get('/medical-certificates', [MedicalCertificatesController::class, 'index'])->name('medical-certificates.index');
+    Route::get('/medical-certificates/create', [MedicalCertificatesController::class, 'create'])->name('medical-certificates.create');
+    Route::post('/medical-certificates', [MedicalCertificatesController::class, 'store'])->name('medical-certificates.store');
+    Route::get('/medical-certificates/{medicalCertificate}/attachment', [MedicalCertificatesController::class, 'downloadAttachment'])->name('medical-certificates.attachment');
 
     Route::resource('courses', CoursesController::class)->only(['index', 'show']);
     Route::resource('sections', SectionsController::class)->only(['index', 'show']);
