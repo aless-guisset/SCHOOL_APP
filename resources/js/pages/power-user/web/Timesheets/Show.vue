@@ -24,6 +24,7 @@ type RosterEntry = {
     presence_status: PresenceStatus;
     justification_status: JustificationStatus;
     note: string | null;
+    has_active_certificate: boolean;
 };
 
 const props = defineProps<{
@@ -151,20 +152,24 @@ const PRESENCE_VARIANT: Record<PresenceStatus, 'outline' | 'destructive' | 'seco
                             <span class="text-sm font-medium">{{ roster[i].name }}</span>
                             <div class="flex items-center gap-2">
                                 <template v-if="canEditAttendance">
-                                    <select
-                                        v-if="entry.presence_status !== 'P'"
-                                        v-model="entry.justification_status"
-                                        class="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                                    >
-                                        <option value="I">Injustifié</option>
-                                        <option value="J">Justifié</option>
-                                    </select>
-                                    <Input
-                                        v-if="entry.presence_status !== 'P' && entry.justification_status === 'J'"
-                                        v-model="entry.note"
-                                        placeholder="Note (optionnel)"
-                                        class="h-8 w-40 text-xs"
-                                    />
+                                    <Badge v-if="entry.presence_status !== 'P' && roster[i].has_active_certificate" variant="outline">
+                                        Justifié (certificat)
+                                    </Badge>
+                                    <template v-else-if="entry.presence_status !== 'P'">
+                                        <select
+                                            v-model="entry.justification_status"
+                                            class="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                                        >
+                                            <option value="I">Injustifié</option>
+                                            <option value="J">Justifié</option>
+                                        </select>
+                                        <Input
+                                            v-if="entry.justification_status === 'J'"
+                                            v-model="entry.note"
+                                            placeholder="Note (optionnel)"
+                                            class="h-8 w-40 text-xs"
+                                        />
+                                    </template>
                                     <Button
                                         :variant="PRESENCE_VARIANT[entry.presence_status]"
                                         size="sm"

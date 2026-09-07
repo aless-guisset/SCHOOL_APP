@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\ReconcilesAttendanceCertificates;
 use App\Concerns\ResolvesAttendanceRoster;
 use App\Models\Attendance;
 use App\Models\Timesheet;
@@ -12,7 +13,7 @@ use Illuminate\Validation\Rule;
 
 class AttendancesController extends Controller
 {
-    use ResolvesAttendanceRoster;
+    use ReconcilesAttendanceCertificates, ResolvesAttendanceRoster;
 
     public function store(Request $request, Timesheet $timesheet): RedirectResponse
     {
@@ -42,6 +43,20 @@ class AttendancesController extends Controller
             $attendance->justification_status = $row['presence_status'] === 'P'
                 ? null
                 : ($row['justification_status'] ?? 'I');
+            $attendance->medical_certificate_id = null;
+
+            // Un certificat actif couvrant cette date fait foi, quelle que
+            // soit la valeur envoyée par le client — aucune exception
+            // possible depuis cet écran (voir spec, section "Erreurs et cas
+            // limites").
+            if ($attendance->presence_status !== 'P') {
+                $certificate = $this->activeCertificateCovering($row['section_user_id'], $timesheet->date);
+                if ($certificate) {
+                    $attendance->justification_status = 'J';
+                    $attendance->medical_certificate_id = $certificate->id;
+                }
+            }
+
             $attendance->note = $row['note'] ?? null;
             $attendance->status = 'A';
             $attendance->updated_by = $request->user()->id;

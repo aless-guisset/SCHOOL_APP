@@ -11,7 +11,8 @@ class Attendance extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'timesheet_id', 'section_user_id', 'presence_status', 'justification_status', 'note',
+        'timesheet_id', 'section_user_id', 'presence_status', 'justification_status',
+        'medical_certificate_id', 'note',
         'status', 'is_active', 'created_by', 'updated_by',
     ];
 
@@ -27,5 +28,10 @@ class Attendance extends Model
     public function sectionUser(): BelongsTo
     {
         return $this->belongsTo(SectionUserSchoolRole::class, 'section_user_id');
+    }
+
+    public function medicalCertificate(): BelongsTo
+    {
+        return $this->belongsTo(MedicalCertificate::class);
     }
 }

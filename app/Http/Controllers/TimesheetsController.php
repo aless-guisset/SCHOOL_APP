@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\ReconcilesAttendanceCertificates;
 use App\Concerns\ResolvesAttendanceRoster;
 use App\Models\Attendance;
 use App\Models\Classroom;
@@ -23,7 +24,7 @@ use Inertia\Response;
 
 class TimesheetsController extends Controller
 {
-    use ResolvesAttendanceRoster;
+    use ReconcilesAttendanceCertificates, ResolvesAttendanceRoster;
 
     private const PERIODS = ['week', 'month', 'trimester'];
 
@@ -167,7 +168,7 @@ class TimesheetsController extends Controller
         return $students
             ->with('userschoolrole.user')
             ->get()
-            ->map(function (SectionUserSchoolRole $su) use ($attendances) {
+            ->map(function (SectionUserSchoolRole $su) use ($attendances, $timesheet) {
                 $attendance = $attendances->get($su->id);
 
                 return [
@@ -178,6 +179,7 @@ class TimesheetsController extends Controller
                     'presence_status'       => $attendance?->presence_status ?? 'P',
                     'justification_status'  => $attendance?->justification_status,
                     'note'       => $attendance?->note,
+                    'has_active_certificate' => (bool) $this->activeCertificateCovering($su->id, $timesheet->date),
                 ];
             })
             ->values()
