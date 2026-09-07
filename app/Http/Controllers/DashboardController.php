@@ -56,8 +56,58 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'week_schedule' => $this->weekSchedule($schoolId, $usr, $currentRole),
             'recent_activity' => $this->recentActivity($schoolId, $currentRole),
+            'current_course' => $this->currentCourse($usr, $currentRole),
             'viewing_child' => $viewingChild,
         ]);
+    }
+
+    /**
+     * Cours du Professeur actuellement en cours, ou à défaut le prochain de la
+     * journée — null pour tout autre rôle, ou si aucun cours aujourd'hui.
+     * `?as_parent=1` force déjà $currentRole à 'Élève' plus haut dans index(),
+     * donc ce widget disparaît naturellement en vue "Mes enfants", sans logique
+     * supplémentaire ici.
+     */
+    private function currentCourse(?UserSchoolRole $usr, ?string $currentRole): ?array
+    {
+        if ($currentRole !== 'Professeur' || ! $usr) {
+            return null;
+        }
+
+        $todayIso = now()->dayOfWeekIso;
+        $sectionUserIds = SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
+
+        $schedules = Schedule::with('sectionCourse.course')
+            ->where('is_active', true)
+            ->where('day_of_week', $todayIso)
+            ->whereHas('sectionCourse', fn ($q) => $q->whereIn('section_user_id', $sectionUserIds))
+            ->orderBy('start_time')
+            ->get();
+
+        if ($schedules->isEmpty()) {
+            return null;
+        }
+
+        $now = now()->format('H:i:s');
+        $current = $schedules->first(fn (Schedule $s) => $s->start_time <= $now && $s->end_time >= $now);
+        $chosen = $current ?? $schedules->first(fn (Schedule $s) => $s->start_time > $now);
+
+        if (! $chosen) {
+            return null;
+        }
+
+        $timesheet = Timesheet::where('schedule_id', $chosen->id)
+            ->where('date', now()->toDateString())
+            ->first();
+
+        return [
+            'status' => $current ? 'in_progress' : 'upcoming',
+            'course_label' => $chosen->sectionCourse?->name ?? $chosen->name,
+            'start_time' => $chosen->start_time,
+            'end_time' => $chosen->end_time,
+            'timesheet_id' => $timesheet?->id,
+            'attendance_submitted' => $timesheet ? $timesheet->attendance_submitted_at !== null : false,
+        ];
     }
 
     private function weekSchedule(?int $schoolId, ?UserSchoolRole $usr, ?string $currentRole): array

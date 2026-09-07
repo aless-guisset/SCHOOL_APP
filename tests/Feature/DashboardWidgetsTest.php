@@ -375,3 +375,121 @@ test('a teacher with a Parent role sees their child\'s schedule via as_parent=1 
             ->where('week_schedule.slots.0.course_label', 'Maths Classe A')
         );
 });
+
+test('current_course shows the in-progress course for a professeur right now', function () {
+    $moment = Carbon::parse('next monday')->setTime(11, 0, 0);
+    Carbon::setTestNow($moment);
+
+    $school = makeSchool();
+    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
+    $schedule = makeScheduleFor($school, $teacherUsr);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course->id, 'name' => 'Algèbre', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $timesheet = Timesheet::create([
+        'user_school_role_id' => $teacherUsr->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => $moment->toDateString(), 'hours_done' => 0,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('current_course.status', 'in_progress')
+            ->where('current_course.course_label', 'Maths Classe A')
+            ->where('current_course.timesheet_id', $timesheet->id)
+            ->where('current_course.attendance_submitted', false)
+        );
+
+    Carbon::setTestNow();
+});
+
+test('current_course shows the next course of the day when none is in progress', function () {
+    $moment = Carbon::parse('next monday')->setTime(8, 0, 0);
+    Carbon::setTestNow($moment);
+
+    $school = makeSchool();
+    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
+    makeScheduleFor($school, $teacherUsr);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('current_course.status', 'upcoming')
+            ->where('current_course.course_label', 'Maths Classe A')
+        );
+
+    Carbon::setTestNow();
+});
+
+test('current_course is null when the professeur has no course today', function () {
+    $moment = Carbon::parse('next tuesday')->setTime(11, 0, 0);
+    Carbon::setTestNow($moment);
+
+    $school = makeSchool();
+    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
+    makeScheduleFor($school, $teacherUsr); // schedule un lundi, on est un mardi
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('current_course', null)
+        );
+
+    Carbon::setTestNow();
+});
+
+test('current_course is null for non-professeur roles', function () {
+    $moment = Carbon::parse('next monday')->setTime(11, 0, 0);
+    Carbon::setTestNow($moment);
+
+    $school = makeSchool();
+    $powerUser = User::factory()->create();
+    UserSchoolRole::create([
+        'user_id' => $powerUser->id, 'school_id' => $school->id,
+        'role_id' => makeRole('POWER', 'Power User')->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('current_course', null)
+        );
+
+    Carbon::setTestNow();
+});
+
+test('current_course reflects attendance_submitted when the timesheet is already locked', function () {
+    $moment = Carbon::parse('next monday')->setTime(11, 0, 0);
+    Carbon::setTestNow($moment);
+
+    $school = makeSchool();
+    $teacherUsr = makeUsr($school, makeRole('PROF', 'Professeur'));
+    $schedule = makeScheduleFor($school, $teacherUsr);
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $schedule->sectionCourse->course->id, 'name' => 'Algèbre', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    Timesheet::create([
+        'user_school_role_id' => $teacherUsr->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => $moment->toDateString(), 'hours_done' => 0, 'attendance_submitted_at' => now(),
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('current_course.attendance_submitted', true)
+        );
+
+    Carbon::setTestNow();
+});
