@@ -95,7 +95,7 @@ test('marking a student absent notifies the linked parent', function () {
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$session['timesheet']->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+                ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
             ],
         ])
         ->assertRedirect();
@@ -116,7 +116,28 @@ test('marking a student present does not notify the parent', function () {
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$session['timesheet']->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => true, 'note' => null],
+                ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'P', 'note' => null],
+            ],
+        ])
+        ->assertRedirect();
+
+    Notification::assertNothingSent();
+});
+
+test('marking a student retard does not notify the parent', function () {
+    Notification::fake();
+
+    $school = makeAbsNotifSchool();
+    $teacherUsr = makeAbsNotifUsr($school, makeAbsNotifRole('PROF', 'Professeur'));
+    $session = makeAbsNotifSession($school, $teacherUsr);
+    $parent = User::factory()->create();
+    linkAbsNotifParent($session['studentUsr'], $parent, $school);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$session['timesheet']->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'R', 'justification_status' => 'I', 'note' => null],
             ],
         ])
         ->assertRedirect();
@@ -137,7 +158,7 @@ test('correcting a student from present to absent notifies the parent', function
 
     $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
         'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => true, 'note' => null],
+            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'P', 'note' => null],
         ],
     ])->assertRedirect();
 
@@ -145,7 +166,7 @@ test('correcting a student from present to absent notifies the parent', function
 
     $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
         'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
         ],
     ])->assertRedirect();
 
@@ -165,7 +186,7 @@ test('correcting a student from absent to present does not notify the parent', f
 
     $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
         'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
         ],
     ])->assertRedirect();
 
@@ -174,7 +195,7 @@ test('correcting a student from absent to present does not notify the parent', f
 
     $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
         'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => true, 'note' => null],
+            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'P', 'note' => null],
         ],
     ])->assertRedirect();
 
@@ -194,13 +215,13 @@ test('re-saving the same absence with only the note changed does not duplicate t
 
     $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
         'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
         ],
     ])->assertRedirect();
 
     $jar->post("/timesheets/{$session['timesheet']->id}/attendance", [
         'attendances' => [
-            ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => 'Justifiée'],
+            ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'J', 'note' => 'Justifiée'],
         ],
     ])->assertRedirect();
 
@@ -221,7 +242,7 @@ test('the absence notification contains the student name, the subject and the se
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$session['timesheet']->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+                ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
             ],
         ])
         ->assertRedirect();
@@ -266,8 +287,8 @@ test('a roster saved in one request only notifies the parents of the absent stud
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$session['timesheet']->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
-                ['section_user_id' => $second['studentSectionUser']->id, 'is_present' => true, 'note' => null],
+                ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
+                ['section_user_id' => $second['studentSectionUser']->id, 'presence_status' => 'P', 'note' => null],
             ],
         ])
         ->assertRedirect();
@@ -291,7 +312,7 @@ test('a failing notification send does not break the attendance save', function 
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$session['timesheet']->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+                ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
             ],
         ])
         ->assertRedirect();
@@ -299,7 +320,7 @@ test('a failing notification send does not break the attendance save', function 
     $this->assertDatabaseHas('attendances', [
         'timesheet_id' => $session['timesheet']->id,
         'section_user_id' => $session['studentSectionUser']->id,
-        'is_present' => false,
+        'presence_status' => 'A',
     ]);
 });
 
@@ -314,7 +335,7 @@ test('marking a student with no linked parent absent does not error', function (
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$session['timesheet']->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $session['studentSectionUser']->id, 'is_present' => false, 'note' => null],
+                ['section_user_id' => $session['studentSectionUser']->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
             ],
         ])
         ->assertRedirect();

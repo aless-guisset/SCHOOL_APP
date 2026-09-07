@@ -11,7 +11,11 @@ class AttendanceObserver
 {
     public function created(Attendance $attendance): void
     {
-        if ($attendance->is_present) {
+        // Retard ('R') n'est volontairement pas une absence — seul 'A'
+        // déclenche AbsenceRecordedNotification, comme avant l'introduction
+        // du statut Retard (l'ancien `is_present=false` ne pouvait signifier
+        // qu'une absence, jamais un retard qui n'existait pas encore).
+        if ($attendance->presence_status !== 'A') {
             return;
         }
 
@@ -20,7 +24,7 @@ class AttendanceObserver
 
     public function updated(Attendance $attendance): void
     {
-        if (! $attendance->wasChanged('is_present') || $attendance->is_present) {
+        if (! $attendance->wasChanged('presence_status') || $attendance->presence_status !== 'A') {
             return;
         }
 

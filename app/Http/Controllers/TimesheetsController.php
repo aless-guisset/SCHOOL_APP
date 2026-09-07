@@ -175,7 +175,8 @@ class TimesheetsController extends Controller
                     'name'             => $su->userschoolrole?->user
                         ? "{$su->userschoolrole->user->lastname} {$su->userschoolrole->user->firstname}"
                         : '—',
-                    'is_present' => $attendance?->is_present ?? true,
+                    'presence_status'       => $attendance?->presence_status ?? 'P',
+                    'justification_status'  => $attendance?->justification_status,
                     'note'       => $attendance?->note,
                 ];
             })

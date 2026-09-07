@@ -28,7 +28,8 @@ class AttendancesController extends Controller
         $data = $request->validate([
             'attendances' => 'required|array',
             'attendances.*.section_user_id' => ['required', 'integer', Rule::in($validSectionUserIds)],
-            'attendances.*.is_present' => 'required|boolean',
+            'attendances.*.presence_status' => ['required', Rule::in(['P', 'A', 'R'])],
+            'attendances.*.justification_status' => ['nullable', Rule::in(['J', 'I'])],
             'attendances.*.note' => 'nullable|string|max:1000',
         ]);
 
@@ -37,7 +38,10 @@ class AttendancesController extends Controller
                 'timesheet_id' => $timesheet->id,
                 'section_user_id' => $row['section_user_id'],
             ]);
-            $attendance->is_present = $row['is_present'];
+            $attendance->presence_status = $row['presence_status'];
+            $attendance->justification_status = $row['presence_status'] === 'P'
+                ? null
+                : ($row['justification_status'] ?? 'I');
             $attendance->note = $row['note'] ?? null;
             $attendance->status = 'A';
             $attendance->updated_by = $request->user()->id;

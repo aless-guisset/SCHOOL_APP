@@ -108,13 +108,13 @@ test('attendance belongs to a timesheet and a section user', function () {
 
     $attendance = Attendance::create([
         'timesheet_id' => $timesheet->id, 'section_user_id' => $student->id,
-        'is_present' => false, 'note' => 'Certificat médical reçu',
+        'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Absence non justifiée',
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
     expect($attendance->timesheet->id)->toBe($timesheet->id);
     expect($attendance->sectionUser->id)->toBe($student->id);
-    expect($attendance->is_present)->toBeFalse();
+    expect($attendance->presence_status)->toBe('A');
 });
 
 test('roster only includes students of the session section, defaulting to present', function () {
@@ -138,7 +138,8 @@ test('roster only includes students of the session section, defaulting to presen
             ->component('power-user/web/Timesheets/Show')
             ->has('roster', 1)
             ->where('roster.0.section_user_id', $student->id)
-            ->where('roster.0.is_present', true)
+            ->where('roster.0.presence_status', 'P')
+            ->where('roster.0.justification_status', null)
             ->where('roster.0.note', null)
         );
 });
@@ -153,7 +154,7 @@ test('roster reflects an already-recorded absence', function () {
 
     Attendance::create([
         'timesheet_id' => $timesheet->id, 'section_user_id' => $student->id,
-        'is_present' => false, 'note' => 'Certificat médical reçu',
+        'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Certificat médical reçu',
         'status' => 'A', 'is_active' => true, 'created_by' => 1,
     ]);
 
@@ -163,7 +164,8 @@ test('roster reflects an already-recorded absence', function () {
         ->withSession(['active_school_id' => $school->id])
         ->get("/timesheets/{$timesheet->id}")
         ->assertInertia(fn ($page) => $page
-            ->where('roster.0.is_present', false)
+            ->where('roster.0.presence_status', 'A')
+            ->where('roster.0.justification_status', 'I')
             ->where('roster.0.note', 'Certificat médical reçu')
         );
 });
@@ -183,14 +185,14 @@ test('storing attendance creates one row per student and upserts on resubmit', f
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $student1->id, 'is_present' => true,  'note' => null],
-                ['section_user_id' => $student2->id, 'is_present' => false, 'note' => 'Absent non justifié'],
+                ['section_user_id' => $student1->id, 'presence_status' => 'P', 'note' => null],
+                ['section_user_id' => $student2->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Absent non justifié'],
             ],
         ])
         ->assertRedirect();
 
     expect(Attendance::count())->toBe(2);
-    expect(Attendance::where('section_user_id', $student2->id)->first()->is_present)->toBeFalse();
+    expect(Attendance::where('section_user_id', $student2->id)->first()->presence_status)->toBe('A');
     expect(Attendance::where('section_user_id', $student2->id)->first()->note)->toBe('Absent non justifié');
 
     // Ré-envoi : met à jour, ne duplique pas
@@ -198,14 +200,82 @@ test('storing attendance creates one row per student and upserts on resubmit', f
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $student1->id, 'is_present' => false, 'note' => 'Rentré chez lui malade'],
-                ['section_user_id' => $student2->id, 'is_present' => true,  'note' => null],
+                ['section_user_id' => $student1->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Rentré chez lui malade'],
+                ['section_user_id' => $student2->id, 'presence_status' => 'P', 'note' => null],
             ],
         ]);
 
     expect(Attendance::count())->toBe(2);
-    expect(Attendance::where('section_user_id', $student1->id)->first()->is_present)->toBeFalse();
-    expect(Attendance::where('section_user_id', $student2->id)->first()->is_present)->toBeTrue();
+    expect(Attendance::where('section_user_id', $student1->id)->first()->presence_status)->toBe('A');
+    expect(Attendance::where('section_user_id', $student2->id)->first()->presence_status)->toBe('P');
+});
+
+test('a retard is stored distinctly from an absence', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'presence_status' => 'R', 'justification_status' => 'J', 'note' => 'Retard de bus'],
+            ],
+        ])
+        ->assertRedirect();
+
+    $attendance = Attendance::where('section_user_id', $student->id)->first();
+    expect($attendance->presence_status)->toBe('R');
+    expect($attendance->justification_status)->toBe('J');
+});
+
+test('absent or retard without an explicit justification defaults to unjustified', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'presence_status' => 'A', 'note' => null],
+            ],
+        ])
+        ->assertRedirect();
+
+    expect(Attendance::where('section_user_id', $student->id)->first()->justification_status)->toBe('I');
+});
+
+test('present never carries a justification status even if the client sends one', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'presence_status' => 'P', 'justification_status' => 'J', 'note' => null],
+            ],
+        ])
+        ->assertRedirect();
+
+    expect(Attendance::where('section_user_id', $student->id)->first()->justification_status)->toBeNull();
 });
 
 test('storing attendance for a student outside the session section is rejected', function () {
@@ -223,7 +293,7 @@ test('storing attendance for a student outside the session section is rejected',
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $outsideStudent->id, 'is_present' => false, 'note' => null],
+                ['section_user_id' => $outsideStudent->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
             ],
         ])
         ->assertSessionHasErrors('attendances.0.section_user_id');
@@ -247,7 +317,7 @@ test("storing attendance for the teacher's own section_user_id is rejected", fun
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $teacherSectionUser->id, 'is_present' => false, 'note' => null],
+                ['section_user_id' => $teacherSectionUser->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => null],
             ],
         ])
         ->assertSessionHasErrors('attendances.0.section_user_id');
@@ -312,7 +382,7 @@ test('created_by is preserved and updated_by changes when a different user resub
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $student->id, 'is_present' => true, 'note' => null],
+                ['section_user_id' => $student->id, 'presence_status' => 'P', 'note' => null],
             ],
         ]);
 
@@ -324,7 +394,7 @@ test('created_by is preserved and updated_by changes when a different user resub
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $student->id, 'is_present' => false, 'note' => 'Retard'],
+                ['section_user_id' => $student->id, 'presence_status' => 'A', 'justification_status' => 'I', 'note' => 'Retard'],
             ],
         ]);
 
@@ -348,7 +418,7 @@ test('storing attendance for a session that has not happened yet is rejected', f
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $student->id, 'is_present' => true, 'note' => null],
+                ['section_user_id' => $student->id, 'presence_status' => 'P', 'note' => null],
             ],
         ])
         ->assertSessionHasErrors('attendances');
@@ -370,7 +440,7 @@ test('storing attendance for a session happening today is accepted', function ()
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
-                ['section_user_id' => $student->id, 'is_present' => true, 'note' => null],
+                ['section_user_id' => $student->id, 'presence_status' => 'P', 'note' => null],
             ],
         ])
         ->assertRedirect();

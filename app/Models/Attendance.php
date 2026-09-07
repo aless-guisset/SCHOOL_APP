@@ -11,13 +11,12 @@ class Attendance extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'timesheet_id', 'section_user_id', 'is_present', 'note',
+        'timesheet_id', 'section_user_id', 'presence_status', 'justification_status', 'note',
         'status', 'is_active', 'created_by', 'updated_by',
     ];
 
     protected $casts = [
-        'is_present' => 'boolean',
-        'is_active'  => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function timesheet(): BelongsTo
