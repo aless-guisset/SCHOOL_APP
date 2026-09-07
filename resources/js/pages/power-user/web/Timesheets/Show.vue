@@ -32,6 +32,7 @@ const props = defineProps<{
         id: number;
         date: string;
         hours_done: number;
+        attendance_submitted_at: string | null;
         user_school_role: { user: { lastname: string; firstname: string } } | null;
         schedule: { name: string; start_time: string; end_time: string } | null;
         subject: { name: string } | null;
@@ -81,7 +82,17 @@ function saveAttendance() {
 // à l'avance — le backend (AttendancesController::store()) refuse déjà la
 // requête, ceci évite en plus d'afficher des contrôles inutilisables.
 const isFutureSession = computed(() => new Date(`${props.timesheet.date}T00:00:00`) > new Date(new Date().toDateString()));
-const canEditAttendance = computed(() => canManage.value && !isFutureSession.value);
+// Verrou définitif dès la première soumission — le backend refuse déjà toute
+// resoumission, ceci évite en plus d'afficher des contrôles inutilisables.
+const isLocked = computed(() => props.timesheet.attendance_submitted_at !== null);
+const canEditAttendance = computed(() => canManage.value && !isFutureSession.value && !isLocked.value);
+
+const submittedAtLabel = computed(() => {
+    if (!props.timesheet.attendance_submitted_at) return '';
+    return new Date(props.timesheet.attendance_submitted_at).toLocaleString('fr-FR', {
+        day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+});
 
 const PRESENCE_VARIANT: Record<PresenceStatus, 'outline' | 'destructive' | 'secondary'> = {
     P: 'outline', A: 'destructive', R: 'secondary',
@@ -145,6 +156,12 @@ const PRESENCE_VARIANT: Record<PresenceStatus, 'outline' | 'destructive' | 'seco
                         Ce cours n'a pas encore eu lieu — les présences pourront être prises à partir du {{ timesheet.date }}.
                     </div>
                     <div v-else class="space-y-3">
+                        <div
+                            v-if="isLocked"
+                            class="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+                        >
+                            Présences déjà soumises le {{ submittedAtLabel }} — elles ne peuvent plus être modifiées.
+                        </div>
                         <div
                             v-for="(entry, i) in attendanceForm.attendances" :key="entry.section_user_id"
                             class="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0"
