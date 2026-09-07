@@ -215,3 +215,26 @@ test('a student cannot submit a certificate for another student', function () {
     $certificate = MedicalCertificate::latest('id')->first();
     expect($certificate->section_user_id)->not->toBe($sectionUser->id);
 });
+
+test('a Professeur cannot submit a certificate even with their own section_users row', function () {
+    Storage::fake('local');
+    $school = makeMcsSchool();
+    $section = Section::create(['school_id' => $school->id, 'name' => 'Classe', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $profUsr = makeMcsUsr($school, makeMcsRole('PROF', 'Professeur'));
+    // Un Professeur a lui aussi une ligne section_users pour son affectation
+    // d'enseignement — même pattern que makeCertSession() dans
+    // MedicalCertificateReconciliationTest. C'est cette ligne qui, avant le
+    // fix, passait le seul check abort_unless($scopedUsr, 403) de submit().
+    SectionUserSchoolRole::create(['section_id' => $section->id, 'user_school_role_id' => $profUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($profUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->post('/medical-certificates/submit', [
+            'starts_at' => '2026-01-05',
+            'ends_at' => '2026-01-08',
+            'attachment' => UploadedFile::fake()->create('certificat.pdf', 100, 'application/pdf'),
+        ])
+        ->assertForbidden();
+
+    expect(MedicalCertificate::count())->toBe(0);
+});

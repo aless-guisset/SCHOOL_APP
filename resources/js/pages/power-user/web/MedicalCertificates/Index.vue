@@ -25,6 +25,7 @@ type Certificate = {
 const props = defineProps<{
     certificates: Certificate[];
     is_certificate_staff: boolean;
+    is_certificate_submitter: boolean;
 }>();
 
 const STATUS_LABEL: Record<Certificate['status'], string> = { P: 'En attente', A: 'Actif', R: 'Rejeté' };
@@ -65,10 +66,10 @@ const breadcrumbs = [{ label: 'Certificats médicaux' }];
             <FlashMessage />
             <PageHeader title="Certificats médicaux" :breadcrumbs="breadcrumbs">
                 <template #actions>
-                    <Button v-if="!props.is_certificate_staff" size="sm" as-child>
+                    <Button v-if="props.is_certificate_submitter" size="sm" as-child>
                         <Link href="/medical-certificates/submit">Soumettre un certificat</Link>
                     </Button>
-                    <Button v-else size="sm" as-child>
+                    <Button v-else-if="props.is_certificate_staff" size="sm" as-child>
                         <Link href="/medical-certificates/create">Nouveau certificat</Link>
                     </Button>
                 </template>

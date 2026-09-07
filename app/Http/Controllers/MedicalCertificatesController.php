@@ -23,6 +23,9 @@ class MedicalCertificatesController extends Controller
     /** Aligné sur la décision de spec : Directeur/Professeur en sont exclus, contrairement à can-manage. */
     private const CERTIFICATE_STAFF_ROLES = ['Secrétariat', 'Power User'];
 
+    /** Soumission élève/parent : seuls ces rôles PROPRES à l'appelant peuvent soumettre. */
+    private const CERTIFICATE_SUBMITTER_ROLES = ['Élève', 'Parent'];
+
     public function index(Request $request): Response
     {
         $schoolId = session('active_school_id');
@@ -59,6 +62,7 @@ class MedicalCertificatesController extends Controller
                 'rejection_reason' => $c->rejection_reason,
             ]),
             'is_certificate_staff' => $this->isCertificateStaff($request, $schoolId),
+            'is_certificate_submitter' => $this->isCertificateSubmitter($request, $schoolId),
         ]);
     }
 
@@ -111,13 +115,16 @@ class MedicalCertificatesController extends Controller
     }
 
     /**
-     * Formulaire de soumission élève/parent. Pas de gate staff ici — même
-     * philosophie que submit() : l'accès réel est déterminé par la présence
-     * d'une inscription active (section_users) pour l'appelant, vérifiée au
-     * moment du POST, pas par un contrôle de rôle explicite sur la page.
+     * Formulaire de soumission élève/parent. Le rôle propre de l'appelant
+     * (pas celui de scopedUserSchoolRole(), qui pour un Parent est déjà celui
+     * de l'enfant) doit être Élève ou Parent — un Professeur ayant sa propre
+     * ligne section_users ne doit pas pouvoir soumettre.
      */
     public function submitPage(Request $request): Response
     {
+        $schoolId = session('active_school_id');
+        abort_unless($this->isCertificateSubmitter($request, $schoolId), 403);
+
         return Inertia::render('power-user/web/MedicalCertificates/Submit');
     }
 
@@ -125,6 +132,7 @@ class MedicalCertificatesController extends Controller
     public function submit(Request $request): RedirectResponse
     {
         $schoolId = session('active_school_id');
+        abort_unless($this->isCertificateSubmitter($request, $schoolId), 403);
 
         // `section_user_id` référence section_users.id (SectionUserSchoolRole),
         // alors que scopedUserSchoolRole() renvoie un UserSchoolRole (PK
@@ -257,5 +265,24 @@ class MedicalCertificatesController extends Controller
         $role = $request->user()->activeRoleAt($schoolId);
 
         return in_array($role, self::CERTIFICATE_STAFF_ROLES, true);
+    }
+
+    /**
+     * Vrai si le rôle PROPRE de l'appelant à cette école est Élève ou Parent.
+     * Contrairement à scopedUserSchoolRole() (qui, pour un Parent, résout déjà
+     * vers la ligne UserSchoolRole de l'enfant, donc toujours ELEVE), ceci lit
+     * le rôle réel de l'appelant — nécessaire car un Professeur possède aussi
+     * une ligne section_users (pour sa propre affectation d'enseignement) et
+     * passerait sinon le seul check abort_unless($scopedUsr, 403).
+     */
+    private function isCertificateSubmitter(Request $request, ?int $schoolId): bool
+    {
+        if (! $schoolId) {
+            return false;
+        }
+
+        $role = $request->user()->activeRoleAt($schoolId);
+
+        return in_array($role, self::CERTIFICATE_SUBMITTER_ROLES, true);
     }
 }
