@@ -11,7 +11,7 @@ import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
-const { canManage } = useSchool();
+const { canManageStructure: canManage } = useSchool();
 
 const props = defineProps<{
     resource: { id: number; name: string; type: string | null; description: string | null; is_active: boolean };

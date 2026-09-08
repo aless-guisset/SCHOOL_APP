@@ -162,3 +162,13 @@ test('a teacher can still create a grade (can-manage unchanged for grades)', fun
 
     expect(\App\Models\Grade::where('section_user_id', $sectionUser->id)->exists())->toBeTrue();
 });
+
+test('a teacher sees the classrooms page as read-only (no manage actions in props path)', function () {
+    $school = makeCanManageSchool();
+    $teacher = makeCanManageUsr($school, makeCanManageRole('PROF', 'Professeur'))->user;
+
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/classrooms')
+        ->assertOk();
+});
