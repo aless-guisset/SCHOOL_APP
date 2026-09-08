@@ -35,13 +35,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('timesheets', TimesheetsController::class)->only(['index', 'show']);
         Route::apiResource('resources', ResourcesController::class)->only(['index', 'show']);
 
-        Route::middleware('can-manage')->group(function () {
+        Route::middleware('can-manage-structure')->group(function () {
             Route::apiResource('classrooms', ClassroomsController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('subjects', SubjectsController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('lessons', LessonsController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('schedules', SchedulesController::class)->only(['store', 'update', 'destroy']);
-            Route::apiResource('timesheets', TimesheetsController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('resources', ResourcesController::class)->only(['store', 'update', 'destroy']);
+        });
+
+        Route::middleware('can-manage')->group(function () {
+            Route::apiResource('timesheets', TimesheetsController::class)->only(['store', 'update', 'destroy']);
         });
     });
 });

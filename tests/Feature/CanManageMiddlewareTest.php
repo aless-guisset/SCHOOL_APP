@@ -85,7 +85,7 @@ test('a secretariat member can create a classroom', function () {
     expect(Classroom::where('name', 'Salle 3')->exists())->toBeTrue();
 });
 
-test('a teacher can create, edit and delete a classroom', function () {
+test('a teacher cannot create, edit or delete a classroom (moved to can-manage-structure)', function () {
     $school = makeCanManageSchool();
     $teacher = makeCanManageUsr($school, makeCanManageRole('PROF', 'Professeur'))->user;
 
@@ -95,16 +95,15 @@ test('a teacher can create, edit and delete a classroom', function () {
     ]);
 
     $this->actingAs($teacher)->withSession(['active_school_id' => $school->id])
-        ->post('/classrooms', ['name' => 'Salle 4'])->assertRedirect();
-    expect(Classroom::where('name', 'Salle 4')->exists())->toBeTrue();
+        ->post('/classrooms', ['name' => 'Salle 4'])->assertForbidden();
 
     $this->actingAs($teacher)->withSession(['active_school_id' => $school->id])
-        ->patch("/classrooms/{$classroom->id}", ['name' => 'Renommée par prof'])->assertRedirect();
-    expect($classroom->refresh()->name)->toBe('Renommée par prof');
+        ->patch("/classrooms/{$classroom->id}", ['name' => 'Renommée par prof'])->assertForbidden();
 
     $this->actingAs($teacher)->withSession(['active_school_id' => $school->id])
-        ->delete("/classrooms/{$classroom->id}")->assertRedirect();
-    expect(Classroom::find($classroom->id))->toBeNull();
+        ->delete("/classrooms/{$classroom->id}")->assertForbidden();
+
+    expect($classroom->refresh()->name)->toBe('Salle 1');
 });
 
 // ── Pas d'écriture : Élève, Administrateur, Directeur ──────────────────────
@@ -139,4 +138,27 @@ test('a directeur cannot create a classroom', function () {
         ->withSession(['active_school_id' => $school->id])
         ->post('/classrooms', ['name' => 'Salle piratée'])
         ->assertForbidden();
+});
+
+test('a teacher can still create a grade (can-manage unchanged for grades)', function () {
+    $school = makeCanManageSchool();
+    $teacher = makeCanManageUsr($school, makeCanManageRole('PROF', 'Professeur'))->user;
+
+    $course = \App\Models\Course::create(['school_id' => $school->id, 'name' => 'Cours', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $section = \App\Models\Section::create(['school_id' => $school->id, 'name' => 'Classe', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $subject = \App\Models\Subject::create(['course_id' => $course->id, 'name' => 'Matière', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $studentUsr = makeCanManageUsr($school, makeCanManageRole('ELEVE', 'Élève'));
+    $sectionUser = \App\Models\SectionUserSchoolRole::create(['section_id' => $section->id, 'user_school_role_id' => $studentUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($teacher)->withSession(['active_school_id' => $school->id])
+        ->post('/grades', [
+            'section_user_id' => $sectionUser->id,
+            'subject_id' => $subject->id,
+            'period' => 'Trimestre 1',
+            'max_grade' => 20,
+            'grade' => 15,
+        ])
+        ->assertRedirect();
+
+    expect(\App\Models\Grade::where('section_user_id', $sectionUser->id)->exists())->toBeTrue();
 });

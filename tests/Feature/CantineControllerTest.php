@@ -173,7 +173,7 @@ test('a power user can add a menu option for a date', function () {
     expect(CantineMenu::where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat A')->exists())->toBeTrue();
 });
 
-test('a teacher can add a menu option', function () {
+test('a teacher cannot add a menu option (moved to can-manage-structure)', function () {
     $school = makeCantineSchool();
     $teacher = makeCantineUsr($school, makeCantineRole('PROF', 'Professeur'))->user;
     $date = Carbon::today()->toDateString();
@@ -181,9 +181,9 @@ test('a teacher can add a menu option', function () {
     $this->actingAs($teacher)
         ->withSession(['active_school_id' => $school->id])
         ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat A'])
-        ->assertRedirect();
+        ->assertForbidden();
 
-    expect(CantineMenu::where('school_id', $school->id)->exists())->toBeTrue();
+    expect(CantineMenu::where('school_id', $school->id)->exists())->toBeFalse();
 });
 
 test('an administrateur cannot add a menu option', function () {
