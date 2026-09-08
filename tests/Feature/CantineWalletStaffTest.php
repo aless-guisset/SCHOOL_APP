@@ -72,6 +72,23 @@ test('a directeur can view the wallets index and a student wallet (read-only)', 
         ->assertInertia(fn ($page) => $page->where('can_write', false));
 });
 
+test('a professeur can view a student wallet but cannot write (read-only)', function () {
+    $school = makeStaffWalletSchool();
+    $teacher = makeStaffWalletUsr($school, makeStaffWalletRole('PROF', 'Professeur'))->user;
+    $student = makeStaffWalletStudent($school);
+
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/cantine/wallet/{$student->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('can_write', false));
+
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/cantine/wallet/{$student->id}/manual-credit", ['amount' => 15])
+        ->assertForbidden();
+});
+
 test('an élève cannot view the wallets index', function () {
     $school = makeStaffWalletSchool();
     $student = makeStaffWalletStudent($school);

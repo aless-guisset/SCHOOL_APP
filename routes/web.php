@@ -190,7 +190,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     // plus tôt dans la table de routage, y compris "create" ou "check-conflict".
     $writeOnly = ['create', 'store', 'edit', 'update', 'destroy'];
 
-    Route::middleware('can-manage')->group(function () use ($writeOnly) {
+    Route::middleware('can-manage-structure')->group(function () use ($writeOnly) {
         Route::resource('courses', CoursesController::class)->only($writeOnly);
         Route::resource('sections', SectionsController::class)->only($writeOnly);
         Route::resource('section-courses', SectionCoursesController::class)->only($writeOnly);
@@ -199,11 +199,6 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::resource('lessons', LessonsController::class)->only($writeOnly);
         Route::resource('schedules', SchedulesController::class)->only($writeOnly);
         Route::patch('/school-year', [SchoolYearSettingsController::class, 'update'])->name('school-year.update');
-        Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
-            ->name('timesheets.check-conflict');
-        Route::resource('timesheets', TimesheetsController::class)->only($writeOnly);
-        Route::post('/timesheets/{timesheet}/attendance', [AttendancesController::class, 'store'])
-            ->name('attendances.store');
         Route::resource('resources', ResourcesController::class)->only($writeOnly);
 
         // ── Cantine (module optionnel, activable par école) ────────────────
@@ -213,6 +208,14 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::put('/cantine/price', [CantineController::class, 'updatePrice'])->name('cantine.price.update');
         Route::post('/cantine/wallet/{sectionUser}/manual-credit', [CantineWalletController::class, 'manualCredit'])->name('cantine.wallet.manual-credit');
         Route::delete('/cantine/wallet/manual-credit/{cantineTransaction}', [CantineWalletController::class, 'voidManualCredit'])->name('cantine.wallet.manual-credit.void');
+    });
+
+    Route::middleware('can-manage')->group(function () use ($writeOnly) {
+        Route::get('/timesheets/check-conflict', [TimesheetsController::class, 'checkConflict'])
+            ->name('timesheets.check-conflict');
+        Route::resource('timesheets', TimesheetsController::class)->only($writeOnly);
+        Route::post('/timesheets/{timesheet}/attendance', [AttendancesController::class, 'store'])
+            ->name('attendances.store');
 
         // ── Notes / bulletins ────────────────────────────────────────────────
         Route::get('/grades/create', [GradesController::class, 'create'])->name('grades.create');

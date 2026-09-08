@@ -59,7 +59,7 @@ test('an admin can list users via the api', function () {
         ->assertOk();
 });
 
-test('a teacher can read classrooms via the api and create one', function () {
+test('a teacher can read classrooms via the api', function () {
     $school = makeApiAuthSchool();
     $teacher = makeApiAuthUsr($school, makeApiAuthRole('PROF', 'Professeur'))->user;
 
@@ -67,13 +67,18 @@ test('a teacher can read classrooms via the api and create one', function () {
         ->withSession(['active_school_id' => $school->id])
         ->getJson('/api/classrooms')
         ->assertOk();
+});
+
+test('a teacher cannot create a classroom via the api (moved to can-manage-structure)', function () {
+    $school = makeApiAuthSchool();
+    $teacher = makeApiAuthUsr($school, makeApiAuthRole('PROF', 'Professeur'))->user;
 
     $this->actingAs($teacher)
         ->withSession(['active_school_id' => $school->id])
         ->post('/api/classrooms', ['name' => 'Salle prof'])
-        ->assertRedirect();
+        ->assertForbidden();
 
-    expect(\App\Models\Classroom::where('name', 'Salle prof')->exists())->toBeTrue();
+    expect(\App\Models\Classroom::where('name', 'Salle prof')->exists())->toBeFalse();
 });
 
 test('an administrateur cannot create a classroom via the api', function () {

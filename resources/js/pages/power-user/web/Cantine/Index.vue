@@ -13,7 +13,7 @@ import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { useSchool } from '@/composables/useSchool';
 import AppLayout from '@/layouts/AppLayout.vue';
 
-const { canManage } = useSchool();
+const { canManageStructure: canManage } = useSchool();
 
 type Menu = { id: number; label: string; description: string | null };
 type RosterEntry = {

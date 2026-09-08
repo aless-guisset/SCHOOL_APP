@@ -146,7 +146,11 @@ const statCards = computed(() => {
                         <CardTitle class="text-base">{{ t('nav.schedules') }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <WeekSchedule :week-schedule="props.week_schedule" :can-manage="canManageView" />
+                        <WeekSchedule
+                            :week-schedule="props.week_schedule"
+                            :can-manage="canManageView"
+                            :show-filter="currentRole === 'Professeur'"
+                        />
                     </CardContent>
                 </Card>
 

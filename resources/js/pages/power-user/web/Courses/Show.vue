@@ -11,7 +11,7 @@ import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
-const { canManage } = useSchool();
+const { canManageStructure: canManage } = useSchool();
 
 const props = defineProps<{
     course: {

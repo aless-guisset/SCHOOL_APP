@@ -142,6 +142,20 @@ test('index gives a directeur the menu only, no roster, no ordering', function (
         );
 });
 
+test('a professeur sees the student view, not the staff roster, on the cantine index', function () {
+    $school = makeCantineSchool();
+    $teacher = makeCantineUsr($school, makeCantineRole('PROF', 'Professeur'))->user;
+
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/cantine')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('roster')
+            ->where('can_order', false)
+        );
+});
+
 test('index scopes menus and roster to the active school', function () {
     $schoolA = makeCantineSchool();
     $schoolB = makeCantineSchool();
@@ -173,7 +187,7 @@ test('a power user can add a menu option for a date', function () {
     expect(CantineMenu::where('school_id', $school->id)->whereDate('date', $date)->where('label', 'Plat A')->exists())->toBeTrue();
 });
 
-test('a teacher can add a menu option', function () {
+test('a teacher cannot add a menu option (moved to can-manage-structure)', function () {
     $school = makeCantineSchool();
     $teacher = makeCantineUsr($school, makeCantineRole('PROF', 'Professeur'))->user;
     $date = Carbon::today()->toDateString();
@@ -181,9 +195,9 @@ test('a teacher can add a menu option', function () {
     $this->actingAs($teacher)
         ->withSession(['active_school_id' => $school->id])
         ->post('/cantine/menus', ['date' => $date, 'label' => 'Plat A'])
-        ->assertRedirect();
+        ->assertForbidden();
 
-    expect(CantineMenu::where('school_id', $school->id)->exists())->toBeTrue();
+    expect(CantineMenu::where('school_id', $school->id)->exists())->toBeFalse();
 });
 
 test('an administrateur cannot add a menu option', function () {

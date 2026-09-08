@@ -69,6 +69,16 @@ export function useSchool() {
      */
     const canManage = computed(() => hasRole('Power User', 'Secrétariat', 'Professeur'));
 
+    /**
+     * Vérifie si l'utilisateur peut gérer le contenu STRUCTUREL de l'école
+     * active (cours, sections, matières, salles, leçons, horaires,
+     * ressources, cantine) — Power User et Secrétariat uniquement.
+     * Contrairement à `canManage`, le Professeur n'a pas ce droit : il
+     * garde l'écriture sur Feuilles de temps et Notes, gérées par
+     * `canManage`. Aligné sur EnsureCanManageStructure côté backend.
+     */
+    const canManageStructure = computed(() => hasRole('Power User', 'Secrétariat'));
+
     return {
         activeSchool,
         currentRole,
@@ -77,6 +87,7 @@ export function useSchool() {
         hasSchool,
         isAdmin,
         canManage,
+        canManageStructure,
         switchSchool,
         setDefaultSchool,
         hasRole,

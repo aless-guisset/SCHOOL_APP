@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import WeeklyCalendar from '@/components/WeeklyCalendar.vue';
 import type {CalendarSlot} from '@/components/WeeklyCalendar.vue';
 
@@ -20,10 +20,23 @@ const props = defineProps<{
         slots: WeekScheduleSlot[];
     };
     canManage?: boolean;
+    showFilter?: boolean;
 }>();
 
+const selectedLabel = ref('');
+
+const distinctLabels = computed(() =>
+    Array.from(new Set(props.weekSchedule.slots.map(s => s.course_label))).sort()
+);
+
+const filteredSlots = computed(() =>
+    selectedLabel.value
+        ? props.weekSchedule.slots.filter(s => s.course_label === selectedLabel.value)
+        : props.weekSchedule.slots
+);
+
 const calendarSlots = computed<CalendarSlot[]>(() =>
-    props.weekSchedule.slots.map(s => ({
+    filteredSlots.value.map(s => ({
         id: s.schedule_id,
         dayOfWeek: s.day_of_week,
         startTime: s.start_time,
@@ -43,7 +56,17 @@ const weekStartLabel = computed(() => {
 
 <template>
     <div>
-        <p class="mb-2 text-sm font-medium text-muted-foreground">Semaine du {{ weekStartLabel }}</p>
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-medium text-muted-foreground">Semaine du {{ weekStartLabel }}</p>
+            <select
+                v-if="showFilter && distinctLabels.length > 1"
+                v-model="selectedLabel"
+                class="rounded-md border border-input bg-background px-2 py-1 text-sm"
+            >
+                <option value="">Toutes mes matières</option>
+                <option v-for="label in distinctLabels" :key="label" :value="label">{{ label }}</option>
+            </select>
+        </div>
         <div v-if="calendarSlots.length === 0" class="flex h-32 items-center justify-center rounded-lg border border-dashed border-border">
             <p class="text-sm text-muted-foreground">Aucun créneau cette semaine.</p>
         </div>

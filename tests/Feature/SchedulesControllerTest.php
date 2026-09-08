@@ -358,7 +358,7 @@ test('a Secretariat who saves a schedule lands on its detail page, not a 404', f
         ->assertOk();
 });
 
-test('store redirects a professor to the index when the created schedule is outside their sections', function () {
+test('a professor cannot create a schedule, even outside their sections (moved to can-manage-structure)', function () {
     $f = makeSchedulesTestFixture();
     [, $colleagueSectionCourse] = makeColleagueSchedule($f);
 
@@ -371,13 +371,12 @@ test('store redirects a professor to the index when the created schedule is outs
             'start_time' => '08:00',
             'end_time' => '10:00',
         ])
-        ->assertRedirect('/schedules')
-        ->assertSessionHas('flash.type', 'success');
+        ->assertForbidden();
 
-    expect(\App\Models\Schedule::where('name', 'Créneau du collègue')->exists())->toBeTrue();
+    expect(\App\Models\Schedule::where('name', 'Créneau du collègue')->exists())->toBeFalse();
 });
 
-test('store still redirects a professor to the detail page for their own section', function () {
+test('a professor cannot create a schedule even for their own section (moved to can-manage-structure)', function () {
     $f = makeSchedulesTestFixture();
 
     $this->actingAs($f['usr']->user)
@@ -389,20 +388,21 @@ test('store still redirects a professor to the detail page for their own section
             'start_time' => '08:00',
             'end_time' => '10:00',
         ])
-        ->assertRedirect('/schedules/'.\App\Models\Schedule::where('name', 'Mon créneau')->firstOrFail()->id);
+        ->assertForbidden();
+
+    expect(\App\Models\Schedule::where('name', 'Mon créneau')->exists())->toBeFalse();
 });
 
-test('update redirects a professor to the index when the schedule is outside their sections', function () {
+test('a professor cannot update a schedule, even outside their sections (moved to can-manage-structure)', function () {
     $f = makeSchedulesTestFixture();
     [, , $colleagueSchedule] = makeColleagueSchedule($f);
 
     $this->actingAs($f['usr']->user)
         ->withSession(['active_school_id' => $f['school']->id])
         ->put("/schedules/{$colleagueSchedule->id}", ['name' => 'Renommé'])
-        ->assertRedirect('/schedules')
-        ->assertSessionHas('flash.type', 'success');
+        ->assertForbidden();
 
-    expect($colleagueSchedule->fresh()->name)->toBe('Renommé');
+    expect($colleagueSchedule->fresh()->name)->not->toBe('Renommé');
 });
 
 /**

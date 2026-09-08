@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\EnsureCanManage;
+use App\Http\Middleware\EnsureCanManageStructure;
 use App\Models\CantineTransaction;
 use App\Models\School;
 use App\Models\SectionUserSchoolRole;
@@ -173,7 +174,7 @@ class CantineWalletController extends Controller
 
         $role = auth()->user()->activeRoleAt($schoolId);
 
-        return in_array($role, EnsureCanManage::MANAGE_ROLES, true);
+        return in_array($role, EnsureCanManageStructure::MANAGE_ROLES, true);
     }
 
     private function abortUnlessCantineEnabled(?int $schoolId): void

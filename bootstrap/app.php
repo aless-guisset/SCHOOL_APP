@@ -3,6 +3,7 @@
 use App\Http\Middleware\CheckSchoolContext;
 use App\Http\Middleware\EnsureAdministrateur;
 use App\Http\Middleware\EnsureCanManage;
+use App\Http\Middleware\EnsureCanManageStructure;
 use App\Http\Middleware\EnsureCanSubmitSchool;
 use App\Http\Middleware\EnsureDirecteur;
 use App\Http\Middleware\HandleAppearance;
@@ -31,11 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'school.context'    => CheckSchoolContext::class,
-            'admin'             => EnsureAdministrateur::class,
-            'can-manage'        => EnsureCanManage::class,
-            'director-only'     => EnsureDirecteur::class,
-            'can-submit-school' => EnsureCanSubmitSchool::class,
+            'school.context'       => CheckSchoolContext::class,
+            'admin'                => EnsureAdministrateur::class,
+            'can-manage'           => EnsureCanManage::class,
+            'can-manage-structure' => EnsureCanManageStructure::class,
+            'director-only'        => EnsureDirecteur::class,
+            'can-submit-school'    => EnsureCanSubmitSchool::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
