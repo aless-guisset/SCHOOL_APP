@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Middleware\EnsureCanManage;
+use App\Http\Middleware\EnsureCanManageStructure;
 use App\Models\CantineMenu;
 use App\Models\CantineOrder;
 use App\Models\CantineTransaction;
@@ -334,7 +334,7 @@ class CantineController extends Controller
         )->first();
     }
 
-    /** Même liste de rôles que EnsureCanManage — décide quoi renvoyer dans index(), pas un contrôle d'accès en soi. */
+    /** Même liste de rôles que EnsureCanManageStructure — décide quoi renvoyer dans index(), pas un contrôle d'accès en soi. */
     private function userCanManage(?int $schoolId): bool
     {
         if (! $schoolId) {
@@ -343,7 +343,7 @@ class CantineController extends Controller
 
         $role = auth()->user()->activeRoleAt($schoolId);
 
-        return in_array($role, EnsureCanManage::MANAGE_ROLES, true);
+        return in_array($role, EnsureCanManageStructure::MANAGE_ROLES, true);
     }
 
     private function abortUnlessCantineEnabled(?int $schoolId): void

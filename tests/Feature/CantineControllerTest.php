@@ -142,6 +142,20 @@ test('index gives a directeur the menu only, no roster, no ordering', function (
         );
 });
 
+test('a professeur sees the student view, not the staff roster, on the cantine index', function () {
+    $school = makeCantineSchool();
+    $teacher = makeCantineUsr($school, makeCantineRole('PROF', 'Professeur'))->user;
+
+    $this->actingAs($teacher)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/cantine')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('roster')
+            ->where('can_order', false)
+        );
+});
+
 test('index scopes menus and roster to the active school', function () {
     $schoolA = makeCantineSchool();
     $schoolB = makeCantineSchool();
