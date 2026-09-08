@@ -27,6 +27,7 @@ yarn-error.log
 /.vscode
 /.zed
 /docs/superpowers/
+/.superpowers/
 /.claude/
 /.worktrees/
 COMPTES_DEMO.txt
