@@ -10,12 +10,18 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const LABELS: Record<string, string> = { fr: 'Français', en: 'English', nl: 'Nederlands', es: 'Español' };
+const LANGS: Record<string, { flag: string; name: string }> = {
+    fr: { flag: '🇫🇷', name: 'Français' },
+    en: { flag: '🇬🇧', name: 'English' },
+    nl: { flag: '🇳🇱', name: 'Nederlands' },
+    es: { flag: '🇪🇸', name: 'Español' },
+};
 
 const page = usePage<{ locale: string; availableLocales: string[] }>();
 
 const current = computed(() => page.props.locale);
 const available = computed(() => page.props.availableLocales);
+const currentFlag = computed(() => LANGS[current.value]?.flag);
 
 function select(code: string) {
     router.post('/locale', { locale: code });
@@ -26,7 +32,8 @@ function select(code: string) {
     <DropdownMenu>
         <DropdownMenuTrigger as-child>
             <Button variant="ghost" size="icon">
-                <Languages class="size-5" />
+                <span v-if="currentFlag" class="text-base leading-none">{{ currentFlag }}</span>
+                <Languages v-else class="size-5" />
                 <span class="sr-only">Changer de langue</span>
             </Button>
         </DropdownMenuTrigger>
@@ -36,7 +43,8 @@ function select(code: string) {
                 @click="select(code)"
                 :class="current === code ? 'bg-accent text-accent-foreground' : ''"
             >
-                {{ LABELS[code] ?? code }}
+                <span class="mr-2">{{ LANGS[code]?.flag ?? '' }}</span>
+                {{ LANGS[code]?.name ?? code }}
             </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
