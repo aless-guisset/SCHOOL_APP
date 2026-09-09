@@ -132,7 +132,10 @@ onUnmounted(() => {
                 </template>
                 <template v-else>
                     <Link :href="login()" class="btn btn-sm btn-ghost">Se connecter</Link>
-                    <Link v-if="canRegister" :href="register()" class="btn btn-sm btn-green">Créer un établissement</Link>
+                    <Link v-if="canRegister" :href="register()" class="btn btn-sm btn-green">
+                        <span class="nav-cta-full">Créer un établissement</span>
+                        <span class="nav-cta-short">Créer</span>
+                    </Link>
                 </template>
             </div>
         </header>
@@ -481,6 +484,22 @@ onUnmounted(() => {
     font-size: 13px;
     color: var(--muted-2);
     background: var(--bg);
+}
+
+/* NAV — mobile : le bouton téléchargement (désactivé) est un pur ajout
+   visuel, retiré en premier pour laisser la place au sélecteur de langue
+   sans surcharger une rangée déjà dense sur un écran étroit. Le libellé
+   "Créer un établissement" bascule sur une version courte en dessous de
+   480px — les deux boutons texte + les deux icônes ne tiennent plus tous
+   sur une ligne de 54px sinon. */
+.nav-cta-short { display: none; }
+@media (max-width: 480px) {
+    .nav { padding: 0 1rem; }
+    .nav-right { gap: 4px; }
+    .nav-right .icon-btn.off { display: none; }
+    .nav-right .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .nav-cta-full { display: none; }
+    .nav-cta-short { display: inline; }
 }
 
 /* SCROLL REVEAL */
