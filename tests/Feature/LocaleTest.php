@@ -1,9 +1,6 @@
 <?php
 
-use App\Models\Role;
-use App\Models\School;
 use App\Models\User;
-use App\Models\UserSchoolRole;
 use Illuminate\Cookie\CookieValuePrefix;
 use Illuminate\Support\Facades\Crypt;
 

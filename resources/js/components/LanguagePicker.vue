@@ -42,9 +42,14 @@ function confirm() {
 
 <template>
     <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div class="flex w-full max-w-md flex-col items-center gap-6 rounded-md border border-border bg-card p-8 text-card-foreground shadow-lg">
+        <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="language-picker-title"
+            class="flex w-full max-w-md flex-col items-center gap-6 rounded-md border border-border bg-card p-8 text-card-foreground shadow-lg"
+        >
             <div class="text-center">
-                <h2 class="text-xl font-semibold">{{ meta.title }}</h2>
+                <h2 id="language-picker-title" class="text-xl font-semibold">{{ meta.title }}</h2>
                 <p class="mt-1 text-sm text-muted-foreground">{{ meta.subtitle }}</p>
             </div>
 
