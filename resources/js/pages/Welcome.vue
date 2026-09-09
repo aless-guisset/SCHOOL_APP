@@ -3,6 +3,8 @@ import { Head, Link } from '@inertiajs/vue3';
 import { Download, Home, Moon, Sun } from 'lucide-vue-next';
 import { onMounted, onUnmounted } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import LanguageDropdown from '@/components/LanguageDropdown.vue';
+import LanguagePicker from '@/components/LanguagePicker.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { login, register } from '@/routes';
 import { create as createSchool } from '@/routes/school';
@@ -110,6 +112,7 @@ onUnmounted(() => {
                 <button class="icon-btn off" disabled title="Télécharger l'application — pas disponible pour le moment">
                     <Download :size="16" />
                 </button>
+                <LanguageDropdown />
                 <button class="icon-btn" @click="toggleTheme" :title="resolvedAppearance === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'">
                     <Moon v-if="resolvedAppearance === 'dark'" :size="16" />
                     <Sun v-else :size="16" />
@@ -217,6 +220,8 @@ onUnmounted(() => {
             <span class="nav-logo"><AppLogoIcon class="nav-logo-icon" />school<b>app</b></span>
             <span>© 2025 SchoolApp</span>
         </footer>
+
+        <LanguagePicker />
     </div>
 </template>
 

@@ -19,11 +19,19 @@ class TranslationService
         $cacheKey = "translations.{$locale}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($locale) {
-            return Translation::where('language_code', $locale)
+            $own = Translation::where('language_code', $locale)
                 ->where('is_active', true)
                 ->whereNull('deleted_at')
                 ->pluck('translated_value', 'tag_key')
                 ->toArray();
+
+            $fallbackLocale = config('app.fallback_locale');
+
+            if ($locale === $fallbackLocale) {
+                return $own;
+            }
+
+            return [...self::getForLocale($fallbackLocale), ...$own];
         });
     }
 

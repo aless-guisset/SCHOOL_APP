@@ -218,6 +218,35 @@ test('cache is invalidated after update() for both old and new locale', function
     expect(TranslationService::getForLocale('fr'))->toHaveKey('app.cache_update');
 });
 
+test('getForLocale() falls back to the app fallback locale for missing keys but keeps genuine translations', function () {
+    // 'some.key' only exists in the fallback locale (config('app.fallback_locale'), 'en' in
+    // testing per config/app.php + phpunit.xml) — no 'nl' row for it at all.
+    Translation::create([
+        'tag_key' => 'some.key',
+        'language_code' => config('app.fallback_locale'),
+        'translated_value' => 'Fallback Value',
+        'is_active' => true,
+        'created_by' => 1,
+    ]);
+
+    // 'nl.only.key' has a genuine 'nl' translation — it must win over the (absent) fallback.
+    Translation::create([
+        'tag_key' => 'nl.only.key',
+        'language_code' => 'nl',
+        'translated_value' => 'Waarde NL',
+        'is_active' => true,
+        'created_by' => 1,
+    ]);
+
+    $translations = TranslationService::getForLocale('nl');
+
+    // Missing 'nl' key degrades to the fallback locale's value instead of vanishing.
+    expect($translations['some.key'])->toBe('Fallback Value');
+
+    // Genuine 'nl' translation is not overridden by the fallback merge.
+    expect($translations['nl.only.key'])->toBe('Waarde NL');
+});
+
 test('a non-admin user is forbidden from accessing translations routes', function () {
     $profRole = Role::create([
         'name' => 'Professeur', 'reference' => 'PROF', 'status' => 'A', 'is_active' => true, 'created_by' => 1,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import LanguagePicker from '@/components/LanguagePicker.vue';
 
 defineProps<{
     title?: string;
@@ -10,6 +11,7 @@ defineProps<{
 
 <template>
     <div class="join-page">
+        <LanguagePicker />
         <header class="join-nav">
             <Link href="/" class="join-logo">school<b>app</b></Link>
         </header>
