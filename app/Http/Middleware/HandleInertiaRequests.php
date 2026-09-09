@@ -103,8 +103,10 @@ class HandleInertiaRequests extends Middleware
             'hasParentAccess' => $parentUsr !== null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash'        => $request->session()->get('flash'),
-            'locale'       => app()->getLocale(),
-            'translations' => TranslationService::getForLocale(app()->getLocale()),
+            'locale'             => app()->getLocale(),
+            'translations'       => TranslationService::getForLocale(app()->getLocale()),
+            'availableLocales'   => config('app.available_locales'),
+            'showLanguagePicker' => $user ? $user->locale === null : ! $request->hasCookie('locale'),
             'pendingCount' => $currentRole === 'Administrateur'
                 ? School::where('status', 'P')->count()
                 : 0,

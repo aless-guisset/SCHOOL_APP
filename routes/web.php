@@ -10,6 +10,7 @@ use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GradesController;
 use App\Http\Controllers\LessonsController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MedicalCertificatesController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ParentAccessController;
@@ -41,6 +42,8 @@ Route::inertia('/', 'Welcome', [
     // togglable, elle fait partie du socle de l'app (cf. SchoolOnboardingController).
     'canRegister' => true,
 ])->name('home');
+
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 // ─── Inscription fondateur d'établissement (publique, hors Fortify — cf.
 // SchoolOnboardingController::createFounderAccount()/registerFounder() et

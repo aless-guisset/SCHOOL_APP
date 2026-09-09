@@ -30,6 +30,7 @@ class User extends Authenticatable
         'created_by',
         'updated_by',
         'default_school_id',
+        'locale',
     ];
 
     protected $hidden = [

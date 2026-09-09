@@ -15,7 +15,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 const { t } = useTranslation();
 
-const FIXED_LANGUAGES = ['fr', 'en', 'nl'];
+const FIXED_LANGUAGES = ['fr', 'en', 'nl', 'es'];
 
 defineProps<{
     languages: string[];
