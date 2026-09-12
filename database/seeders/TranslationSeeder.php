@@ -307,6 +307,21 @@ class TranslationSeeder extends Seeder
             'medical_certificate.confirm_reject'  => ['fr' => 'Confirmer le refus', 'en' => 'Confirm rejection', 'nl' => 'Afwijzing bevestigen', 'es' => 'Confirmar el rechazo'],
             'medical_certificate.rejection_reason_display' => ['fr' => 'Motif de refus : :reason', 'en' => 'Rejection reason: :reason', 'nl' => 'Reden van afwijzing: :reason', 'es' => 'Motivo de rechazo: :reason'],
             'medical_certificate.date_range'      => ['fr' => 'Du :start au :end', 'en' => 'From :start to :end', 'nl' => 'Van :start tot :end', 'es' => 'Del :start al :end'],
+
+            // ── Parent/tuteur ─────────────────────────────────────────────
+            'parent.join_head_title'  => ['fr' => 'Rejoindre en tant que parent', 'en' => 'Join as a parent', 'nl' => 'Deelnemen als ouder', 'es' => 'Unirse como padre/madre'],
+            'parent.join_badge'       => ['fr' => 'Espace Parent/Tuteur', 'en' => 'Parent/Guardian area', 'nl' => 'Ouder/voogdgebied', 'es' => 'Espacio de padres/tutores'],
+            'parent.join_title'       => ['fr' => 'Suivre le parcours de votre enfant', 'en' => 'Follow your child\'s progress', 'nl' => 'Volg de schoolloopbaan van uw kind', 'es' => 'Seguir el recorrido de su hijo/a'],
+            'parent.join_desc'        => ['fr' => 'Renseignez le code fourni par votre enfant', 'en' => 'Enter the code provided by your child', 'nl' => 'Voer de code in die door uw kind is verstrekt', 'es' => 'Introduzca el código proporcionado por su hijo/a'],
+            'parent.field_email'      => ['fr' => 'Adresse email', 'en' => 'Email address', 'nl' => 'E-mailadres', 'es' => 'Correo electrónico'],
+            'parent.confirm_password' => ['fr' => 'Confirmer le mot de passe', 'en' => 'Confirm password', 'nl' => 'Wachtwoord bevestigen', 'es' => 'Confirmar contraseña'],
+            'parent.student_code_label' => ['fr' => 'Code de l\'élève', 'en' => 'Student code', 'nl' => 'Leerlingcode', 'es' => 'Código del alumno'],
+            'action.join'             => ['fr' => 'Rejoindre', 'en' => 'Join', 'nl' => 'Deelnemen', 'es' => 'Unirse'],
+            'parent.links_desc'       => ['fr' => 'Tous les parents/tuteurs ayant accès aux données d\'un élève de votre école', 'en' => 'All parents/guardians with access to a student\'s data in your school', 'nl' => 'Alle ouders/voogden met toegang tot de gegevens van een leerling van uw school', 'es' => 'Todos los padres/tutores con acceso a los datos de un alumno de su escuela'],
+            'parent.active_links'     => ['fr' => 'Liens actifs (:count)', 'en' => 'Active links (:count)', 'nl' => 'Actieve koppelingen (:count)', 'es' => 'Vínculos activos (:count)'],
+            'parent.no_links'         => ['fr' => 'Aucun lien parent-élève pour le moment.', 'en' => 'No parent-student links yet.', 'nl' => 'Nog geen ouder-leerlingkoppelingen.', 'es' => 'Aún no hay vínculos padre-alumno.'],
+            'parent.link_meta'        => ['fr' => ':email · lié :date', 'en' => ':email · linked :date', 'nl' => ':email · gekoppeld op :date', 'es' => ':email · vinculado el :date'],
+            'parent.confirm_revoke'   => ['fr' => 'Révoquer l\'accès de :parent à :student ?', 'en' => 'Revoke :parent\'s access to :student?', 'nl' => ':parent de toegang tot :student ontzeggen?', 'es' => '¿Revocar el acceso de :parent a :student?'],
         ];
 
         foreach ($translations as $key => $locales) {

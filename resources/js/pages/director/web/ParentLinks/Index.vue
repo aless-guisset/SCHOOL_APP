@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useTranslation } from '@/composables/useTranslation';
 
 interface ParentLink {
     id: number;
@@ -17,11 +18,12 @@ interface ParentLink {
 }
 
 const props = defineProps<{ links: ParentLink[] }>();
+const { t } = useTranslation();
 
 const revokingId = ref<number | null>(null);
 
 function revoke(link: ParentLink) {
-    if (!confirm(`Révoquer l'accès de ${link.parent_name} à ${link.student_name} ?`)) return;
+    if (!confirm(t('parent.confirm_revoke', { parent: link.parent_name, student: link.student_name }))) return;
     revokingId.value = link.id;
     router.delete(`/parent-links/${link.id}`, {
         preserveScroll: true,
@@ -31,18 +33,18 @@ function revoke(link: ParentLink) {
 </script>
 
 <template>
-    <Head title="Liens parent-élève" />
+    <Head :title="t('nav.parent_links')" />
     <AppLayout>
         <div class="p-4 md:p-6 space-y-6">
             <FlashMessage />
             <PageHeader
-                title="Liens parent-élève"
-                description="Tous les parents/tuteurs ayant accès aux données d'un élève de votre école"
+                :title="t('nav.parent_links')"
+                :description="t('parent.links_desc')"
             />
             <Card>
-                <CardHeader><CardTitle class="text-base">Liens actifs ({{ props.links.length }})</CardTitle></CardHeader>
+                <CardHeader><CardTitle class="text-base">{{ t('parent.active_links', { count: String(props.links.length) }) }}</CardTitle></CardHeader>
                 <CardContent class="space-y-2">
-                    <p v-if="props.links.length === 0" class="text-sm text-muted-foreground">Aucun lien parent-élève pour le moment.</p>
+                    <p v-if="props.links.length === 0" class="text-sm text-muted-foreground">{{ t('parent.no_links') }}</p>
                     <div
                         v-for="link in props.links" :key="link.id"
                         class="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"
@@ -51,7 +53,7 @@ function revoke(link: ParentLink) {
                             <UserRound class="size-4 shrink-0 text-muted-foreground" />
                             <div>
                                 <p class="font-medium">{{ link.parent_name }} <span class="font-normal text-muted-foreground">→ {{ link.student_name }}</span></p>
-                                <p class="text-xs text-muted-foreground">{{ link.parent_email }} · lié {{ link.linked_at }}</p>
+                                <p class="text-xs text-muted-foreground">{{ t('parent.link_meta', { email: link.parent_email, date: link.linked_at }) }}</p>
                             </div>
                         </div>
                         <Button
