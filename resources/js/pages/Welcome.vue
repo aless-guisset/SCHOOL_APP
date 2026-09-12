@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { Download, Home, Moon, Sun } from 'lucide-vue-next';
-import { onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import LanguageDropdown from '@/components/LanguageDropdown.vue';
 import LanguagePicker from '@/components/LanguagePicker.vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useTranslation } from '@/composables/useTranslation';
 import { login, register } from '@/routes';
 import { create as createSchool } from '@/routes/school';
 
 const { resolvedAppearance, updateAppearance } = useAppearance();
+const { t } = useTranslation();
 
 function toggleTheme() {
     updateAppearance(resolvedAppearance.value === 'dark' ? 'light' : 'dark');
@@ -28,39 +30,21 @@ withDefaults(
     },
 );
 
-const modules = [
-    {
-        name: 'Fiches de présence',
-        desc: 'Enregistrez les présences par session et suivez les heures réalisées par rapport au plafond défini.',
-    },
-    {
-        name: 'Horaires',
-        desc: "Créez des créneaux hebdomadaires et gérez automatiquement les plafonds d'heures par cours.",
-    },
-    {
-        name: 'Cours & matières',
-        desc: 'Organisez vos cours et matières par section, niveau et enseignant assigné.',
-    },
-    {
-        name: 'Sections & élèves',
-        desc: 'Regroupez les élèves par section et attribuez des rôles précis à chaque intervenant.',
-    },
-    {
-        name: 'Salles de classe',
-        desc: 'Gérez vos espaces, leur localisation et leur attribution aux sessions planifiées.',
-    },
-    {
-        name: 'Rôles & accès',
-        desc: 'Contrôlez les accès par école avec des rôles distincts : admin, enseignant, élève.',
-    },
-];
+const modules = computed(() => [
+    { name: t('welcome.module_attendance_title'), desc: t('welcome.module_attendance_desc') },
+    { name: t('nav.schedules'), desc: t('welcome.module_schedules_desc') },
+    { name: t('welcome.module_courses_title'), desc: t('welcome.module_courses_desc') },
+    { name: t('welcome.module_sections_title'), desc: t('welcome.module_sections_desc') },
+    { name: t('welcome.module_classrooms_title'), desc: t('welcome.module_classrooms_desc') },
+    { name: t('welcome.module_roles_title'), desc: t('welcome.module_roles_desc') },
+]);
 
-const steps = [
-    { title: 'Créez votre compte', desc: 'Inscrivez-vous gratuitement avec votre adresse e-mail.' },
-    { title: 'Soumettez votre école', desc: 'Remplissez le formulaire. Notre équipe valide votre demande.' },
-    { title: 'Configurez vos modules', desc: 'Ajoutez sections, cours, horaires et assignez les rôles.' },
-    { title: 'Gérez au quotidien', desc: 'Suivez les présences et horaires en temps réel.' },
-];
+const steps = computed(() => [
+    { title: t('welcome.step1_title'), desc: t('welcome.step1_desc') },
+    { title: t('welcome.step2_title'), desc: t('welcome.step2_desc') },
+    { title: t('welcome.step3_title'), desc: t('welcome.step3_desc') },
+    { title: t('welcome.step4_title'), desc: t('welcome.step4_desc') },
+]);
 
 let observers: IntersectionObserver[] = [];
 
@@ -102,39 +86,39 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <Head title="SchoolApp — Gestion scolaire simplifiée" />
+    <Head :title="t('welcome.head_title')" />
 
     <div class="page">
         <!-- NAV -->
         <header class="nav">
             <span class="nav-logo"><AppLogoIcon class="nav-logo-icon" />school<b>app</b></span>
             <div class="nav-right">
-                <button class="icon-btn off" disabled title="Télécharger l'application — pas disponible pour le moment">
+                <button class="icon-btn off" disabled :title="t('welcome.download_tooltip')">
                     <Download :size="16" />
                 </button>
                 <LanguageDropdown />
-                <button class="icon-btn" @click="toggleTheme" :title="resolvedAppearance === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'">
+                <button class="icon-btn" @click="toggleTheme" :title="resolvedAppearance === 'dark' ? t('welcome.theme_light') : t('welcome.theme_dark')">
                     <Moon v-if="resolvedAppearance === 'dark'" :size="16" />
                     <Sun v-else :size="16" />
                 </button>
                 <template v-if="auth?.user">
-                    <Link v-if="currentRole !== 'Élève'" :href="createSchool()" class="btn btn-sm btn-ghost">Soumettre une école</Link>
+                    <Link v-if="currentRole !== 'Élève'" :href="createSchool()" class="btn btn-sm btn-ghost">{{ t('nav.school_submit') }}</Link>
                     <button
                         v-if="auth?.user?.roles?.includes('super_admin')"
                         class="btn btn-sm off"
                         disabled
                     >
-                        Admin panel
+                        {{ t('welcome.admin_panel') }}
                     </button>
-                    <Link href="/dashboard" class="avatar" title="Accéder à l'application">
+                    <Link href="/dashboard" class="avatar" :title="t('welcome.access_app')">
                         <Home :size="16" />
                     </Link>
                 </template>
                 <template v-else>
-                    <Link :href="login()" class="btn btn-sm btn-ghost">Se connecter</Link>
+                    <Link :href="login()" class="btn btn-sm btn-ghost">{{ t('auth.login') }}</Link>
                     <Link v-if="canRegister" :href="register()" class="btn btn-sm btn-green">
-                        <span class="nav-cta-full">Créer un établissement</span>
-                        <span class="nav-cta-short">Créer</span>
+                        <span class="nav-cta-full">{{ t('welcome.create_school') }}</span>
+                        <span class="nav-cta-short">{{ t('welcome.create_school_short') }}</span>
                     </Link>
                 </template>
             </div>
@@ -142,18 +126,15 @@ onUnmounted(() => {
 
         <!-- HERO -->
         <section class="hero">
-            <p class="badge">Plateforme de gestion scolaire</p>
-            <h1>Gérez votre école<br /><span class="green">simplement.</span></h1>
-            <p class="hero-sub">
-                SchoolApp centralise les présences, horaires, cours et salles de classe en une seule
-                plateforme accessible à toutes les écoles.
-            </p>
+            <p class="badge">{{ t('welcome.badge') }}</p>
+            <h1>{{ t('welcome.hero_title_line1') }}<br /><span class="green">{{ t('welcome.hero_title_line2') }}</span></h1>
+            <p class="hero-sub">{{ t('welcome.hero_sub') }}</p>
             <div class="hero-cta">
                 <Link v-if="canRegister" :href="register()" class="btn btn-green btn-lg">
-                    Créer un établissement
+                    {{ t('welcome.create_school') }}
                 </Link>
-                <Link href="/join/role" class="btn btn-lg">Créer un compte</Link>
-                <a href="#modules" class="btn btn-lg">Voir les modules</a>
+                <Link href="/join/role" class="btn btn-lg">{{ t('auth.register') }}</Link>
+                <a href="#modules" class="btn btn-lg">{{ t('welcome.view_modules') }}</a>
             </div>
         </section>
 
@@ -162,9 +143,9 @@ onUnmounted(() => {
         <!-- MODULES -->
         <section id="modules" class="section">
             <div class="section-head" data-sr="up">
-                <p class="eyebrow">Modules</p>
-                <h2>Tout ce dont votre école a besoin</h2>
-                <p class="section-sub">Des modules pensés pour couvrir chaque aspect de la gestion scolaire.</p>
+                <p class="eyebrow">{{ t('welcome.modules_eyebrow') }}</p>
+                <h2>{{ t('welcome.modules_title') }}</h2>
+                <p class="section-sub">{{ t('welcome.modules_sub') }}</p>
             </div>
             <div class="grid">
                 <div
@@ -185,8 +166,8 @@ onUnmounted(() => {
         <!-- ÉTAPES -->
         <section class="section section-narrow">
             <div class="section-head" data-sr="up">
-                <p class="eyebrow">Comment ça marche</p>
-                <h2>Démarrez en 4 étapes</h2>
+                <p class="eyebrow">{{ t('welcome.how_it_works_eyebrow') }}</p>
+                <h2>{{ t('welcome.steps_title') }}</h2>
             </div>
             <div class="steps">
                 <div
@@ -207,13 +188,13 @@ onUnmounted(() => {
         <!-- CTA FINAL -->
         <div class="cta-wrap">
             <div class="cta-block" data-sr="up">
-                <h2>Prêt à moderniser votre école ?</h2>
-                <p>Rejoignez les écoles qui font confiance à SchoolApp.</p>
+                <h2>{{ t('welcome.cta_title') }}</h2>
+                <p>{{ t('welcome.cta_sub') }}</p>
                 <div class="hero-cta">
                     <Link v-if="canRegister" :href="register()" class="btn btn-white btn-lg">
-                        Créer un établissement
+                        {{ t('welcome.create_school') }}
                     </Link>
-                    <Link href="/join/role" class="btn btn-lg">Créer un compte</Link>
+                    <Link href="/join/role" class="btn btn-lg">{{ t('auth.register') }}</Link>
                 </div>
             </div>
         </div>
@@ -221,7 +202,7 @@ onUnmounted(() => {
         <!-- FOOTER -->
         <footer class="footer">
             <span class="nav-logo"><AppLogoIcon class="nav-logo-icon" />school<b>app</b></span>
-            <span>© 2025 SchoolApp</span>
+            <span>{{ t('welcome.footer_copyright') }}</span>
         </footer>
 
         <LanguagePicker />
