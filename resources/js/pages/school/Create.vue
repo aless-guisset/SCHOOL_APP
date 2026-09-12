@@ -2,6 +2,7 @@
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { Building2, CheckCircle2, ChevronLeft, ChevronRight, Info, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { useTranslation } from '@/composables/useTranslation';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 
 const page = usePage<{ flash?: { type: string; message: string } }>();
+const { t } = useTranslation();
 
-const STEPS = ['Infos', 'Modules', 'Inviter des gens'];
+const STEPS = computed(() => [t('school.create.step_infos'), t('school.create.step_modules'), t('school.create.step_invites')]);
 const step = ref(1);
 
 // Doit rester synchronisé avec SchoolOnboardingController::CREATION_INVITABLE_ROLES.
@@ -95,7 +97,7 @@ function submit() {
 </script>
 
 <template>
-    <Head title="Créer un établissement" />
+    <Head :title="t('welcome.create_school')" />
 
     <AuthLayout>
         <div class="mx-auto w-full max-w-lg space-y-6 px-4 py-8">
@@ -104,9 +106,9 @@ function submit() {
                 <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10">
                     <Building2 class="size-7 text-primary" />
                 </div>
-                <h1 class="text-2xl font-bold tracking-tight">Créer un établissement</h1>
+                <h1 class="text-2xl font-bold tracking-tight">{{ t('welcome.create_school') }}</h1>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    Renseignez les informations de votre école.
+                    {{ t('school.create.subtitle') }}
                 </p>
             </div>
 
@@ -122,10 +124,7 @@ function submit() {
             <!-- Info box -->
             <div class="flex items-start gap-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
                 <Info class="mt-0.5 size-5 shrink-0" />
-                <p>
-                    Votre demande sera examinée par un administrateur de la plateforme.
-                    Vous serez notifié(e) dès qu'elle sera traitée.
-                </p>
+                <p>{{ t('school.create.info_box') }}</p>
             </div>
 
             <!-- Indicateur étapes -->
@@ -154,26 +153,26 @@ function submit() {
 
             <Card>
                 <CardHeader v-if="step === 1">
-                    <CardTitle class="text-base">Informations de l'établissement</CardTitle>
-                    <CardDescription>Renseignez les informations de base de votre école.</CardDescription>
+                    <CardTitle class="text-base">{{ t('school.create.info_title') }}</CardTitle>
+                    <CardDescription>{{ t('school.create.info_desc') }}</CardDescription>
                 </CardHeader>
                 <CardContent :class="{ 'pt-6': step !== 1 }">
 
                     <!-- Étape 1 : Infos -->
                     <div v-if="step === 1" class="space-y-4">
                         <div class="space-y-1.5">
-                            <Label for="name">Nom de l'établissement <span class="text-destructive">*</span></Label>
+                            <Label for="name">{{ t('school.create.field_name') }} <span class="text-destructive">*</span></Label>
                             <Input
                                 id="name"
                                 v-model="form.name"
-                                placeholder="ex : Institut Saint-Joseph"
+                                :placeholder="t('school.create.field_name_placeholder')"
                                 :class="{ 'border-destructive': form.errors.name }"
                             />
                             <p v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</p>
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label for="email">Email de contact</Label>
+                            <Label for="email">{{ t('school.create.field_email') }}</Label>
                             <Input
                                 id="email"
                                 v-model="form.email"
@@ -185,7 +184,7 @@ function submit() {
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label for="phone">Téléphone</Label>
+                            <Label for="phone">{{ t('label.phone') }}</Label>
                             <Input
                                 id="phone"
                                 v-model="form.phone_number"
@@ -195,7 +194,7 @@ function submit() {
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label for="address">Adresse</Label>
+                            <Label for="address">{{ t('label.address') }}</Label>
                             <Input
                                 id="address"
                                 v-model="form.address"
@@ -204,11 +203,11 @@ function submit() {
                         </div>
 
                         <div class="space-y-1.5">
-                            <Label for="description">Description (optionnel)</Label>
+                            <Label for="description">{{ t('school.create.field_description') }}</Label>
                             <Textarea
                                 id="description"
                                 v-model="form.description"
-                                placeholder="Quelques mots sur votre établissement..."
+                                :placeholder="t('school.create.field_description_placeholder')"
                                 rows="3"
                             />
                         </div>
@@ -216,22 +215,21 @@ function submit() {
 
                     <!-- Étape 2 : Modules -->
                     <div v-else-if="step === 2" class="space-y-4">
-                        <h2 class="font-semibold">Modules</h2>
+                        <h2 class="font-semibold">{{ t('school.create.step_modules') }}</h2>
                         <div class="flex items-center gap-2">
                             <Checkbox id="cantine_enabled" v-model="form.cantine_enabled" />
-                            <Label for="cantine_enabled">Activer la cantine</Label>
+                            <Label for="cantine_enabled">{{ t('school.create.enable_cantine') }}</Label>
                         </div>
                         <p v-if="form.cantine_enabled" class="text-xs text-muted-foreground">
-                            Les prix des repas se règlent dans l'application une fois l'établissement approuvé.
+                            {{ t('school.create.cantine_note') }}
                         </p>
                     </div>
 
                     <!-- Étape 3 : Inviter des gens -->
                     <div v-else class="space-y-4">
-                        <h2 class="font-semibold">Inviter des gens</h2>
+                        <h2 class="font-semibold">{{ t('school.create.step_invites') }}</h2>
                         <p class="text-xs text-muted-foreground">
-                            Facultatif — ces invitations ne seront envoyées qu'une fois votre
-                            établissement approuvé.
+                            {{ t('school.create.invite_note') }}
                         </p>
 
                         <div v-if="form.invites.length" class="space-y-2">
@@ -252,13 +250,13 @@ function submit() {
 
                         <div class="space-y-2 rounded-md border border-dashed border-border p-3">
                             <div class="space-y-1.5">
-                                <Label for="invite_email">Email</Label>
+                                <Label for="invite_email">{{ t('label.email') }}</Label>
                                 <Input id="invite_email" v-model="newInviteEmail" type="email" placeholder="email@example.com" />
                             </div>
                             <div class="space-y-1.5">
-                                <Label>Rôle</Label>
+                                <Label>{{ t('label.role') }}</Label>
                                 <Select v-model="newInviteRole">
-                                    <SelectTrigger><SelectValue placeholder="Choisir un rôle" /></SelectTrigger>
+                                    <SelectTrigger><SelectValue :placeholder="t('school.create.invite_role_placeholder')" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="r in INVITABLE_ROLES" :key="r.reference" :value="r.reference">
                                             {{ r.label }}
@@ -267,7 +265,7 @@ function submit() {
                                 </Select>
                             </div>
                             <Button type="button" variant="outline" size="sm" :disabled="!newInviteEmail.trim() || !newInviteRole" @click="addInvite">
-                                Ajouter
+                                {{ t('action.add') }}
                             </Button>
                         </div>
                         <div v-if="inviteErrors.length" class="space-y-1">
@@ -278,7 +276,7 @@ function submit() {
                     <!-- Navigation boutons -->
                     <div class="mt-6 flex gap-3">
                         <Button v-if="step > 1" type="button" variant="outline" @click="back">
-                            <ChevronLeft class="size-4" />Retour
+                            <ChevronLeft class="size-4" />{{ t('action.back') }}
                         </Button>
                         <div class="flex-1" />
                         <Button
@@ -287,7 +285,7 @@ function submit() {
                             :disabled="!canGoNext"
                             @click="next"
                         >
-                            Suivant<ChevronRight class="size-4" />
+                            {{ t('action.next') }}<ChevronRight class="size-4" />
                         </Button>
                         <Button
                             v-else
@@ -295,8 +293,8 @@ function submit() {
                             :disabled="form.processing"
                             @click="submit"
                         >
-                            <span v-if="form.processing">Envoi en cours...</span>
-                            <span v-else>Créer l'établissement</span>
+                            <span v-if="form.processing">{{ t('school.create.submitting') }}</span>
+                            <span v-else>{{ t('school.create.submit') }}</span>
                         </Button>
                     </div>
 
@@ -306,7 +304,7 @@ function submit() {
             <!-- Lien retour login -->
             <p class="text-center text-xs text-muted-foreground">
                 <a href="/school/select" class="font-medium text-primary underline-offset-2 hover:underline">
-                    ← Retour à la sélection
+                    {{ t('school.create.back_to_select') }}
                 </a>
             </p>
         </div>

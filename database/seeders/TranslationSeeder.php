@@ -104,7 +104,7 @@ class TranslationSeeder extends Seeder
             'auth.forgot_password' => ['fr' => 'Mot de passe oublié', 'en' => 'Forgot password'],
 
             // ── École ────────────────────────────────────────────────────
-            'school.select.title'  => ['fr' => 'Choisir un établissement', 'en' => 'Choose an institution'],
+            'school.select.title'  => ['fr' => 'Choisissez votre établissement', 'en' => 'Choose your institution', 'nl' => 'Kies uw instelling', 'es' => 'Elija su centro'],
             'school.create.title'  => ['fr' => 'Rejoindre un établissement', 'en' => 'Join an institution'],
             'school.pending'       => ['fr' => 'En attente d\'approbation', 'en' => 'Pending approval'],
 
@@ -185,6 +185,38 @@ class TranslationSeeder extends Seeder
             'welcome.cta_title'           => ['fr' => 'Prêt à moderniser votre école ?', 'en' => 'Ready to modernize your school?', 'nl' => 'Klaar om uw school te moderniseren?', 'es' => '¿Listo para modernizar su escuela?'],
             'welcome.cta_sub'             => ['fr' => 'Rejoignez les écoles qui font confiance à SchoolApp.', 'en' => 'Join the schools that trust SchoolApp.', 'nl' => 'Sluit u aan bij de scholen die op SchoolApp vertrouwen.', 'es' => 'Únase a las escuelas que confían en SchoolApp.'],
             'welcome.footer_copyright'    => ['fr' => '© 2025 SchoolApp', 'en' => '© 2025 SchoolApp', 'nl' => '© 2025 SchoolApp', 'es' => '© 2025 SchoolApp'],
+
+            // ── Onboarding école (Create/Select/Pending) ─────────────────
+            'school.create.subtitle'      => ['fr' => 'Renseignez les informations de votre école.', 'en' => 'Fill in your school\'s information.', 'nl' => 'Vul de gegevens van uw school in.', 'es' => 'Complete la información de su centro.'],
+            'school.create.info_box'      => ['fr' => 'Votre demande sera examinée par un administrateur de la plateforme. Vous serez notifié(e) dès qu\'elle sera traitée.', 'en' => 'Your request will be reviewed by a platform administrator. You will be notified once it has been processed.', 'nl' => 'Uw aanvraag wordt beoordeeld door een platformbeheerder. U ontvangt een melding zodra ze is verwerkt.', 'es' => 'Su solicitud será revisada por un administrador de la plataforma. Se le notificará en cuanto haya sido procesada.'],
+            'school.create.step_infos'    => ['fr' => 'Infos', 'en' => 'Info', 'nl' => 'Info', 'es' => 'Info'],
+            'school.create.step_modules'  => ['fr' => 'Modules', 'en' => 'Modules', 'nl' => 'Modules', 'es' => 'Módulos'],
+            'school.create.step_invites'  => ['fr' => 'Inviter des gens', 'en' => 'Invite people', 'nl' => 'Mensen uitnodigen', 'es' => 'Invitar personas'],
+            'school.create.info_title'    => ['fr' => 'Informations de l\'établissement', 'en' => 'Institution information', 'nl' => 'Informatie over de instelling', 'es' => 'Información del centro'],
+            'school.create.info_desc'     => ['fr' => 'Renseignez les informations de base de votre école.', 'en' => 'Fill in your school\'s basic information.', 'nl' => 'Vul de basisgegevens van uw school in.', 'es' => 'Complete la información básica de su escuela.'],
+            'school.create.field_name'    => ['fr' => 'Nom de l\'établissement', 'en' => 'Institution name', 'nl' => 'Naam van de instelling', 'es' => 'Nombre del centro'],
+            'school.create.field_name_placeholder' => ['fr' => 'ex : Institut Saint-Joseph', 'en' => 'e.g.: Saint-Joseph Institute', 'nl' => 'bijv.: Instituut Sint-Jozef', 'es' => 'ej.: Instituto San José'],
+            'school.create.field_email'   => ['fr' => 'Email de contact', 'en' => 'Contact email', 'nl' => 'Contact-e-mail', 'es' => 'Correo de contacto'],
+            'school.create.field_description' => ['fr' => 'Description (optionnel)', 'en' => 'Description (optional)', 'nl' => 'Beschrijving (optioneel)', 'es' => 'Descripción (opcional)'],
+            'school.create.field_description_placeholder' => ['fr' => 'Quelques mots sur votre établissement...', 'en' => 'A few words about your institution...', 'nl' => 'Enkele woorden over uw instelling...', 'es' => 'Algunas palabras sobre su centro...'],
+            'school.create.enable_cantine' => ['fr' => 'Activer la cantine', 'en' => 'Enable cafeteria', 'nl' => 'Kantine activeren', 'es' => 'Activar la cantina'],
+            'school.create.cantine_note'  => ['fr' => 'Les prix des repas se règlent dans l\'application une fois l\'établissement approuvé.', 'en' => 'Meal prices are set in the app once the institution is approved.', 'nl' => 'Maaltijdprijzen worden in de app ingesteld zodra de instelling is goedgekeurd.', 'es' => 'Los precios de las comidas se configuran en la aplicación una vez aprobado el centro.'],
+            'school.create.invite_note'  => ['fr' => 'Facultatif — ces invitations ne seront envoyées qu\'une fois votre établissement approuvé.', 'en' => 'Optional — these invitations will only be sent once your institution has been approved.', 'nl' => 'Optioneel — deze uitnodigingen worden pas verzonden zodra uw instelling is goedgekeurd.', 'es' => 'Opcional — estas invitaciones solo se enviarán una vez aprobado su centro.'],
+            'school.create.invite_role_placeholder' => ['fr' => 'Choisir un rôle', 'en' => 'Choose a role', 'nl' => 'Kies een rol', 'es' => 'Elegir un rol'],
+            'action.add'                  => ['fr' => 'Ajouter', 'en' => 'Add', 'nl' => 'Toevoegen', 'es' => 'Añadir'],
+            'action.next'                 => ['fr' => 'Suivant', 'en' => 'Next', 'nl' => 'Volgende', 'es' => 'Siguiente'],
+            'school.create.submitting'   => ['fr' => 'Envoi en cours...', 'en' => 'Submitting...', 'nl' => 'Verzenden...', 'es' => 'Enviando...'],
+            'school.create.submit'       => ['fr' => 'Créer l\'établissement', 'en' => 'Create institution', 'nl' => 'Instelling aanmaken', 'es' => 'Crear centro'],
+            'school.create.back_to_select' => ['fr' => '← Retour à la sélection', 'en' => '← Back to selection', 'nl' => '← Terug naar selectie', 'es' => '← Volver a la selección'],
+
+            'school.select.greeting'      => ['fr' => 'Bonjour :name, vous êtes inscrit(e) dans plusieurs écoles.', 'en' => 'Hello :name, you are registered in multiple schools.', 'nl' => 'Hallo :name, u bent bij meerdere scholen ingeschreven.', 'es' => 'Hola :name, está inscrito en varias escuelas.'],
+            'action.enter'                => ['fr' => 'Accéder', 'en' => 'Access', 'nl' => 'Toegang', 'es' => 'Acceder'],
+            'school.select.not_listed'    => ['fr' => 'Votre école n\'est pas dans la liste ?', 'en' => 'Your school isn\'t listed?', 'nl' => 'Staat uw school er niet bij?', 'es' => '¿Su escuela no aparece en la lista?'],
+            'school.select.submit_request' => ['fr' => 'Soumettre une demande', 'en' => 'Submit a request', 'nl' => 'Een aanvraag indienen', 'es' => 'Enviar una solicitud'],
+
+            'school.pending.head_title'   => ['fr' => 'Demande en attente', 'en' => 'Pending request', 'nl' => 'Aanvraag in behandeling', 'es' => 'Solicitud pendiente'],
+            'school.pending.badge'        => ['fr' => 'Traitement en cours', 'en' => 'Processing', 'nl' => 'In behandeling', 'es' => 'En proceso'],
+            'school.pending.desc'         => ['fr' => 'Votre demande d\'accès a été envoyée au Directeur de l\'établissement. Vous recevrez un email dès qu\'elle sera traitée.', 'en' => 'Your access request has been sent to the institution\'s Director. You will receive an email once it has been processed.', 'nl' => 'Uw toegangsaanvraag is verzonden naar de directeur van de instelling. U ontvangt een e-mail zodra ze is verwerkt.', 'es' => 'Su solicitud de acceso ha sido enviada al director del centro. Recibirá un correo en cuanto sea procesada.'],
         ];
 
         foreach ($translations as $key => $locales) {

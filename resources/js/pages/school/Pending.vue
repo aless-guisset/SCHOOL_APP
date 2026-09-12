@@ -1,24 +1,26 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { Hourglass } from 'lucide-vue-next';
+import { useTranslation } from '@/composables/useTranslation';
 import JoinAuthLayout from '@/layouts/JoinAuthLayout.vue';
 import { logout } from '@/routes';
+
+const { t } = useTranslation();
 </script>
 
 <template>
-    <Head title="Demande en attente" />
-    <JoinAuthLayout badge="Traitement en cours">
+    <Head :title="t('school.pending.head_title')" />
+    <JoinAuthLayout :badge="t('school.pending.badge')">
         <div class="pending-body">
             <div class="pending-icon">
                 <Hourglass class="pending-icon-svg" />
             </div>
-            <h1 class="pending-title">Demande en attente</h1>
+            <h1 class="pending-title">{{ t('school.pending.head_title') }}</h1>
             <p class="pending-desc">
-                Votre demande d'accès a été envoyée au Directeur de l'établissement.
-                Vous recevrez un email dès qu'elle sera traitée.
+                {{ t('school.pending.desc') }}
             </p>
             <p class="join-footer">
-                <Link :href="logout()" as="button" class="join-link">Se déconnecter</Link>
+                <Link :href="logout()" as="button" class="join-link">{{ t('auth.logout') }}</Link>
             </p>
         </div>
     </JoinAuthLayout>

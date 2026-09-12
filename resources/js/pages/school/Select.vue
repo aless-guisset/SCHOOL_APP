@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { Building2, LogIn, Star } from 'lucide-vue-next';
+import { useTranslation } from '@/composables/useTranslation';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 
 interface School {
@@ -16,6 +17,7 @@ defineProps<{
 }>();
 
 const page = usePage<{ auth: { user: { firstname: string } } }>();
+const { t } = useTranslation();
 
 function enter(schoolId: number) {
     router.post('/school/activate', { school_id: schoolId });
@@ -28,7 +30,7 @@ function setDefault(schoolId: number, event: Event) {
 </script>
 
 <template>
-    <Head title="Choisir un établissement" />
+    <Head :title="t('school.select.title')" />
 
     <AuthLayout>
         <div class="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
@@ -38,10 +40,10 @@ function setDefault(schoolId: number, event: Event) {
                     <Building2 class="size-7 text-primary" />
                 </div>
                 <h1 class="text-2xl font-bold tracking-tight">
-                    Choisissez votre établissement
+                    {{ t('school.select.title') }}
                 </h1>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    Bonjour {{ page.props.auth.user?.firstname ?? '' }}, vous êtes inscrit(e) dans plusieurs écoles.
+                    {{ t('school.select.greeting', { name: page.props.auth.user?.firstname ?? '' }) }}
                 </p>
             </div>
 
@@ -75,14 +77,14 @@ function setDefault(schoolId: number, event: Event) {
                             class="inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100"
                         >
                             <LogIn class="size-3" />
-                            Accéder
+                            {{ t('action.enter') }}
                         </span>
 
                         <!-- Étoile défaut -->
                         <button
                             class="ml-auto rounded p-1 text-muted-foreground transition hover:text-yellow-400"
                             :class="{ 'text-yellow-400': school.is_default }"
-                            :title="school.is_default ? 'École par défaut' : 'Définir par défaut'"
+                            :title="school.is_default ? t('label.default_school') : t('action.set_default')"
                             @click="setDefault(school.id, $event)"
                         >
                             <Star class="size-4" :fill="school.is_default ? 'currentColor' : 'none'" />
@@ -94,16 +96,16 @@ function setDefault(schoolId: number, event: Event) {
                         v-if="school.is_default"
                         class="absolute right-3 top-3 rounded-full bg-yellow-400/15 px-2 py-0.5 text-[10px] font-semibold text-yellow-500"
                     >
-                        Par défaut
+                        {{ t('label.default') }}
                     </span>
                 </button>
             </div>
 
             <!-- Lien rejoindre autre école -->
             <p class="text-center text-xs text-muted-foreground">
-                Votre école n'est pas dans la liste ?
+                {{ t('school.select.not_listed') }}
                 <a href="/school/create" class="font-medium text-primary underline-offset-2 hover:underline">
-                    Soumettre une demande
+                    {{ t('school.select.submit_request') }}
                 </a>
             </p>
         </div>
