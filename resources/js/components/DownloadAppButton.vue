@@ -10,6 +10,9 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { usePwaInstall } from '@/composables/usePwaInstall';
+import { useTranslation } from '@/composables/useTranslation';
+
+const { t } = useTranslation();
 
 // Mécanisme principal : si beforeinstallprompt s'est déclenché (Chrome/Edge,
 // mobile et desktop), on propose le prompt natif. Sinon (Safari iOS/macOS,
@@ -101,41 +104,30 @@ async function handleClick() {
 <template>
     <Button v-if="!isNativePlatform" variant="ghost" size="icon" @click="handleClick">
         <Download class="size-5" />
-        <span class="sr-only">Télécharger l'application</span>
+        <span class="sr-only">{{ t('pwa.download_app_sr') }}</span>
     </Button>
 
     <Dialog v-model:open="instructionsOpen">
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Installer l'application</DialogTitle>
+                <DialogTitle>{{ t('pwa.install_title') }}</DialogTitle>
                 <DialogDescription v-if="isAlreadyInstalled">
-                    L'application est déjà installée sur cet appareil.
+                    {{ t('pwa.already_installed') }}
                 </DialogDescription>
                 <DialogDescription v-else-if="isIOS" class="flex items-start gap-2">
                     <Share class="mt-0.5 size-4 shrink-0" />
-                    <span>
-                        Appuyez sur l'icône <strong>Partager</strong> en bas de l'écran (ou en haut,
-                        selon votre navigateur), puis choisissez « <strong>Sur l'écran d'accueil</strong> ».
-                    </span>
+                    <span>{{ t('pwa.instructions_ios') }}</span>
                 </DialogDescription>
                 <DialogDescription v-else-if="isSafari" class="flex items-start gap-2">
                     <Share class="mt-0.5 size-4 shrink-0" />
-                    <span>
-                        Cliquez sur l'icône <strong>Partager</strong> dans la barre d'outils Safari,
-                        à côté de la barre d'adresse, puis choisissez « <strong>Ajouter au Dock</strong> ».
-                    </span>
+                    <span>{{ t('pwa.instructions_safari') }}</span>
                 </DialogDescription>
                 <DialogDescription v-else-if="isChromiumInstallable" class="flex items-start gap-2">
                     <Share class="mt-0.5 size-4 shrink-0" />
-                    <span>
-                        Ouvrez le menu <strong>⋮</strong> de votre navigateur (en haut à droite),
-                        puis choisissez « <strong>Installer l'application</strong> » (ou
-                        « <strong>Ajouter à l'écran d'accueil</strong> »).
-                    </span>
+                    <span>{{ t('pwa.instructions_chromium') }}</span>
                 </DialogDescription>
                 <DialogDescription v-else>
-                    Ouvrez le menu de partage ou d'options de votre navigateur, puis choisissez
-                    « Ajouter à l'écran d'accueil » (ou « Installer l'application »).
+                    {{ t('pwa.instructions_generic') }}
                 </DialogDescription>
             </DialogHeader>
         </DialogContent>
