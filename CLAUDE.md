@@ -60,3 +60,8 @@ npm run build                # Build production
 - Soft deletes sur tous les modèles métier
 - `created_by` / `updated_by` systématique
 - TypeScript strict dans les pages Vue (defineProps avec types explicites)
+- Tout nouveau texte d'UI (label, bouton, message, placeholder, titre de page) doit passer par
+  `t('clé')`, jamais en dur dans un template Vue — la clé doit avoir une entrée DB en fr+en au
+  minimum (idéalement nl+es) ajoutée dans `database/seeders/TranslationSeeder.php` ou via l'admin
+  Traductions. Avant de merger une PR touchant l'UI, faire vérifier la couverture par l'agent
+  `translation-sync`.
