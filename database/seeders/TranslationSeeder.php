@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Translation;
+use App\Services\TranslationService;
 use Illuminate\Database\Seeder;
 
 class TranslationSeeder extends Seeder
@@ -346,5 +347,7 @@ class TranslationSeeder extends Seeder
                 );
             }
         }
+
+        TranslationService::clearAll();
     }
 }

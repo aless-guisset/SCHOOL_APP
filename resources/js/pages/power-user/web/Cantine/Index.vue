@@ -15,7 +15,7 @@ import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { canManageStructure: canManage } = useSchool();
-const { t } = useTranslation();
+const { t, locale } = useTranslation();
 
 type Menu = { id: number; label: string; description: string | null };
 type RosterEntry = {
@@ -60,9 +60,11 @@ function shiftDate(days: number) {
 function goToday() {
     router.get('/cantine', withAsParent({}), { preserveScroll: true });
 }
+const localeMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', nl: 'nl-NL', es: 'es-ES' };
+
 const formattedDate = computed(() => {
     const d = new Date(`${props.date}T00:00:00Z`);
-    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    return d.toLocaleDateString(localeMap[locale] ?? 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 });
 // Même règle que le backend (storePresences) : les présences ne peuvent être
 // prises que pour aujourd'hui ou une date passée, jamais pour le futur.
