@@ -25,8 +25,10 @@ import {
 } from '@/components/ui/sidebar';
 import { useSchool } from '@/composables/useSchool';
 import { useSidebarNav } from '@/composables/useSidebarNav';
+import { useTranslation } from '@/composables/useTranslation';
 
 const { isAdmin } = useSchool();
+const { t } = useTranslation();
 
 const page = usePage<{
     currentRole: string | null;
@@ -58,7 +60,7 @@ function switchChild(linkId: number) {
 // activé pour l'école active.
 const navGroups = computed(() => {
     const cantineEnabled = activeSchool.value?.cantine_enabled ?? false;
-    let groups = useSidebarNav(currentRole.value);
+    let groups = useSidebarNav(currentRole.value, t);
 
     if (!cantineEnabled) {
         groups = groups.map((group) => ({
@@ -75,14 +77,14 @@ const navGroups = computed(() => {
         groups = [
             ...groups,
             {
-                section: 'Mes enfants',
+                section: t('nav.section.my_children'),
                 items: [
-                    { label: 'Accueil', icon: Home, route: '/dashboard?as_parent=1', routeName: 'dashboard' },
-                    { label: 'Horaire', icon: Calendar, route: '/schedules?as_parent=1', routeName: 'schedules.index' },
-                    { label: 'Notes', icon: NotebookText, route: '/grades?as_parent=1', routeName: 'grades.index' },
-                    { label: 'Certificats médicaux', icon: Stethoscope, route: '/medical-certificates?as_parent=1', routeName: 'medical-certificates.index' },
+                    { label: t('nav.home'), icon: Home, route: '/dashboard?as_parent=1', routeName: 'dashboard' },
+                    { label: t('nav.schedule'), icon: Calendar, route: '/schedules?as_parent=1', routeName: 'schedules.index' },
+                    { label: t('nav.grades'), icon: NotebookText, route: '/grades?as_parent=1', routeName: 'grades.index' },
+                    { label: t('nav.medical_certificates'), icon: Stethoscope, route: '/medical-certificates?as_parent=1', routeName: 'medical-certificates.index' },
                     ...(cantineEnabled
-                        ? [{ label: 'Cantine', icon: Utensils, route: '/cantine?as_parent=1', routeName: 'cantine.index' }]
+                        ? [{ label: t('nav.cantine'), icon: Utensils, route: '/cantine?as_parent=1', routeName: 'cantine.index' }]
                         : []),
                 ],
             },
@@ -152,7 +154,7 @@ function isCurrentRoute(item: { route: string; routeName?: string }): boolean {
                             <button
                                 class="ml-auto text-muted-foreground hover:text-yellow-400"
                                 :class="{ 'text-yellow-400': school.is_default }"
-                                title="Définir par défaut"
+                                :title="t('action.set_default')"
                                 @click="setDefault(school.id, $event)"
                             >
                                 <Star class="size-3" />
@@ -161,7 +163,7 @@ function isCurrentRoute(item: { route: string; routeName?: string }): boolean {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem as-child>
                             <Link href="/school/create" class="text-xs text-muted-foreground">
-                                + Rejoindre un autre établissement
+                                {{ t('nav.join_other_school') }}
                             </Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
