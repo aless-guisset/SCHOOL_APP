@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import PageHeader from '@/components/PageHeader.vue';
 import { Card, CardContent } from '@/components/ui/card';
+import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 type StudentBalance = { id: number; name: string; balance: number };
@@ -10,17 +11,19 @@ defineProps<{
     students: StudentBalance[];
     can_write: boolean;
 }>();
+
+const { t } = useTranslation();
 </script>
 
 <template>
-    <Head title="Soldes cantine" />
+    <Head :title="t('nav.cantine_wallets')" />
     <AppLayout>
         <div class="p-4 md:p-6 max-w-2xl">
-            <PageHeader title="Soldes cantine" description="Solde prépayé de chaque élève." />
+            <PageHeader :title="t('nav.cantine_wallets')" :description="t('cantine.wallets_desc')" />
 
             <Card>
                 <CardContent class="p-0">
-                    <div v-if="!students.length" class="py-6 text-center text-sm text-muted-foreground">Aucun élève.</div>
+                    <div v-if="!students.length" class="py-6 text-center text-sm text-muted-foreground">{{ t('cantine.no_students') }}</div>
                     <Link
                         v-for="s in students" :key="s.id"
                         :href="`/cantine/wallet/${s.id}`"

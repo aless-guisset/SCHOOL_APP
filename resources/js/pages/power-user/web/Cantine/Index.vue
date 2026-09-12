@@ -11,9 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ViewingChildBanner from '@/components/ViewingChildBanner.vue';
 import { useSchool } from '@/composables/useSchool';
+import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { canManageStructure: canManage } = useSchool();
+const { t } = useTranslation();
 
 type Menu = { id: number; label: string; description: string | null };
 type RosterEntry = {
@@ -76,7 +78,7 @@ function addMenu() {
     });
 }
 function removeMenu(id: number) {
-    if (confirm('Retirer cette option de menu ?')) router.delete(`/cantine/menus/${id}`, { preserveScroll: true });
+    if (confirm(t('cantine.confirm_remove_menu'))) router.delete(`/cantine/menus/${id}`, { preserveScroll: true });
 }
 
 // ── Staff : présences ────────────────────────────────────────────────────────
@@ -109,7 +111,7 @@ function order(menuId: number) {
 }
 function cancelOrder() {
     if (!props.my_order) return;
-    if (confirm('Annuler cette commande ?')) router.delete(`/cantine/orders/${props.my_order.id}`, { preserveScroll: true });
+    if (confirm(t('cantine.confirm_cancel_order'))) router.delete(`/cantine/orders/${props.my_order.id}`, { preserveScroll: true });
 }
 
 // ── Parent : recharger le solde de l'enfant ─────────────────────────────────
@@ -120,33 +122,33 @@ function topUp() {
 </script>
 
 <template>
-    <Head title="Cantine" />
+    <Head :title="t('nav.cantine')" />
     <AppLayout>
         <div class="p-4 md:p-6 max-w-2xl">
             <FlashMessage />
             <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
 
             <Card v-if="balance !== null && balance !== undefined" class="mb-4">
-                <CardHeader><CardTitle class="text-base">Solde cantine</CardTitle></CardHeader>
+                <CardHeader><CardTitle class="text-base">{{ t('cantine.balance_title') }}</CardTitle></CardHeader>
                 <CardContent class="space-y-3">
                     <p class="text-2xl font-semibold">{{ balance.toFixed(2) }} €</p>
-                    <p v-if="meal_price" class="text-xs text-muted-foreground">Prix du repas : {{ meal_price.toFixed(2) }} €</p>
+                    <p v-if="meal_price" class="text-xs text-muted-foreground">{{ t('cantine.meal_price_label') }} : {{ meal_price.toFixed(2) }} €</p>
                     <form v-if="can_top_up" class="flex items-end gap-2" @submit.prevent="topUp">
                         <div class="space-y-1.5">
-                            <Label class="text-xs">Montant à recharger (€)</Label>
+                            <Label class="text-xs">{{ t('cantine.top_up_amount_label') }}</Label>
                             <Input v-model.number="topUpForm.amount" type="number" min="5" max="500" step="0.01" class="h-8 w-32" />
                         </div>
-                        <Button type="submit" size="sm" :disabled="topUpForm.processing || topUpForm.amount < 5">Recharger</Button>
+                        <Button type="submit" size="sm" :disabled="topUpForm.processing || topUpForm.amount < 5">{{ t('action.top_up') }}</Button>
                     </form>
                     <p v-if="topUpForm.errors.amount" class="text-xs text-destructive">{{ topUpForm.errors.amount }}</p>
                 </CardContent>
             </Card>
 
-            <PageHeader title="Cantine" :description="formattedDate">
+            <PageHeader :title="t('nav.cantine')" :description="formattedDate">
                 <template #actions>
                     <div class="flex items-center gap-1">
                         <Button variant="outline" size="icon" @click="shiftDate(-1)"><ChevronLeft class="size-4" /></Button>
-                        <Button variant="outline" size="sm" @click="goToday">Aujourd'hui</Button>
+                        <Button variant="outline" size="sm" @click="goToday">{{ t('action.today') }}</Button>
                         <Button variant="outline" size="icon" @click="shiftDate(1)"><ChevronRight class="size-4" /></Button>
                     </div>
                 </template>
@@ -154,13 +156,13 @@ function topUp() {
 
             <!-- Menu du jour -->
             <Card class="mb-4">
-                <CardHeader><CardTitle class="text-base">Menu du jour</CardTitle></CardHeader>
+                <CardHeader><CardTitle class="text-base">{{ t('cantine.menu_of_day') }}</CardTitle></CardHeader>
                 <CardContent class="space-y-2">
-                    <div v-if="!menus.length" class="text-sm text-muted-foreground">Aucun menu publié pour ce jour.</div>
+                    <div v-if="!menus.length" class="text-sm text-muted-foreground">{{ t('cantine.no_menu') }}</div>
 
                     <!-- Élève : commander -->
                     <template v-if="!canManageView && can_order">
-                        <p v-if="meal_price" class="text-xs text-muted-foreground">Prix du repas : {{ meal_price.toFixed(2) }} €</p>
+                        <p v-if="meal_price" class="text-xs text-muted-foreground">{{ t('cantine.meal_price_label') }} : {{ meal_price.toFixed(2) }} €</p>
                         <button
                             v-for="m in menus" :key="m.id"
                             type="button"
@@ -173,10 +175,10 @@ function topUp() {
                                 <span class="font-medium">{{ m.label }}</span>
                                 <span v-if="m.description" class="block text-xs text-muted-foreground">{{ m.description }}</span>
                             </span>
-                            <Badge v-if="my_order?.cantine_menu_id === m.id" variant="default">Commandé</Badge>
+                            <Badge v-if="my_order?.cantine_menu_id === m.id" variant="default">{{ t('cantine.ordered_badge') }}</Badge>
                         </button>
                         <Button v-if="my_order && !is_past" variant="outline" size="sm" @click="cancelOrder">
-                            <Trash2 class="size-4" />Annuler ma commande
+                            <Trash2 class="size-4" />{{ t('cantine.cancel_order') }}
                         </Button>
                     </template>
 
@@ -193,7 +195,7 @@ function topUp() {
                                 <span class="font-medium">{{ m.label }}</span>
                                 <span v-if="m.description" class="block text-xs text-muted-foreground">{{ m.description }}</span>
                             </span>
-                            <Badge v-if="my_order?.cantine_menu_id === m.id" variant="default">Commandé</Badge>
+                            <Badge v-if="my_order?.cantine_menu_id === m.id" variant="default">{{ t('cantine.ordered_badge') }}</Badge>
                         </div>
                     </template>
 
@@ -210,15 +212,15 @@ function topUp() {
                         </div>
                         <form class="flex flex-wrap items-end gap-2 pt-2" @submit.prevent="addMenu">
                             <div class="space-y-1.5">
-                                <Label class="text-xs">Option</Label>
-                                <Input v-model="menuForm.label" placeholder="ex: Plat A" class="h-8 w-32" />
+                                <Label class="text-xs">{{ t('cantine.menu_option_label') }}</Label>
+                                <Input v-model="menuForm.label" :placeholder="t('cantine.menu_option_placeholder')" class="h-8 w-32" />
                             </div>
                             <div class="space-y-1.5">
-                                <Label class="text-xs">Description</Label>
-                                <Input v-model="menuForm.description" placeholder="ex: Pâtes bolognaise" class="h-8 w-48" />
+                                <Label class="text-xs">{{ t('label.description') }}</Label>
+                                <Input v-model="menuForm.description" :placeholder="t('cantine.menu_description_placeholder')" class="h-8 w-48" />
                             </div>
                             <Button type="submit" size="sm" :disabled="menuForm.processing || !menuForm.label">
-                                <Plus class="size-4" />Ajouter
+                                <Plus class="size-4" />{{ t('action.add') }}
                             </Button>
                         </form>
                         <p v-if="menuForm.errors.label" class="text-xs text-destructive">{{ menuForm.errors.label }}</p>
@@ -227,28 +229,28 @@ function topUp() {
             </Card>
 
             <Card v-if="canManageView" class="mb-4">
-                <CardHeader><CardTitle class="text-base flex items-center gap-2"><Settings class="size-4" />Prix du repas</CardTitle></CardHeader>
+                <CardHeader><CardTitle class="text-base flex items-center gap-2"><Settings class="size-4" />{{ t('cantine.meal_price_label') }}</CardTitle></CardHeader>
                 <CardContent>
                     <form class="flex items-end gap-2" @submit.prevent="updatePrice">
                         <div class="space-y-1.5">
-                            <Label class="text-xs">Prix (€)</Label>
+                            <Label class="text-xs">{{ t('cantine.price_field') }}</Label>
                             <Input v-model.number="priceForm.cantine_meal_price" type="number" min="0" step="0.01" class="h-8 w-32" />
                         </div>
-                        <Button type="submit" size="sm" :disabled="priceForm.processing">Enregistrer</Button>
-                        <a href="/cantine/wallet" class="text-xs text-muted-foreground underline ml-auto">Voir les soldes des élèves →</a>
+                        <Button type="submit" size="sm" :disabled="priceForm.processing">{{ t('action.save') }}</Button>
+                        <a href="/cantine/wallet" class="text-xs text-muted-foreground underline ml-auto">{{ t('cantine.view_balances') }}</a>
                     </form>
                 </CardContent>
             </Card>
 
             <!-- Staff : roster + présences -->
             <Card v-if="canManageView">
-                <CardHeader><CardTitle class="text-base">Élèves ayant commandé</CardTitle></CardHeader>
+                <CardHeader><CardTitle class="text-base">{{ t('cantine.orders_title') }}</CardTitle></CardHeader>
                 <CardContent>
                     <div v-if="!roster || roster.length === 0" class="py-6 text-center text-sm text-muted-foreground">
-                        Aucune commande pour ce jour.
+                        {{ t('cantine.no_orders') }}
                     </div>
                     <div v-else-if="isFutureDate" class="py-6 text-center text-sm text-muted-foreground">
-                        Les présences ne peuvent être prises qu'après le jour concerné.
+                        {{ t('cantine.attendance_future_locked') }}
                     </div>
                     <div v-else class="space-y-3">
                         <div
@@ -263,18 +265,18 @@ function topUp() {
                                 <Input
                                     v-if="!entry.is_present"
                                     v-model="entry.note"
-                                    placeholder="Note (optionnel)"
+                                    :placeholder="t('cantine.note_placeholder')"
                                     class="h-8 w-40 text-xs"
                                 />
                                 <Button
                                     :variant="entry.is_present ? 'outline' : 'destructive'"
                                     size="sm"
                                     @click="entry.is_present = !entry.is_present"
-                                >{{ entry.is_present ? 'Présent' : 'Absent' }}</Button>
+                                >{{ entry.is_present ? t('cantine.present') : t('cantine.absent') }}</Button>
                             </div>
                         </div>
                         <Button class="mt-2" :disabled="presenceForm.processing" @click="savePresences">
-                            Enregistrer les présences
+                            {{ t('cantine.save_attendance') }}
                         </Button>
                     </div>
                 </CardContent>
