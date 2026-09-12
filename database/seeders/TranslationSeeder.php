@@ -281,6 +281,32 @@ class TranslationSeeder extends Seeder
             'cantine.topup_cancelled_title'   => ['fr' => 'Recharge annulée', 'en' => 'Top-up cancelled', 'nl' => 'Opladen geannuleerd', 'es' => 'Recarga cancelada'],
             'cantine.topup_cancelled_desc'    => ['fr' => 'Aucun paiement n\'a été effectué. Vous pouvez réessayer à tout moment.', 'en' => 'No payment was made. You can try again at any time.', 'nl' => 'Er is geen betaling uitgevoerd. U kunt het op elk moment opnieuw proberen.', 'es' => 'No se realizó ningún pago. Puede volver a intentarlo en cualquier momento.'],
             'cantine.back_to_cantine'         => ['fr' => 'Retour à la cantine', 'en' => 'Back to cafeteria', 'nl' => 'Terug naar de kantine', 'es' => 'Volver a la cantina'],
+
+            // ── Certificats médicaux ──────────────────────────────────────
+            'medical_certificate.submit_title'    => ['fr' => 'Soumettre un certificat médical', 'en' => 'Submit a medical certificate', 'nl' => 'Een medisch attest indienen', 'es' => 'Enviar un certificado médico'],
+            'medical_certificate.create_title'    => ['fr' => 'Nouveau certificat médical', 'en' => 'New medical certificate', 'nl' => 'Nieuw medisch attest', 'es' => 'Nuevo certificado médico'],
+            'medical_certificate.field_starts_at' => ['fr' => 'Du', 'en' => 'From', 'nl' => 'Van', 'es' => 'Desde'],
+            'medical_certificate.field_ends_at'   => ['fr' => 'Au', 'en' => 'To', 'nl' => 'Tot', 'es' => 'Hasta'],
+            'medical_certificate.field_reason'    => ['fr' => 'Motif (optionnel)', 'en' => 'Reason (optional)', 'nl' => 'Reden (optioneel)', 'es' => 'Motivo (opcional)'],
+            'medical_certificate.field_attachment' => ['fr' => 'Justificatif', 'en' => 'Supporting document', 'nl' => 'Bewijsstuk', 'es' => 'Justificante'],
+            'medical_certificate.field_attachment_optional' => ['fr' => 'Justificatif (optionnel)', 'en' => 'Supporting document (optional)', 'nl' => 'Bewijsstuk (optioneel)', 'es' => 'Justificante (opcional)'],
+            'medical_certificate.field_student'   => ['fr' => 'Élève', 'en' => 'Student', 'nl' => 'Leerling', 'es' => 'Alumno'],
+            'medical_certificate.choose_student'  => ['fr' => 'Choisir un élève', 'en' => 'Choose a student', 'nl' => 'Kies een leerling', 'es' => 'Elegir un alumno'],
+            'medical_certificate.breadcrumb_submit' => ['fr' => 'Soumettre un certificat', 'en' => 'Submit a certificate', 'nl' => 'Een attest indienen', 'es' => 'Enviar un certificado'],
+            'medical_certificate.breadcrumb_new'  => ['fr' => 'Nouveau certificat', 'en' => 'New certificate', 'nl' => 'Nieuw attest', 'es' => 'Nuevo certificado'],
+            'medical_certificate.status_pending'  => ['fr' => 'En attente', 'en' => 'Pending', 'nl' => 'In behandeling', 'es' => 'Pendiente'],
+            'medical_certificate.status_active'   => ['fr' => 'Actif', 'en' => 'Active', 'nl' => 'Actief', 'es' => 'Activo'],
+            'medical_certificate.status_rejected' => ['fr' => 'Rejeté', 'en' => 'Rejected', 'nl' => 'Afgewezen', 'es' => 'Rechazado'],
+            'medical_certificate.pending_section_title' => ['fr' => 'En attente de validation', 'en' => 'Pending review', 'nl' => 'In afwachting van goedkeuring', 'es' => 'Pendiente de validación'],
+            'medical_certificate.empty'           => ['fr' => 'Aucun certificat.', 'en' => 'No certificates.', 'nl' => 'Geen attesten.', 'es' => 'Sin certificados.'],
+            'medical_certificate.view_attachment' => ['fr' => 'Voir le justificatif', 'en' => 'View supporting document', 'nl' => 'Bewijsstuk bekijken', 'es' => 'Ver justificante'],
+            'action.approve'                      => ['fr' => 'Approuver', 'en' => 'Approve', 'nl' => 'Goedkeuren', 'es' => 'Aprobar'],
+            'action.reject'                        => ['fr' => 'Rejeter', 'en' => 'Reject', 'nl' => 'Afwijzen', 'es' => 'Rechazar'],
+            'medical_certificate.reject_dialog_title' => ['fr' => 'Rejeter le certificat', 'en' => 'Reject the certificate', 'nl' => 'Het attest afwijzen', 'es' => 'Rechazar el certificado'],
+            'medical_certificate.rejection_reason_placeholder' => ['fr' => 'ex : Document illisible', 'en' => 'e.g.: Illegible document', 'nl' => 'bijv.: Onleesbaar document', 'es' => 'ej.: Documento ilegible'],
+            'medical_certificate.confirm_reject'  => ['fr' => 'Confirmer le refus', 'en' => 'Confirm rejection', 'nl' => 'Afwijzing bevestigen', 'es' => 'Confirmar el rechazo'],
+            'medical_certificate.rejection_reason_display' => ['fr' => 'Motif de refus : :reason', 'en' => 'Rejection reason: :reason', 'nl' => 'Reden van afwijzing: :reason', 'es' => 'Motivo de rechazo: :reason'],
+            'medical_certificate.date_range'      => ['fr' => 'Du :start au :end', 'en' => 'From :start to :end', 'nl' => 'Van :start tot :end', 'es' => 'Del :start al :end'],
         ];
 
         foreach ($translations as $key => $locales) {

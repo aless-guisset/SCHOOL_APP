@@ -10,7 +10,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from '@/composables/useTranslation';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { t } = useTranslation();
 
 type Certificate = {
     id: number;
@@ -34,7 +37,14 @@ function attachmentHref(id: number): string {
     return props.viewing_child ? `/medical-certificates/${id}/attachment?as_parent=1` : `/medical-certificates/${id}/attachment`;
 }
 
-const STATUS_LABEL: Record<Certificate['status'], string> = { P: 'En attente', A: 'Actif', R: 'Rejeté' };
+function statusLabel(status: Certificate['status']): string {
+    const key: Record<Certificate['status'], string> = {
+        P: 'medical_certificate.status_pending',
+        A: 'medical_certificate.status_active',
+        R: 'medical_certificate.status_rejected',
+    };
+    return t(key[status]);
+}
 const STATUS_VARIANT: Record<Certificate['status'], 'secondary' | 'default' | 'destructive'> = { P: 'secondary', A: 'default', R: 'destructive' };
 
 const pending = computed(() => props.certificates.filter(c => c.status === 'P'));
@@ -62,43 +72,43 @@ function confirmReject() {
     });
 }
 
-const breadcrumbs = [{ label: 'Certificats médicaux' }];
+const breadcrumbs = computed(() => [{ label: t('nav.medical_certificates') }]);
 </script>
 
 <template>
-    <Head title="Certificats médicaux" />
+    <Head :title="t('nav.medical_certificates')" />
     <AppLayout>
         <div class="p-4 md:p-6">
             <FlashMessage />
             <ViewingChildBanner v-if="viewing_child" :name="viewing_child" />
-            <PageHeader title="Certificats médicaux" :breadcrumbs="breadcrumbs">
+            <PageHeader :title="t('nav.medical_certificates')" :breadcrumbs="breadcrumbs">
                 <template #actions>
                     <Button v-if="props.is_certificate_submitter" size="sm" as-child>
-                        <Link href="/medical-certificates/submit">Soumettre un certificat</Link>
+                        <Link href="/medical-certificates/submit">{{ t('medical_certificate.breadcrumb_submit') }}</Link>
                     </Button>
                     <Button v-else-if="props.is_certificate_staff" size="sm" as-child>
-                        <Link href="/medical-certificates/create">Nouveau certificat</Link>
+                        <Link href="/medical-certificates/create">{{ t('medical_certificate.breadcrumb_new') }}</Link>
                     </Button>
                 </template>
             </PageHeader>
 
             <div v-if="pending.length" class="mb-6">
-                <h2 class="mb-2 text-sm font-semibold">En attente de validation</h2>
+                <h2 class="mb-2 text-sm font-semibold">{{ t('medical_certificate.pending_section_title') }}</h2>
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Card v-for="c in pending" :key="c.id">
                         <CardContent class="space-y-2 pt-6 text-sm">
                             <div class="flex items-center justify-between">
                                 <span class="font-medium">{{ c.student_name }}</span>
-                                <Badge :variant="STATUS_VARIANT[c.status]">{{ STATUS_LABEL[c.status] }}</Badge>
+                                <Badge :variant="STATUS_VARIANT[c.status]">{{ statusLabel(c.status) }}</Badge>
                             </div>
-                            <p class="text-muted-foreground">Du {{ c.starts_at }} au {{ c.ends_at }}</p>
+                            <p class="text-muted-foreground">{{ t('medical_certificate.date_range', { start: c.starts_at, end: c.ends_at }) }}</p>
                             <p v-if="c.reason" class="text-xs text-muted-foreground">{{ c.reason }}</p>
                             <a v-if="c.has_attachment" :href="attachmentHref(c.id)" class="block text-xs text-primary underline">
-                                Voir le justificatif
+                                {{ t('medical_certificate.view_attachment') }}
                             </a>
                             <div v-if="props.is_certificate_staff" class="flex gap-2 pt-1">
-                                <Button size="sm" @click="approve(c.id)">Approuver</Button>
-                                <Button size="sm" variant="destructive" @click="openReject(c.id)">Rejeter</Button>
+                                <Button size="sm" @click="approve(c.id)">{{ t('action.approve') }}</Button>
+                                <Button size="sm" variant="destructive" @click="openReject(c.id)">{{ t('action.reject') }}</Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -106,20 +116,20 @@ const breadcrumbs = [{ label: 'Certificats médicaux' }];
             </div>
 
             <div v-if="others.length === 0 && pending.length === 0" class="py-10 text-center text-sm text-muted-foreground">
-                Aucun certificat.
+                {{ t('medical_certificate.empty') }}
             </div>
             <div v-else-if="others.length" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Card v-for="c in others" :key="c.id">
                     <CardContent class="space-y-2 pt-6 text-sm">
                         <div class="flex items-center justify-between">
                             <span class="font-medium">{{ c.student_name }}</span>
-                            <Badge :variant="STATUS_VARIANT[c.status]">{{ STATUS_LABEL[c.status] }}</Badge>
+                            <Badge :variant="STATUS_VARIANT[c.status]">{{ statusLabel(c.status) }}</Badge>
                         </div>
-                        <p class="text-muted-foreground">Du {{ c.starts_at }} au {{ c.ends_at }}</p>
+                        <p class="text-muted-foreground">{{ t('medical_certificate.date_range', { start: c.starts_at, end: c.ends_at }) }}</p>
                         <p v-if="c.reason" class="text-xs text-muted-foreground">{{ c.reason }}</p>
-                        <p v-if="c.status === 'R' && c.rejection_reason" class="text-xs text-destructive">Motif de refus : {{ c.rejection_reason }}</p>
+                        <p v-if="c.status === 'R' && c.rejection_reason" class="text-xs text-destructive">{{ t('medical_certificate.rejection_reason_display', { reason: c.rejection_reason ?? '' }) }}</p>
                         <a v-if="c.has_attachment" :href="attachmentHref(c.id)" class="text-xs text-primary underline">
-                            Voir le justificatif
+                            {{ t('medical_certificate.view_attachment') }}
                         </a>
                     </CardContent>
                 </Card>
@@ -129,15 +139,15 @@ const breadcrumbs = [{ label: 'Certificats médicaux' }];
         <Dialog v-model:open="rejectDialogOpen">
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Rejeter le certificat</DialogTitle>
+                    <DialogTitle>{{ t('medical_certificate.reject_dialog_title') }}</DialogTitle>
                 </DialogHeader>
                 <div class="space-y-2 py-2">
-                    <Label for="rejection_reason">Motif (optionnel)</Label>
-                    <Input id="rejection_reason" v-model="rejectReason" placeholder="ex : Document illisible" />
+                    <Label for="rejection_reason">{{ t('medical_certificate.field_reason') }}</Label>
+                    <Input id="rejection_reason" v-model="rejectReason" :placeholder="t('medical_certificate.rejection_reason_placeholder')" />
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" @click="rejectDialogOpen = false">Annuler</Button>
-                    <Button variant="destructive" @click="confirmReject">Confirmer le refus</Button>
+                    <Button variant="outline" @click="rejectDialogOpen = false">{{ t('action.cancel') }}</Button>
+                    <Button variant="destructive" @click="confirmReject">{{ t('medical_certificate.confirm_reject') }}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
