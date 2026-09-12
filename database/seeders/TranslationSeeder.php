@@ -217,6 +217,26 @@ class TranslationSeeder extends Seeder
             'school.pending.head_title'   => ['fr' => 'Demande en attente', 'en' => 'Pending request', 'nl' => 'Aanvraag in behandeling', 'es' => 'Solicitud pendiente'],
             'school.pending.badge'        => ['fr' => 'Traitement en cours', 'en' => 'Processing', 'nl' => 'In behandeling', 'es' => 'En proceso'],
             'school.pending.desc'         => ['fr' => 'Votre demande d\'accès a été envoyée au Directeur de l\'établissement. Vous recevrez un email dès qu\'elle sera traitée.', 'en' => 'Your access request has been sent to the institution\'s Director. You will receive an email once it has been processed.', 'nl' => 'Uw toegangsaanvraag is verzonden naar de directeur van de instelling. U ontvangt een e-mail zodra ze is verwerkt.', 'es' => 'Su solicitud de acceso ha sido enviada al director del centro. Recibirá un correo en cuanto sea procesada.'],
+
+            // ── Dashboard (reste) ─────────────────────────────────────────
+            'dashboard.manage_school'        => ['fr' => 'Gérer l\'école', 'en' => 'Manage school', 'nl' => 'School beheren', 'es' => 'Gestionar escuela'],
+            'dashboard.recent_activity_title' => ['fr' => 'Activité récente', 'en' => 'Recent activity', 'nl' => 'Recente activiteit', 'es' => 'Actividad reciente'],
+            'dashboard.current_course.in_progress'    => ['fr' => 'En cours', 'en' => 'In progress', 'nl' => 'Aan de gang', 'es' => 'En curso'],
+            'dashboard.current_course.upcoming'       => ['fr' => 'Prochain cours', 'en' => 'Upcoming class', 'nl' => 'Volgende les', 'es' => 'Próxima clase'],
+            'dashboard.current_course.none_today'     => ['fr' => 'Aucun cours aujourd\'hui', 'en' => 'No class today', 'nl' => 'Geen les vandaag', 'es' => 'Sin clase hoy'],
+            'dashboard.current_course.view_attendance' => ['fr' => 'Voir les présences', 'en' => 'View attendance', 'nl' => 'Aanwezigheden bekijken', 'es' => 'Ver asistencia'],
+            'dashboard.current_course.take_attendance'  => ['fr' => 'Faire l\'appel', 'en' => 'Take attendance', 'nl' => 'Aanwezigheid opnemen', 'es' => 'Tomar asistencia'],
+            'dashboard.week_schedule.week_of'        => ['fr' => 'Semaine du :date', 'en' => 'Week of :date', 'nl' => 'Week van :date', 'es' => 'Semana del :date'],
+            'dashboard.week_schedule.all_subjects'   => ['fr' => 'Toutes mes matières', 'en' => 'All my subjects', 'nl' => 'Al mijn vakken', 'es' => 'Todas mis materias'],
+            'dashboard.week_schedule.empty'          => ['fr' => 'Aucun créneau cette semaine.', 'en' => 'No time slots this week.', 'nl' => 'Geen tijdsloten deze week.', 'es' => 'Sin franjas horarias esta semana.'],
+            'dashboard.recent_activity.empty'         => ['fr' => 'Aucune activité récente.', 'en' => 'No recent activity.', 'nl' => 'Geen recente activiteit.', 'es' => 'Sin actividad reciente.'],
+            'dashboard.recent_activity.event_created' => ['fr' => 'Créé', 'en' => 'Created', 'nl' => 'Aangemaakt', 'es' => 'Creado'],
+            'dashboard.recent_activity.event_updated' => ['fr' => 'Modifié', 'en' => 'Updated', 'nl' => 'Gewijzigd', 'es' => 'Modificado'],
+            'dashboard.recent_activity.event_deleted' => ['fr' => 'Supprimé', 'en' => 'Deleted', 'nl' => 'Verwijderd', 'es' => 'Eliminado'],
+            'dashboard.recent_activity.just_now'      => ['fr' => 'à l\'instant', 'en' => 'just now', 'nl' => 'zojuist', 'es' => 'ahora mismo'],
+            'dashboard.recent_activity.minutes_ago'   => ['fr' => 'il y a :n min', 'en' => ':n min ago', 'nl' => ':n min geleden', 'es' => 'hace :n min'],
+            'dashboard.recent_activity.hours_ago'     => ['fr' => 'il y a :n h', 'en' => ':n h ago', 'nl' => ':n u geleden', 'es' => 'hace :n h'],
+            'dashboard.recent_activity.days_ago'      => ['fr' => 'il y a :n j', 'en' => ':n d ago', 'nl' => ':n d geleden', 'es' => 'hace :n d'],
         ];
 
         foreach ($translations as $key => $locales) {

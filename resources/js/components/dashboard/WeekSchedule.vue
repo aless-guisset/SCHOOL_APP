@@ -2,6 +2,9 @@
 import { computed, ref } from 'vue';
 import WeeklyCalendar from '@/components/WeeklyCalendar.vue';
 import type {CalendarSlot} from '@/components/WeeklyCalendar.vue';
+import { useTranslation } from '@/composables/useTranslation';
+
+const { t, locale } = useTranslation();
 
 export type WeekScheduleSlot = {
     schedule_id: number;
@@ -47,28 +50,30 @@ const calendarSlots = computed<CalendarSlot[]>(() =>
     }))
 );
 
+const localeMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', nl: 'nl-NL', es: 'es-ES' };
+
 const weekStartLabel = computed(() => {
     const date = new Date(`${props.weekSchedule.week_start}T00:00:00`);
 
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return date.toLocaleDateString(localeMap[locale] ?? 'fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 });
 </script>
 
 <template>
     <div>
         <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm font-medium text-muted-foreground">Semaine du {{ weekStartLabel }}</p>
+            <p class="text-sm font-medium text-muted-foreground">{{ t('dashboard.week_schedule.week_of', { date: weekStartLabel }) }}</p>
             <select
                 v-if="showFilter && distinctLabels.length > 1"
                 v-model="selectedLabel"
                 class="rounded-md border border-input bg-background px-2 py-1 text-sm"
             >
-                <option value="">Toutes mes matières</option>
+                <option value="">{{ t('dashboard.week_schedule.all_subjects') }}</option>
                 <option v-for="label in distinctLabels" :key="label" :value="label">{{ label }}</option>
             </select>
         </div>
         <div v-if="calendarSlots.length === 0" class="flex h-32 items-center justify-center rounded-lg border border-dashed border-border">
-            <p class="text-sm text-muted-foreground">Aucun créneau cette semaine.</p>
+            <p class="text-sm text-muted-foreground">{{ t('dashboard.week_schedule.empty') }}</p>
         </div>
         <WeeklyCalendar v-else :slots="calendarSlots" />
     </div>

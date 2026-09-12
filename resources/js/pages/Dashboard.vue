@@ -74,7 +74,7 @@ const statCards = computed(() => {
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head :title="t('dashboard.title')" />
 
     <AppLayout>
         <div class="flex flex-col gap-6 p-4 md:p-6">
@@ -114,7 +114,7 @@ const statCards = computed(() => {
                 >
                     <Link :href="`/schools/${activeSchool.id}/panel`">
                         <Settings2 class="size-4" />
-                        Gérer l'école
+                        {{ t('dashboard.manage_school') }}
                     </Link>
                 </Button>
             </div>
@@ -156,7 +156,7 @@ const statCards = computed(() => {
 
                 <Card v-if="props.recent_activity">
                     <CardHeader>
-                        <CardTitle class="text-base">Activité récente</CardTitle>
+                        <CardTitle class="text-base">{{ t('dashboard.recent_activity_title') }}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <RecentActivity :activity="props.recent_activity ?? []" />
