@@ -31,7 +31,7 @@ const props = defineProps<{
     schedules: Schedule[];
     sections: Array<{ id: number; name: string }>;
     section_id: number | null;
-    school: { id: number; year_end_date: string | null } | null;
+    school_year: { id: number; year_end_date: string | null } | null;
     viewing_child?: string | null;
 }>();
 
@@ -112,7 +112,7 @@ const SLOT_COLORS: Record<number, string> = {
 };
 
 // ── Réglage : fin d'année scolaire ────────────────────────────────────────────
-const yearEndForm = ref(props.school?.year_end_date ?? '');
+const yearEndForm = ref(props.school_year?.year_end_date ?? '');
 const yearEndSaving = ref(false);
 const yearEndMessage = ref('');
 

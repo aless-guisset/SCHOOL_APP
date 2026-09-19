@@ -70,7 +70,7 @@ class SchedulesController extends Controller
             'schedules' => $schedules,
             'sections' => $sectionsQuery->orderBy('name')->get(['id', 'name']),
             'section_id' => $sectionId,
-            'school' => $school ? [
+            'school_year' => $school ? [
                 'id' => $school->id,
                 'year_end_date' => $school->year_end_date?->toDateString(),
             ] : null,

@@ -112,7 +112,7 @@ test('index exposes the schools year_end_date', function () {
         ->withSession(['active_school_id' => $f['school']->id])
         ->get('/schedules')
         ->assertInertia(fn ($page) => $page
-            ->where('school.year_end_date', '2027-06-30')
+            ->where('school_year.year_end_date', '2027-06-30')
         );
 });
 
