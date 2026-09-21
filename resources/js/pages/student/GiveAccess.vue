@@ -69,7 +69,7 @@ function cancelInvitation(invitation: PendingInvitation) {
 
             <PageHeader
                 title="Donner l'accès"
-                description="Permettez à un parent ou tuteur de suivre vos notes, votre horaire et vos présences"
+                description="Partagez ce code avec un ou plusieurs parents/tuteurs pour qu'ils puissent suivre vos notes, votre horaire et vos présences"
             />
 
             <Card>
