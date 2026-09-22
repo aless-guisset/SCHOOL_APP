@@ -2,7 +2,6 @@
 
 use App\Models\Attendance;
 use App\Models\Classroom;
-use Carbon\Carbon;
 use App\Models\Course;
 use App\Models\Role;
 use App\Models\Schedule;
@@ -14,6 +13,7 @@ use App\Models\Subject;
 use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 
 function makeAttendanceSchool(): School
@@ -180,11 +180,9 @@ test('storing attendance creates one row per student and locks the timesheet', f
     $student1 = enrollAttendanceStudent($section, $eleveRole, $school);
     $student2 = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
     expect($timesheet->attendance_submitted_at)->toBeNull();
 
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -209,9 +207,7 @@ test('resubmitting attendance after it was already submitted is rejected and cha
     $student1 = enrollAttendanceStudent($section, $eleveRole, $school);
     $student2 = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -223,7 +219,7 @@ test('resubmitting attendance after it was already submitted is rejected and cha
     $submittedAt = $timesheet->fresh()->attendance_submitted_at;
 
     // Tentative de resoumission — rejetée, rien ne change.
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -245,9 +241,7 @@ test('a retard is stored distinctly from an absence', function () {
     $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
     $student = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -269,9 +263,7 @@ test('absent or retard without an explicit justification defaults to unjustified
     $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
     $student = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -291,9 +283,7 @@ test('present never carries a justification status even if the client sends one'
     $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
     $student = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -314,9 +304,7 @@ test('storing attendance for a student outside the session section is rejected',
     $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
     $outsideStudent = enrollAttendanceStudent($otherSection, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -338,9 +326,7 @@ test("storing attendance for the teacher's own section_user_id is rejected", fun
         ->where('user_school_role_id', $teacherUsr->id)
         ->first();
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -348,6 +334,50 @@ test("storing attendance for the teacher's own section_user_id is rejected", fun
             ],
         ])
         ->assertSessionHasErrors('attendances.0.section_user_id');
+
+    expect(Attendance::count())->toBe(0);
+});
+
+test('a power user cannot submit attendance even though the can-manage gate allows the route', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $teacherUsr = makeAttendanceUsr($school, makeAttendanceRole('PROF', 'Professeur'));
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
+
+    $this->actingAs($powerUser)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'presence_status' => 'P', 'note' => null],
+            ],
+        ])
+        ->assertForbidden();
+
+    expect(Attendance::count())->toBe(0);
+});
+
+test('a teacher who is not assigned to the session cannot submit its attendance', function () {
+    $school = makeAttendanceSchool();
+    $section = makeAttendanceSection($school);
+    $eleveRole = makeAttendanceRole('ELEVE', 'Élève');
+    $profRole = makeAttendanceRole('PROF', 'Professeur');
+    $teacherUsr = makeAttendanceUsr($school, $profRole);
+    $otherTeacherUsr = makeAttendanceUsr($school, $profRole);
+    $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr);
+    $student = enrollAttendanceStudent($section, $eleveRole, $school);
+
+    $this->actingAs($otherTeacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->post("/timesheets/{$timesheet->id}/attendance", [
+            'attendances' => [
+                ['section_user_id' => $student->id, 'presence_status' => 'P', 'note' => null],
+            ],
+        ])
+        ->assertForbidden();
 
     expect(Attendance::count())->toBe(0);
 });
@@ -403,7 +433,7 @@ test('created_by and updated_by are both set to the submitting user on first sub
 
     $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
 
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -412,8 +442,8 @@ test('created_by and updated_by are both set to the submitting user on first sub
         ]);
 
     $attendance = Attendance::where('section_user_id', $student->id)->first();
-    expect($attendance->created_by)->toBe($powerUser->id);
-    expect($attendance->updated_by)->toBe($powerUser->id);
+    expect($attendance->created_by)->toBe($teacherUsr->user->id);
+    expect($attendance->updated_by)->toBe($teacherUsr->user->id);
 });
 
 test('storing attendance for a session that has not happened yet is rejected', function () {
@@ -425,9 +455,7 @@ test('storing attendance for a session that has not happened yet is rejected', f
     $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr, $futureDate);
     $student = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [
@@ -475,9 +503,7 @@ test('storing attendance for a session happening today is accepted', function ()
     $timesheet = makeAttendanceSessionFor($school, $section, $teacherUsr, Carbon::today()->toDateString());
     $student = enrollAttendanceStudent($section, $eleveRole, $school);
 
-    $powerUser = makeAttendanceUsr($school, makeAttendanceRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$timesheet->id}/attendance", [
             'attendances' => [

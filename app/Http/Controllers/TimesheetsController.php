@@ -36,6 +36,7 @@ class TimesheetsController extends Controller
             ? Carbon::parse($request->input('date'))
             : now();
         $sectionId = $request->integer('section_id') ?: null;
+        $role = $request->user()->activeRoleAt($schoolId);
 
         [$rangeStart, $rangeEnd] = match ($period) {
             'week' => [$anchor->copy()->startOfWeek(Carbon::MONDAY), $anchor->copy()->endOfWeek(Carbon::SUNDAY)],
@@ -49,6 +50,24 @@ class TimesheetsController extends Controller
         $timesheets = Timesheet::whereHas(
             'userSchoolRole', fn ($q) => $q->where('school_id', $schoolId)
         )
+            // "Mes cours" : un Professeur ne voit que ses propres séances,
+            // un Élève que celles de sa section — Power User/Secrétariat/
+            // Directeur gardent la vue globale (besoin de planification).
+            ->when($role === 'Professeur', function ($q) use ($request, $schoolId) {
+                $myUserSchoolRoleId = UserSchoolRole::where('user_id', $request->user()->id)
+                    ->where('school_id', $schoolId)
+                    ->value('id');
+                $q->where('user_school_role_id', $myUserSchoolRoleId);
+            })
+            ->when($role === 'Élève', function ($q) use ($request, $schoolId) {
+                $mySectionId = SectionUserSchoolRole::whereHas(
+                    'userschoolrole', fn ($q2) => $q2->where('user_id', $request->user()->id)->where('school_id', $schoolId)
+                )->value('section_id');
+                $q->whereHas(
+                    'schedule.sectionCourse.sectionUser',
+                    fn ($q2) => $q2->where('section_id', $mySectionId)
+                );
+            })
             ->when($sectionId, fn ($q) => $q->whereHas(
                 'schedule.sectionCourse.sectionUser',
                 fn ($q2) => $q2->where('section_id', $sectionId)
@@ -84,7 +103,7 @@ class TimesheetsController extends Controller
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
-            'schedules'  => Schedule::whereHas(
+            'schedules' => Schedule::whereHas(
                 'sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId)
             )
                 ->where('is_active', true)
@@ -100,7 +119,7 @@ class TimesheetsController extends Controller
                 ]),
             'sections' => Section::where('school_id', $schoolId)
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'subjects'   => Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))
+            'subjects' => Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::where('school_id', $schoolId)
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
@@ -122,11 +141,11 @@ class TimesheetsController extends Controller
         // l'utilisateur, pas une erreur à bloquer.
         $data = $request->validate([
             'user_school_role_id' => ['required', 'integer', $this->userSchoolRoleIsProf($schoolId)],
-            'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
-            'subject_id'          => ['required', 'integer', $this->subjectBelongsToSchool($schoolId)],
-            'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
-            'date'                => ['required', 'date'],
-            'hours_done'          => 'required|numeric|min:0',
+            'schedule_id' => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
+            'subject_id' => ['required', 'integer', $this->subjectBelongsToSchool($schoolId)],
+            'classroom_id' => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
+            'date' => ['required', 'date'],
+            'hours_done' => 'required|numeric|min:0',
         ]);
 
         $data['created_by'] = $request->user()->id;
@@ -149,7 +168,7 @@ class TimesheetsController extends Controller
 
         return Inertia::render('power-user/web/Timesheets/Show', [
             'timesheet' => $timesheet,
-            'roster'    => $this->roster($timesheet),
+            'roster' => $this->roster($timesheet),
         ]);
     }
 
@@ -173,12 +192,12 @@ class TimesheetsController extends Controller
 
                 return [
                     'section_user_id' => $su->id,
-                    'name'             => $su->userschoolrole?->user
+                    'name' => $su->userschoolrole?->user
                         ? "{$su->userschoolrole->user->lastname} {$su->userschoolrole->user->firstname}"
                         : '—',
-                    'presence_status'       => $attendance?->presence_status ?? 'P',
-                    'justification_status'  => $attendance?->justification_status,
-                    'note'       => $attendance?->note,
+                    'presence_status' => $attendance?->presence_status ?? 'P',
+                    'justification_status' => $attendance?->justification_status,
+                    'note' => $attendance?->note,
                     'has_active_certificate' => (bool) $this->activeCertificateCovering($su->id, $timesheet->date),
                 ];
             })
@@ -191,7 +210,7 @@ class TimesheetsController extends Controller
         $schoolId = session('active_school_id');
 
         return Inertia::render('power-user/web/Timesheets/Edit', [
-            'timesheet'      => $timesheet->load('userSchoolRole.user', 'schedule', 'subject', 'classroom'),
+            'timesheet' => $timesheet->load('userSchoolRole.user', 'schedule', 'subject', 'classroom'),
             'userSchoolRoles' => UserSchoolRole::with(['user', 'role'])
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
@@ -199,12 +218,12 @@ class TimesheetsController extends Controller
                 ->whereHas('role', fn ($q) => $q->where('reference', 'PROF'))
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'label' => "{$r->user->lastname} {$r->user->firstname} ({$r->role->name})"]),
-            'schedules'  => Schedule::whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId))
+            'schedules' => Schedule::whereHas('sectionCourse.course', fn ($q) => $q->where('school_id', $schoolId))
                 ->where('is_active', true)
                 ->orderBy('day_of_week')
                 ->orderBy('start_time')
                 ->get(['id', 'name', 'day_of_week', 'start_time', 'end_time']),
-            'subjects'   => Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))
+            'subjects' => Subject::whereHas('course', fn ($q) => $q->where('school_id', $schoolId))
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'classrooms' => Classroom::where('school_id', $schoolId)
                 ->where('is_active', true)->orderBy('name')->get(['id', 'name']),
@@ -215,16 +234,16 @@ class TimesheetsController extends Controller
     {
         $schoolId = session('active_school_id');
 
-        $scheduleId       = $request->input('schedule_id', $timesheet->schedule_id);
+        $scheduleId = $request->input('schedule_id', $timesheet->schedule_id);
         $userSchoolRoleId = $request->input('user_school_role_id', $timesheet->user_school_role_id);
-        $classroomId      = $request->input('classroom_id', $timesheet->classroom_id);
+        $classroomId = $request->input('classroom_id', $timesheet->classroom_id);
 
         $data = $request->validate([
             'user_school_role_id' => ['sometimes', 'integer', $this->userSchoolRoleIsProf($schoolId)],
-            'schedule_id'         => ['sometimes', 'integer', $this->scheduleBelongsToSchool($schoolId)],
-            'subject_id'          => ['sometimes', 'integer', $this->subjectBelongsToSchool($schoolId)],
-            'classroom_id'        => ['sometimes', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
-            'date'                => [
+            'schedule_id' => ['sometimes', 'integer', $this->scheduleBelongsToSchool($schoolId)],
+            'subject_id' => ['sometimes', 'integer', $this->subjectBelongsToSchool($schoolId)],
+            'classroom_id' => ['sometimes', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
+            'date' => [
                 'sometimes',
                 'date',
                 new NoTimesheetConflict(
@@ -235,7 +254,7 @@ class TimesheetsController extends Controller
                 ),
             ],
             'hours_done' => 'sometimes|numeric|min:0',
-            'is_active'  => 'sometimes|boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $manualFields = ['schedule_id', 'subject_id', 'classroom_id', 'user_school_role_id'];
@@ -274,10 +293,10 @@ class TimesheetsController extends Controller
         $schoolId = session('active_school_id');
 
         $request->validate([
-            'schedule_id'         => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
-            'date'                => 'required|date',
+            'schedule_id' => ['required', 'integer', $this->scheduleBelongsToSchool($schoolId)],
+            'date' => 'required|date',
             'user_school_role_id' => ['required', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
-            'classroom_id'        => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
+            'classroom_id' => ['required', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
         ]);
 
         $found = (new NoTimesheetConflict(
@@ -287,9 +306,9 @@ class TimesheetsController extends Controller
         ))->find((string) $request->date);
 
         $labels = [
-            'teacher'   => 'Ce professeur est déjà occupé sur ce créneau à cette date.',
+            'teacher' => 'Ce professeur est déjà occupé sur ce créneau à cette date.',
             'classroom' => 'Cette salle est déjà occupée sur ce créneau à cette date.',
-            'section'   => 'Cette section a déjà un cours planifié sur ce créneau à cette date.',
+            'section' => 'Cette section a déjà un cours planifié sur ce créneau à cette date.',
         ];
 
         $conflicts = [];

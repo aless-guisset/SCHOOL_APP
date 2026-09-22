@@ -6,6 +6,7 @@ use App\Concerns\ReconcilesAttendanceCertificates;
 use App\Concerns\ResolvesAttendanceRoster;
 use App\Models\Attendance;
 use App\Models\Timesheet;
+use App\Models\UserSchoolRole;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,17 @@ class AttendancesController extends Controller
     public function store(Request $request, Timesheet $timesheet): RedirectResponse
     {
         abort_unless($timesheet->userSchoolRole?->school_id == session('active_school_id'), 404);
+
+        // Seul le professeur assigné à ce cours peut prendre présence — le
+        // gate can-manage de la route laisse passer Power User/Secrétariat
+        // aussi, mais eux n'ont jamais de user_school_role_id égal à celui
+        // d'un timesheet (toujours un PROF, voir userSchoolRoleIsProf()) :
+        // cette seule vérification les bloque donc en plus des autres profs.
+        // Ils gardent un accès en lecture seule via Timesheets::show().
+        $myUserSchoolRoleId = UserSchoolRole::where('user_id', $request->user()->id)
+            ->where('school_id', session('active_school_id'))
+            ->value('id');
+        abort_unless($timesheet->user_school_role_id === $myUserSchoolRoleId, 403);
 
         // Verrou définitif : une fois les présences soumises pour ce cours,
         // plus personne ne peut les modifier — décision explicite (voir spec),

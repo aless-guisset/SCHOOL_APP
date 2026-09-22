@@ -12,6 +12,7 @@ use App\Models\Subject;
 use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
+use Carbon\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function makeTimesheetSchool(): School
@@ -117,10 +118,10 @@ test('checkConflict rejects a classroom and user_school_role belonging to anothe
     $this->actingAs($powerUserA)
         ->withSession(['active_school_id' => $schoolA->id])
         ->getJson('/timesheets/check-conflict?'.http_build_query([
-            'schedule_id'         => $scheduleA->id,
-            'date'                => '2026-09-07',
+            'schedule_id' => $scheduleA->id,
+            'date' => '2026-09-07',
             'user_school_role_id' => $teacherB->id, // école B
-            'classroom_id'        => $classroomB->id, // école B
+            'classroom_id' => $classroomB->id, // école B
         ]))
         ->assertStatus(422)
         ->assertJsonValidationErrors(['user_school_role_id', 'classroom_id']);
@@ -150,10 +151,10 @@ test('checkConflict rejects a schedule belonging to another school', function ()
     $this->actingAs($powerUserA)
         ->withSession(['active_school_id' => $schoolA->id])
         ->getJson('/timesheets/check-conflict?'.http_build_query([
-            'schedule_id'         => $scheduleB->id, // école B
-            'date'                => '2026-09-07',
+            'schedule_id' => $scheduleB->id, // école B
+            'date' => '2026-09-07',
             'user_school_role_id' => $teacherA->id,
-            'classroom_id'        => $classroomA->id,
+            'classroom_id' => $classroomA->id,
         ]))
         ->assertStatus(422)
         ->assertJsonValidationErrors(['schedule_id']);
@@ -196,11 +197,11 @@ test('store rejects a schedule, user_school_role, or classroom belonging to anot
 
     $basePayload = [
         'user_school_role_id' => $teacherA->id,
-        'schedule_id'         => $scheduleA->id,
-        'subject_id'          => $subjectA->id,
-        'classroom_id'        => $classroomA->id,
-        'date'                => '2026-09-07',
-        'hours_done'          => 2,
+        'schedule_id' => $scheduleA->id,
+        'subject_id' => $subjectA->id,
+        'classroom_id' => $classroomA->id,
+        'date' => '2026-09-07',
+        'hours_done' => 2,
     ];
 
     $this->actingAs($powerUserA)
@@ -233,8 +234,8 @@ test('index defaults to the current week when no period/date is given', function
     $response->assertInertia(fn (Assert $page) => $page
         ->component('power-user/web/Timesheets/Index')
         ->where('period', 'week')
-        ->where('range_start', now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString())
-        ->where('range_end', now()->startOfWeek(\Carbon\Carbon::MONDAY)->endOfWeek(\Carbon\Carbon::SUNDAY)->toDateString())
+        ->where('range_start', now()->startOfWeek(Carbon::MONDAY)->toDateString())
+        ->where('range_end', now()->startOfWeek(Carbon::MONDAY)->endOfWeek(Carbon::SUNDAY)->toDateString())
     );
 });
 
@@ -571,7 +572,7 @@ test('index exposes the schools sections and filters timesheets by section_id', 
     $subjectB = Subject::create(['course_id' => $scheduleB->sectionCourse->course_id, 'name' => 'Algèbre B', 'is_active' => true, 'created_by' => 1]);
 
     // Même date pour les deux, pour vérifier que seule la classe filtrée apparaît.
-    $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString();
+    $date = now()->startOfWeek(Carbon::MONDAY)->toDateString();
 
     Timesheet::create(['user_school_role_id' => $teacher->id, 'schedule_id' => $scheduleA->id, 'subject_id' => $subjectA->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
     Timesheet::create(['user_school_role_id' => $teacher->id, 'schedule_id' => $scheduleB->id, 'subject_id' => $subjectB->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
@@ -590,4 +591,87 @@ test('index exposes the schools sections and filters timesheets by section_id', 
             ->has('timesheets', 1)
             ->where('section_id', $sectionAId)
         );
+});
+
+test('index filters to the professor\'s own courses only, when the current role is Professeur', function () {
+    $school = makeTimesheetSchool();
+    $teacherA = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $teacherB = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+
+    $scheduleA = makeTimesheetScheduleFor($school, $teacherA, 'Classe A');
+    $scheduleB = makeTimesheetScheduleFor($school, $teacherB, 'Classe B');
+
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subjectA = Subject::create(['course_id' => $scheduleA->sectionCourse->course_id, 'name' => 'Algèbre A', 'is_active' => true, 'created_by' => 1]);
+    $subjectB = Subject::create(['course_id' => $scheduleB->sectionCourse->course_id, 'name' => 'Algèbre B', 'is_active' => true, 'created_by' => 1]);
+
+    $date = now()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+    $tsA = Timesheet::create(['user_school_role_id' => $teacherA->id, 'schedule_id' => $scheduleA->id, 'subject_id' => $subjectA->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    Timesheet::create(['user_school_role_id' => $teacherB->id, 'schedule_id' => $scheduleB->id, 'subject_id' => $subjectB->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $this->actingAs($teacherA->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('timesheets', 1)
+            ->where('timesheets.0.id', $tsA->id)
+        );
+});
+
+test('index filters to the student\'s own section only, when the current role is Élève', function () {
+    $school = makeTimesheetSchool();
+    $teacher = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+
+    $scheduleA = makeTimesheetScheduleFor($school, $teacher, 'Classe A');
+    $scheduleB = makeTimesheetScheduleFor($school, $teacher, 'Classe B');
+
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subjectA = Subject::create(['course_id' => $scheduleA->sectionCourse->course_id, 'name' => 'Algèbre A', 'is_active' => true, 'created_by' => 1]);
+    $subjectB = Subject::create(['course_id' => $scheduleB->sectionCourse->course_id, 'name' => 'Algèbre B', 'is_active' => true, 'created_by' => 1]);
+
+    $date = now()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+    $tsA = Timesheet::create(['user_school_role_id' => $teacher->id, 'schedule_id' => $scheduleA->id, 'subject_id' => $subjectA->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    Timesheet::create(['user_school_role_id' => $teacher->id, 'schedule_id' => $scheduleB->id, 'subject_id' => $subjectB->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $studentUsr = makeTimesheetUsr($school, makeTimesheetRole('ELEVE', 'Élève'));
+    $sectionAId = $scheduleA->sectionCourse->sectionUser->section_id;
+    SectionUserSchoolRole::create([
+        'section_id' => $sectionAId, 'user_school_role_id' => $studentUsr->id,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($studentUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('timesheets', 1)
+            ->where('timesheets.0.id', $tsA->id)
+        );
+});
+
+test('index still shows every timesheet to Power User / Secrétariat / Directeur', function () {
+    $school = makeTimesheetSchool();
+    $teacherA = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+    $teacherB = makeTimesheetUsr($school, makeTimesheetRole('PROF', 'Professeur'));
+
+    $scheduleA = makeTimesheetScheduleFor($school, $teacherA, 'Classe A');
+    $scheduleB = makeTimesheetScheduleFor($school, $teacherB, 'Classe B');
+
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle', 'is_active' => true, 'created_by' => 1]);
+    $subjectA = Subject::create(['course_id' => $scheduleA->sectionCourse->course_id, 'name' => 'Algèbre A', 'is_active' => true, 'created_by' => 1]);
+    $subjectB = Subject::create(['course_id' => $scheduleB->sectionCourse->course_id, 'name' => 'Algèbre B', 'is_active' => true, 'created_by' => 1]);
+
+    $date = now()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+    Timesheet::create(['user_school_role_id' => $teacherA->id, 'schedule_id' => $scheduleA->id, 'subject_id' => $subjectA->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    Timesheet::create(['user_school_role_id' => $teacherB->id, 'schedule_id' => $scheduleB->id, 'subject_id' => $subjectB->id, 'classroom_id' => $classroom->id, 'date' => $date, 'hours_done' => 2, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $directeur = makeTimesheetUsr($school, makeTimesheetRole('DIRECTEUR', 'Directeur'))->user;
+
+    $this->actingAs($directeur)
+        ->withSession(['active_school_id' => $school->id])
+        ->get('/timesheets')
+        ->assertInertia(fn (Assert $page) => $page->has('timesheets', 2));
 });

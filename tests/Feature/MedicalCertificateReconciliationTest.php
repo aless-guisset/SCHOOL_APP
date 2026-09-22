@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\ReconcilesAttendanceCertificates;
 use App\Models\Attendance;
 use App\Models\Classroom;
 use App\Models\Course;
@@ -16,7 +17,7 @@ use App\Models\User;
 use App\Models\UserSchoolRole;
 use Carbon\Carbon;
 
-uses(App\Concerns\ReconcilesAttendanceCertificates::class);
+uses(ReconcilesAttendanceCertificates::class);
 
 function makeCertSchool(): School
 {
@@ -179,9 +180,7 @@ test('storing a new absence within an active certificate range is forced to just
     $session = makeCertSession($school, $teacherUsr, Carbon::now()->subDay()->toDateString());
     makeCertificate($school, $session['studentSectionUser'], Carbon::now()->subWeek()->toDateString(), Carbon::now()->addWeek()->toDateString());
 
-    $powerUser = makeCertUsr($school, makeCertRole('POWER', 'Power User'))->user;
-
-    $this->actingAs($powerUser)
+    $this->actingAs($teacherUsr->user)
         ->withSession(['active_school_id' => $school->id])
         ->post("/timesheets/{$session['timesheet']->id}/attendance", [
             'attendances' => [
