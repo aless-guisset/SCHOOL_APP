@@ -242,6 +242,22 @@ test('show is accessible with can_manage_course true for the teaching professor,
         ->assertInertia(fn ($page) => $page->where('can_manage_course', false));
 });
 
+test('show serializes devoir due_date as a plain YYYY-MM-DD string', function () {
+    $school = makeSCSchool();
+    $teacherUsr = makeSCUsr($school, makeSCRole('PROF', 'Professeur'));
+    $sc = makeSCFixture($school, $teacherUsr);
+
+    Devoir::create([
+        'section_course_id' => $sc->id, 'title' => 'Exercices chapitre 3',
+        'due_date' => '2026-10-01', 'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/section-courses/{$sc->id}")
+        ->assertInertia(fn ($page) => $page->where('devoirs.0.due_date', '2026-10-01'));
+});
+
 test('show remains fully accessible to Power User regardless of section', function () {
     $school = makeSCSchool();
     $teacherUsr = makeSCUsr($school, makeSCRole('PROF', 'Professeur'));
