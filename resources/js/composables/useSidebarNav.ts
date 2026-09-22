@@ -149,6 +149,7 @@ function buildNav(t: Translate): NavMap {
                     { label: t('nav.dashboard'), icon: Home, route: '/dashboard', routeName: 'dashboard' },
                     { label: t('nav.my_schedule'), icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
                     { label: t('nav.my_courses'), icon: Clock, route: '/timesheets', routeName: 'timesheets.index' },
+                    { label: t('nav.my_subjects'), icon: BookOpen, route: '/section-courses', routeName: 'section-courses.index' },
                 ],
             },
             {
@@ -172,6 +173,7 @@ function buildNav(t: Translate): NavMap {
                     { label: t('nav.my_schedule'), icon: Calendar, route: '/schedules', routeName: 'schedules.index' },
                     { label: t('nav.timesheets'), icon: Clock, route: '/timesheets', routeName: 'timesheets.index' },
                     { label: t('nav.my_courses'), icon: BookOpen, route: '/courses', routeName: 'courses.index' },
+                    { label: t('nav.my_subjects'), icon: GraduationCap, route: '/section-courses', routeName: 'section-courses.index' },
                     { label: t('nav.my_grades'), icon: NotebookText, route: '/grades', routeName: 'grades.index' },
                     { label: t('nav.medical_certificates'), icon: Stethoscope, route: '/medical-certificates', routeName: 'medical-certificates.index' },
                     // Filtré dans AppSidebar.vue si school.cantine_enabled est faux.
