@@ -267,7 +267,7 @@ function destroyResource(id: number) {
                             </Select>
                         </div>
                         <div v-if="resourceForm.type === 'link'" class="space-y-1.5">
-                            <Label for="resource-url">URL *</Label>
+                            <Label for="resource-url">{{ t('mon_cours.resource_url') }} *</Label>
                             <Input id="resource-url" v-model="resourceForm.url" type="url" placeholder="https://…" :class="{ 'border-destructive': resourceForm.errors.url }" />
                             <p v-if="resourceForm.errors.url" class="text-xs text-destructive">{{ resourceForm.errors.url }}</p>
                         </div>
