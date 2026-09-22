@@ -1,6 +1,7 @@
 <?php
 
 use App\Concerns\ResolvesCourseTeacher;
+use App\Models\Classroom;
 use App\Models\Course;
 use App\Models\CourseResource;
 use App\Models\Devoir;
@@ -10,6 +11,8 @@ use App\Models\School;
 use App\Models\Section;
 use App\Models\SectionCourse;
 use App\Models\SectionUserSchoolRole;
+use App\Models\Subject;
+use App\Models\Timesheet;
 use App\Models\User;
 use App\Models\UserSchoolRole;
 
@@ -269,4 +272,50 @@ test('show remains fully accessible to Power User regardless of section', functi
         ->get("/section-courses/{$sc->id}")
         ->assertOk()
         ->assertInertia(fn ($page) => $page->where('can_manage_course', false));
+});
+
+test('show lists sessionHistory with attendance_submitted status and sets todayTimesheetId only for an unsubmitted timesheet today', function () {
+    $school = makeSCSchool();
+    $teacherUsr = makeSCUsr($school, makeSCRole('PROF', 'Professeur'));
+    $sc = makeSCFixture($school, $teacherUsr);
+    $schedule = $sc->schedules()->first();
+    $classroom = Classroom::create(['school_id' => $school->id, 'name' => 'Salle A', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $subject = Subject::create(['course_id' => $sc->course_id, 'name' => 'Algèbre', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $pastTimesheet = Timesheet::create([
+        'user_school_role_id' => $teacherUsr->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => now()->subDay()->toDateString(), 'hours_done' => 2, 'attendance_submitted_at' => now()->subDay(),
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $todayTimesheet = Timesheet::create([
+        'user_school_role_id' => $teacherUsr->id, 'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id, 'classroom_id' => $classroom->id,
+        'date' => now()->toDateString(), 'hours_done' => 0, 'attendance_submitted_at' => null,
+        'status' => 'A', 'is_active' => true, 'created_by' => 1,
+    ]);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/section-courses/{$sc->id}")
+        ->assertInertia(fn ($page) => $page
+            ->where('todayTimesheetId', $todayTimesheet->id)
+            ->where('sessionHistory.0.id', $todayTimesheet->id)
+            ->where('sessionHistory.0.attendance_submitted', false)
+            ->where('sessionHistory.1.id', $pastTimesheet->id)
+            ->where('sessionHistory.1.attendance_submitted', true)
+        );
+
+    // Bandeau : un Timesheet du jour déjà soumis ne doit PAS positionner
+    // todayTimesheetId (clause whereNull('attendance_submitted_at')).
+    $todayTimesheet->update(['attendance_submitted_at' => now()]);
+
+    $this->actingAs($teacherUsr->user)
+        ->withSession(['active_school_id' => $school->id])
+        ->get("/section-courses/{$sc->id}")
+        ->assertInertia(fn ($page) => $page
+            ->where('todayTimesheetId', null)
+            ->where('sessionHistory.0.attendance_submitted', true)
+        );
 });

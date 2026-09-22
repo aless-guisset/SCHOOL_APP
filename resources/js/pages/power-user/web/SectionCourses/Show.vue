@@ -144,7 +144,7 @@ function destroyResource(id: number) {
                 </template>
             </PageHeader>
 
-            <Card v-if="todayTimesheetId" class="mb-4 border-primary/40 bg-primary/5">
+            <Card v-if="todayTimesheetId && can_manage_course" class="mb-4 border-primary/40 bg-primary/5">
                 <CardContent class="flex items-center justify-between pt-6">
                     <span class="text-sm">{{ t('mon_cours.attendance_pending_today') }}</span>
                     <Button size="sm" as-child>

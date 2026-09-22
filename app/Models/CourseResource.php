@@ -27,6 +27,8 @@ class CourseResource extends Model
         'updated_by',
     ];
 
+    protected $hidden = ['attachment_path'];
+
     protected $casts = [
         'is_active' => 'boolean',
     ];
