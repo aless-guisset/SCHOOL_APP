@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\ResolvesCourseTeacher;
 use App\Models\Course;
 use App\Models\CourseResource;
 use App\Models\Devoir;
@@ -90,4 +91,62 @@ test('CourseResource belongs to a SectionCourse and is scoped to the active scho
     $otherSchool = makeSCSchool();
     session(['active_school_id' => $otherSchool->id]);
     expect((new CourseResource)->resolveRouteBinding($resource->id))->toBeNull();
+});
+
+test('professorTeachesSectionCourse is true via the default assignment (schedules.user_school_role_id)', function () {
+    $school = makeSCSchool();
+    $teacherUsr = makeSCUsr($school, makeSCRole('PROF', 'Professeur'));
+    $sectionCourse = makeSCFixture($school, $teacherUsr);
+
+    $probe = new class
+    {
+        use ResolvesCourseTeacher;
+
+        public function check(SectionCourse $sc, UserSchoolRole $usr): bool
+        {
+            return $this->professorTeachesSectionCourse($sc, $usr);
+        }
+    };
+
+    expect($probe->check($sectionCourse, $teacherUsr))->toBeTrue();
+});
+
+test('professorTeachesSectionCourse is true via the legacy convention (section_user_id pointing directly to the professor)', function () {
+    $school = makeSCSchool();
+    $teacherUsr = makeSCUsr($school, makeSCRole('PROF', 'Professeur'));
+    $section = Section::create(['school_id' => $school->id, 'name' => 'Classe Legacy', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $sectionUser = SectionUserSchoolRole::create(['section_id' => $section->id, 'user_school_role_id' => $teacherUsr->id, 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $course = Course::create(['school_id' => $school->id, 'name' => 'Cours Legacy', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+    $sectionCourse = SectionCourse::create(['section_user_id' => $sectionUser->id, 'course_id' => $course->id, 'total_hours' => 60, 'hours_per_session' => 2, 'name' => 'SC Legacy', 'status' => 'A', 'is_active' => true, 'created_by' => 1]);
+
+    $probe = new class
+    {
+        use ResolvesCourseTeacher;
+
+        public function check(SectionCourse $sc, UserSchoolRole $usr): bool
+        {
+            return $this->professorTeachesSectionCourse($sc, $usr);
+        }
+    };
+
+    expect($probe->check($sectionCourse, $teacherUsr))->toBeTrue();
+});
+
+test('professorTeachesSectionCourse is false for a colleague', function () {
+    $school = makeSCSchool();
+    $teacherUsr = makeSCUsr($school, makeSCRole('PROF', 'Professeur'));
+    $colleagueUsr = makeSCUsr($school, makeSCRole('PROF', 'Professeur'));
+    $sectionCourse = makeSCFixture($school, $teacherUsr);
+
+    $probe = new class
+    {
+        use ResolvesCourseTeacher;
+
+        public function check(SectionCourse $sc, UserSchoolRole $usr): bool
+        {
+            return $this->professorTeachesSectionCourse($sc, $usr);
+        }
+    };
+
+    expect($probe->check($sectionCourse, $colleagueUsr))->toBeFalse();
 });
