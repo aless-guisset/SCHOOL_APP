@@ -6,6 +6,7 @@ use App\Http\Controllers\AttendancesController;
 use App\Http\Controllers\CantineController;
 use App\Http\Controllers\CantineWalletController;
 use App\Http\Controllers\ClassroomsController;
+use App\Http\Controllers\CourseResourcesController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevoirsController;
@@ -230,6 +231,9 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::post('/section-courses/{sectionCourse}/devoirs', [DevoirsController::class, 'store'])->name('devoirs.store');
         Route::put('/devoirs/{devoir}', [DevoirsController::class, 'update'])->name('devoirs.update');
         Route::delete('/devoirs/{devoir}', [DevoirsController::class, 'destroy'])->name('devoirs.destroy');
+
+        Route::post('/section-courses/{sectionCourse}/resources', [CourseResourcesController::class, 'store'])->name('course-resources.store');
+        Route::delete('/course-resources/{courseResource}', [CourseResourcesController::class, 'destroy'])->name('course-resources.destroy');
     });
 
     Route::get('/cantine', [CantineController::class, 'index'])->name('cantine.index');
@@ -244,6 +248,7 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
     Route::get('/grades', [GradesController::class, 'index'])->name('grades.index');
     Route::get('/grades/bulletin/{sectionUser}', [GradesController::class, 'bulletin'])->name('grades.bulletin');
     Route::get('/grades/{grade}/attachment', [GradesController::class, 'downloadAttachment'])->name('grades.attachment');
+    Route::get('/course-resources/{courseResource}/attachment', [CourseResourcesController::class, 'downloadAttachment'])->name('course-resources.attachment');
 
     // ── Certificats médicaux ────────────────────────────────────────────────
     // Pas de middleware can-manage : la restriction Secrétariat/Power User
