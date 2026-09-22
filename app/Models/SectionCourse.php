@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[UseFactory(SectionCourseFactory::class)]
 class SectionCourse extends Model
 {
-    use HasFactory, SoftDeletes, ScopesRouteBindingToActiveSchool;
+    use HasFactory, ScopesRouteBindingToActiveSchool, SoftDeletes;
 
     protected $table = 'sections_courses';
 
@@ -65,6 +65,16 @@ class SectionCourse extends Model
     public function timesheets(): HasManyThrough
     {
         return $this->hasManyThrough(Timesheet::class, Schedule::class, 'section_course_id', 'schedule_id');
+    }
+
+    public function devoirs(): HasMany
+    {
+        return $this->hasMany(Devoir::class);
+    }
+
+    public function courseResources(): HasMany
+    {
+        return $this->hasMany(CourseResource::class);
     }
 
     // ---- Accessors ----
