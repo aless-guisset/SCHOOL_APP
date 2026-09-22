@@ -4,12 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Classroom;
 use App\Models\Schedule;
+use App\Models\School;
 use App\Models\Section;
 use App\Models\SectionCourse;
 use App\Models\SectionUserSchoolRole;
 use App\Models\Subject;
 use App\Models\UserSchoolRole;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,12 +42,14 @@ class SchedulesController extends Controller
             $currentRole = $user->activeRoleAt($schoolId ?? 0);
         }
 
-        $allowedSectionUserIds = $this->resolveAllowedSectionUserIds($usr, $currentRole);
+        $isProfesseur = $currentRole === 'Professeur' && $usr;
+        $allowedSectionUserIds = $isProfesseur ? null : $this->resolveAllowedSectionUserIds($usr, $currentRole);
 
         $schedules = Schedule::whereHas(
             'sectionCourse.course',
             fn ($q) => $q->where('school_id', $schoolId)
         )
+            ->when($isProfesseur, fn ($q) => $this->scopeToProfessor($q, $usr))
             ->when($allowedSectionUserIds !== null, fn ($q) => $q->whereHas(
                 'sectionCourse', fn ($q2) => $q2->whereIn('section_user_id', $allowedSectionUserIds)
             ))
@@ -57,10 +63,12 @@ class SchedulesController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        $school = \App\Models\School::find($schoolId);
+        $school = School::find($schoolId);
 
         $sectionsQuery = Section::where('school_id', $schoolId)->where('is_active', true);
-        if ($allowedSectionUserIds !== null) {
+        if ($isProfesseur) {
+            $sectionsQuery->where(fn ($q) => $this->scopeSectionsToProfessor($q, $usr));
+        } elseif ($allowedSectionUserIds !== null) {
             $allowedSectionIds = SectionUserSchoolRole::whereIn('id', $allowedSectionUserIds)
                 ->pluck('section_id')->unique();
             $sectionsQuery->whereIn('id', $allowedSectionIds);
@@ -108,14 +116,14 @@ class SchedulesController extends Controller
         $schoolId = session('active_school_id');
 
         $data = $request->validate([
-            'section_course_id'   => ['required', 'integer', $this->sectionCourseBelongsToSchool($schoolId)],
-            'name'                => 'required|max:100',
-            'day_of_week'         => 'required|integer|between:1,7',
-            'start_time'          => 'required|date_format:H:i',
-            'end_time'            => 'required|date_format:H:i|after:start_time',
+            'section_course_id' => ['required', 'integer', $this->sectionCourseBelongsToSchool($schoolId)],
+            'name' => 'required|max:100',
+            'day_of_week' => 'required|integer|between:1,7',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
             'user_school_role_id' => ['nullable', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
-            'subject_id'          => ['nullable', 'integer', $this->subjectBelongsToSchool($schoolId)],
-            'classroom_id'        => ['nullable', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
+            'subject_id' => ['nullable', 'integer', $this->subjectBelongsToSchool($schoolId)],
+            'classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
         ]);
 
         $data['created_by'] = $request->user()->id;
@@ -143,13 +151,20 @@ class SchedulesController extends Controller
             $currentRole = $user->activeRoleAt($schoolId ?? 0);
         }
 
-        $allowedSectionUserIds = $this->resolveAllowedSectionUserIds($usr, $currentRole);
+        if ($currentRole === 'Professeur' && $usr) {
+            $ownSectionUserIds = SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
+            $allowed = $schedule->user_school_role_id === $usr->id
+                || $ownSectionUserIds->contains($schedule->sectionCourse?->section_user_id);
+            abort_unless($allowed, 404);
+        } else {
+            $allowedSectionUserIds = $this->resolveAllowedSectionUserIds($usr, $currentRole);
 
-        if ($allowedSectionUserIds !== null) {
-            abort_unless(
-                $allowedSectionUserIds->contains($schedule->sectionCourse?->section_user_id),
-                404
-            );
+            if ($allowedSectionUserIds !== null) {
+                abort_unless(
+                    $allowedSectionUserIds->contains($schedule->sectionCourse?->section_user_id),
+                    404
+                );
+            }
         }
 
         $schedule->load('sectionCourse.course', 'timesheets.userSchoolRole.user');
@@ -185,14 +200,14 @@ class SchedulesController extends Controller
         $schoolId = session('active_school_id');
 
         $data = $request->validate([
-            'name'                => 'sometimes|required|max:100',
-            'day_of_week'         => 'sometimes|integer|between:1,7',
-            'start_time'          => 'sometimes|date_format:H:i',
-            'end_time'            => 'sometimes|date_format:H:i',
-            'is_active'           => 'sometimes|boolean',
+            'name' => 'sometimes|required|max:100',
+            'day_of_week' => 'sometimes|integer|between:1,7',
+            'start_time' => 'sometimes|date_format:H:i',
+            'end_time' => 'sometimes|date_format:H:i',
+            'is_active' => 'sometimes|boolean',
             'user_school_role_id' => ['sometimes', 'nullable', 'integer', Rule::exists('users_schools_roles', 'id')->where('school_id', $schoolId)],
-            'subject_id'          => ['sometimes', 'nullable', 'integer', $this->subjectBelongsToSchool($schoolId)],
-            'classroom_id'        => ['sometimes', 'nullable', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
+            'subject_id' => ['sometimes', 'nullable', 'integer', $this->subjectBelongsToSchool($schoolId)],
+            'classroom_id' => ['sometimes', 'nullable', 'integer', Rule::exists('classrooms', 'id')->where('school_id', $schoolId)],
         ]);
 
         $data['updated_by'] = $request->user()->id;
@@ -213,7 +228,7 @@ class SchedulesController extends Controller
      * Pas de branche `as_parent` ici : ces routes sont gardées par `can-manage`,
      * qu'un Parent ne franchit jamais.
      */
-    private function redirectAfterWrite(Request $request, Schedule $schedule, string $message): \Illuminate\Http\RedirectResponse
+    private function redirectAfterWrite(Request $request, Schedule $schedule, string $message): RedirectResponse
     {
         $schoolId = session('active_school_id');
         $user = $request->user();
@@ -284,12 +299,47 @@ class SchedulesController extends Controller
     private const MANAGE_ROLES = ['Power User', 'Secrétariat', 'Directeur'];
 
     /**
+     * Un schedule est "à ce professeur" soit parce qu'il en est l'affectation
+     * par défaut (schedules.user_school_role_id — le vrai schéma de prod,
+     * section_user_id de la SectionCourse pointant alors un élève-placeholder,
+     * voir DemoSchoolSeeder::makeSectionCourses()), soit parce que $usr est
+     * lui-même le section_user ancré à la SectionCourse (ancien schéma où
+     * section_user_id pointait directement le professeur). Les deux
+     * conventions coexistent dans les données existantes — un schedule créé
+     * sous l'une ou l'autre doit rester accessible à son professeur.
+     */
+    private function scopeToProfessor(Builder $query, UserSchoolRole $usr): Builder
+    {
+        $ownSectionUserIds = SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
+
+        return $query->where(function ($q) use ($usr, $ownSectionUserIds) {
+            $q->where('user_school_role_id', $usr->id)
+                ->orWhereHas('sectionCourse', fn ($q2) => $q2->whereIn('section_user_id', $ownSectionUserIds));
+        });
+    }
+
+    /** Même scoping que scopeToProfessor(), mais sur Section pour le filtre "sections" de index(). */
+    private function scopeSectionsToProfessor(Builder $query, UserSchoolRole $usr): Builder
+    {
+        $ownSectionUserIds = SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
+        $ownSectionIds = SectionUserSchoolRole::whereIn('id', $ownSectionUserIds)->pluck('section_id');
+
+        return $query->whereHas(
+            'sectionUsers.sectionCourses.schedules',
+            fn ($q) => $q->where('user_school_role_id', $usr->id)
+        )->orWhereIn('id', $ownSectionIds);
+    }
+
+    /**
      * Ensemble des section_user_id auxquels $currentRole a droit de regard,
      * ou null si aucune restriction ne s'applique (rôle de gestion : toute
-     * l'école). Même logique que DashboardController::weekSchedule() — à
-     * garder synchronisée si l'une des deux évolue.
+     * l'école). Ne couvre plus Professeur, scopé séparément via
+     * scopeToProfessor()/scopeSectionsToProfessor() (deux conventions de
+     * données à réconcilier, voir leur docblock) — même logique élève que
+     * DashboardController::weekSchedule(), à garder synchronisée si l'une
+     * des deux évolue.
      */
-    private function resolveAllowedSectionUserIds(?UserSchoolRole $usr, ?string $currentRole): ?\Illuminate\Support\Collection
+    private function resolveAllowedSectionUserIds(?UserSchoolRole $usr, ?string $currentRole): ?Collection
     {
         if (in_array($currentRole, self::MANAGE_ROLES, true)) {
             return null;
@@ -297,10 +347,6 @@ class SchedulesController extends Controller
 
         if (! $usr) {
             return collect();
-        }
-
-        if ($currentRole === 'Professeur') {
-            return SectionUserSchoolRole::where('user_school_role_id', $usr->id)->pluck('id');
         }
 
         // Élève (et tout rôle sans portée de gestion connue, y compris l'enfant
