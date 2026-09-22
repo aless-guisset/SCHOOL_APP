@@ -338,7 +338,7 @@ class TranslationSeeder extends Seeder
 
             // ── Page "Mon cours" ─────────────────────────────────────────
             'mon_cours.hours_summary' => ['fr' => 'Heures planifiées / consommées / restantes', 'en' => 'Hours planned / consumed / remaining', 'nl' => 'Geplande / gebruikte / resterende uren', 'es' => 'Horas planificadas / consumidas / restantes'],
-            'mon_cours.slots_count' => ['fr' => 'Créneaux ({count})',                 'en' => 'Slots ({count})', 'nl' => 'Tijdsloten ({count})', 'es' => 'Franjas horarias ({count})'],
+            'mon_cours.slots_count' => ['fr' => 'Créneaux (:count)',                 'en' => 'Slots (:count)', 'nl' => 'Tijdsloten (:count)', 'es' => 'Franjas horarias (:count)'],
             'mon_cours.devoirs' => ['fr' => 'Devoirs',                             'en' => 'Homework', 'nl' => 'Huiswerk', 'es' => 'Deberes'],
             'mon_cours.add_devoir' => ['fr' => 'Ajouter un devoir',                   'en' => 'Add homework', 'nl' => 'Huiswerk toevoegen', 'es' => 'Añadir un deber'],
             'mon_cours.no_devoirs' => ['fr' => 'Aucun devoir pour ce cours.',          'en' => 'No homework for this course.', 'nl' => 'Geen huiswerk voor dit vak.', 'es' => 'No hay deberes para este curso.'],
