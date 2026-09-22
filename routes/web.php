@@ -8,6 +8,7 @@ use App\Http\Controllers\CantineWalletController;
 use App\Http\Controllers\ClassroomsController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DevoirsController;
 use App\Http\Controllers\GradesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\LocaleController;
@@ -224,6 +225,11 @@ Route::middleware(['auth', 'verified', 'school.context'])->group(function () {
         Route::get('/grades/create', [GradesController::class, 'create'])->name('grades.create');
         Route::post('/grades', [GradesController::class, 'store'])->name('grades.store');
         Route::delete('/grades/{grade}', [GradesController::class, 'destroy'])->name('grades.destroy');
+
+        // ── Devoirs (page "Mon cours") ──────────────────────────────────────
+        Route::post('/section-courses/{sectionCourse}/devoirs', [DevoirsController::class, 'store'])->name('devoirs.store');
+        Route::put('/devoirs/{devoir}', [DevoirsController::class, 'update'])->name('devoirs.update');
+        Route::delete('/devoirs/{devoir}', [DevoirsController::class, 'destroy'])->name('devoirs.destroy');
     });
 
     Route::get('/cantine', [CantineController::class, 'index'])->name('cantine.index');
