@@ -359,6 +359,10 @@ class TranslationSeeder extends Seeder
             'mon_cours.attendance_pending' => ['fr' => 'À faire',                              'en' => 'Pending', 'nl' => 'Te doen', 'es' => 'Pendiente'],
             'mon_cours.attendance_pending_today' => ['fr' => 'Les présences du jour n\'ont pas encore été prises.', 'en' => 'Today\'s attendance has not been taken yet.', 'nl' => 'De aanwezigheid van vandaag is nog niet geregistreerd.', 'es' => 'La asistencia de hoy aún no se ha registrado.'],
             'mon_cours.take_attendance' => ['fr' => 'Prendre les présences',                'en' => 'Take attendance', 'nl' => 'Aanwezigheid registreren', 'es' => 'Registrar asistencia'],
+
+            // ── Présences (actions groupées) ────────────────────────────
+            'attendance.mark_all_present' => ['fr' => 'Tous présents', 'en' => 'Mark all present', 'nl' => 'Allen aanwezig', 'es' => 'Marcar todos presentes'],
+            'attendance.neutralize_class' => ['fr' => 'Neutraliser la classe', 'en' => 'Neutralize the class', 'nl' => 'Klas neutraliseren', 'es' => 'Neutralizar la clase'],
         ];
 
         foreach ($translations as $key => $locales) {

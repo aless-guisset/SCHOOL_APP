@@ -65,13 +65,31 @@ const attendanceForm = useForm({
     })),
 });
 
-// En cyclant P → A → R → P, on repart toujours d'Injustifié par défaut pour
-// un nouvel état Absent/Retard — cohérent avec le défaut serveur.
-function cyclePresence(entry: (typeof attendanceForm.attendances)[number]) {
-    const next: Record<PresenceStatus, PresenceStatus> = { P: 'A', A: 'R', R: 'P' };
-    entry.presence_status = next[entry.presence_status];
-    entry.justification_status = entry.presence_status === 'P' ? null : 'I';
-    if (entry.presence_status === 'P') entry.note = '';
+// Repart toujours d'Injustifié par défaut pour un nouvel état Absent/Retard
+// — cohérent avec le défaut serveur.
+function setPresence(entry: (typeof attendanceForm.attendances)[number], status: PresenceStatus) {
+    entry.presence_status = status;
+    entry.justification_status = status === 'P' ? null : 'I';
+    if (status === 'P') entry.note = '';
+}
+
+function markAllPresent() {
+    for (const entry of attendanceForm.attendances) {
+        entry.presence_status = 'P';
+        entry.justification_status = null;
+        entry.note = '';
+    }
+}
+
+// "Neutraliser la classe" : cours perturbé/écourté — personne n'est vraiment
+// absent, mais ça ne compte pas comme une présence normale non plus. Statut
+// Retard existant, justifié automatiquement (voir brainstorm avec l'utilisateur).
+function neutralizeClass() {
+    for (const entry of attendanceForm.attendances) {
+        entry.presence_status = 'R';
+        entry.justification_status = 'J';
+        entry.note = '';
+    }
 }
 
 function saveAttendance() {
@@ -97,6 +115,20 @@ const submittedAtLabel = computed(() => {
 const PRESENCE_VARIANT: Record<PresenceStatus, 'outline' | 'destructive' | 'secondary'> = {
     P: 'outline', A: 'destructive', R: 'secondary',
 };
+
+// Style des 3 boutons de statut quand ils sont ACTIFS (sélectionnés) — la
+// variante 'secondary' du design system n'a pas assez de contraste avec
+// 'outline' (bouton inactif) pour Retard, d'où des classes ambre dédiées
+// plutôt que la variante par défaut. Un bouton inactif reste toujours
+// 'outline' + sans classe supplémentaire, quel que soit son statut.
+const PRESENCE_ACTIVE_VARIANT: Record<PresenceStatus, 'default' | 'destructive' | 'outline'> = {
+    P: 'default', A: 'destructive', R: 'outline',
+};
+const PRESENCE_ACTIVE_CLASS: Partial<Record<PresenceStatus, string>> = {
+    R: 'border-amber-500 bg-amber-100 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200',
+};
+
+const PRESENCE_ORDER: PresenceStatus[] = ['P', 'A', 'R'];
 </script>
 
 <template>
@@ -162,6 +194,10 @@ const PRESENCE_VARIANT: Record<PresenceStatus, 'outline' | 'destructive' | 'seco
                         >
                             Présences déjà soumises le {{ submittedAtLabel }} — elles ne peuvent plus être modifiées.
                         </div>
+                        <div v-if="canEditAttendance" class="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" @click="markAllPresent">{{ t('attendance.mark_all_present') }}</Button>
+                            <Button variant="outline" size="sm" @click="neutralizeClass">{{ t('attendance.neutralize_class') }}</Button>
+                        </div>
                         <div
                             v-for="(entry, i) in attendanceForm.attendances" :key="entry.section_user_id"
                             class="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0"
@@ -187,11 +223,15 @@ const PRESENCE_VARIANT: Record<PresenceStatus, 'outline' | 'destructive' | 'seco
                                             class="h-8 w-40 text-xs"
                                         />
                                     </template>
-                                    <Button
-                                        :variant="PRESENCE_VARIANT[entry.presence_status]"
-                                        size="sm"
-                                        @click="cyclePresence(entry)"
-                                    >{{ PRESENCE_LABELS[entry.presence_status] }}</Button>
+                                    <div class="flex items-center gap-1">
+                                        <Button
+                                            v-for="s in PRESENCE_ORDER" :key="s"
+                                            :variant="entry.presence_status === s ? PRESENCE_ACTIVE_VARIANT[s] : 'outline'"
+                                            :class="entry.presence_status === s ? PRESENCE_ACTIVE_CLASS[s] : ''"
+                                            size="sm"
+                                            @click="setPresence(entry, s)"
+                                        >{{ PRESENCE_LABELS[s] }}</Button>
+                                    </div>
                                 </template>
                                 <template v-else>
                                     <Badge :variant="PRESENCE_VARIANT[entry.presence_status]">
